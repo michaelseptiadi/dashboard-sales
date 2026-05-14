@@ -78,15 +78,6 @@ export default function Auth() {
               {loading ? "Memproses..." : isLogin ? "Masuk" : "Daftar"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="font-medium text-primary hover:underline"
-            >
-              {isLogin ? "Daftar" : "Masuk"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
