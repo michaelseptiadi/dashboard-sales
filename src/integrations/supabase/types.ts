@@ -41,6 +41,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          store_id: string | null
           updated_at: string
         }
         Insert: {
@@ -51,6 +52,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -61,6 +63,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          store_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -74,6 +77,7 @@ export type Database = {
           qty_in: number
           qty_out: number
           reference_id: string | null
+          store_id: string | null
         }
         Insert: {
           created_at?: string
@@ -83,6 +87,7 @@ export type Database = {
           qty_in?: number
           qty_out?: number
           reference_id?: string | null
+          store_id?: string | null
         }
         Update: {
           created_at?: string
@@ -92,6 +97,7 @@ export type Database = {
           qty_in?: number
           qty_out?: number
           reference_id?: string | null
+          store_id?: string | null
         }
         Relationships: [
           {
@@ -132,6 +138,7 @@ export type Database = {
           name: string
           product_code: string
           selling_price: number
+          store_id: string | null
           unit_id: string | null
           updated_at: string
         }
@@ -145,6 +152,7 @@ export type Database = {
           name: string
           product_code: string
           selling_price?: number
+          store_id?: string | null
           unit_id?: string | null
           updated_at?: string
         }
@@ -158,6 +166,7 @@ export type Database = {
           name?: string
           product_code?: string
           selling_price?: number
+          store_id?: string | null
           unit_id?: string | null
           updated_at?: string
         }
@@ -241,6 +250,7 @@ export type Database = {
           sales_channel: string | null
           sales_date: string
           shipping_method: string | null
+          store_id: string | null
           total_amount: number
           total_discount: number
           user_id: string
@@ -259,6 +269,7 @@ export type Database = {
           sales_channel?: string | null
           sales_date?: string
           shipping_method?: string | null
+          store_id?: string | null
           total_amount?: number
           total_discount?: number
           user_id: string
@@ -277,6 +288,7 @@ export type Database = {
           sales_channel?: string | null
           sales_date?: string
           shipping_method?: string | null
+          store_id?: string | null
           total_amount?: number
           total_discount?: number
           user_id?: string
@@ -297,6 +309,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stores: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_active: boolean
+          phone_number: string | null
+          store_name: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_active: boolean
+          phone_number?: string | null
+          store_name: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          phone_number?: string | null
+          store_name?: string
+        }
+        Relationships: []
       }
       units: {
         Row: {
@@ -334,6 +373,7 @@ export type Database = {
           p_sales_channel?: string
           p_sales_date: string
           p_shipping_method?: string
+          p_store_id?: string
         }
         Returns: string
       }

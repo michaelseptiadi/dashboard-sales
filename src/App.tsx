@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { StoreSelectModal } from "@/components/StoreSelectModal";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
@@ -51,15 +52,18 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 }
 
 const AppRoutes = () => (
-  <Routes>
-    <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
-    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-    <Route path="/penjualan" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-    <Route path="/riwayat" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
-    <Route path="/produk" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-    <Route path="/pelanggan" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
+  <>
+    <StoreSelectModal />
+    <Routes>
+      <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
+      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/penjualan" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+      <Route path="/riwayat" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
+      <Route path="/produk" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      <Route path="/pelanggan" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </>
 );
 
 const App = () => (

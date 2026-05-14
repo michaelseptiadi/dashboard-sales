@@ -99,6 +99,18 @@ export default function Sales() {
   const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0);
 
   const handleSubmit = async () => {
+    if (!paymentMethodId) {
+      toast({ title: "Metode bayar harus dipilih", variant: "destructive" });
+      return;
+    }
+    if (customerMode === "existing" && !customerId) {
+      toast({ title: "Pelanggan harus dipilih", variant: "destructive" });
+      return;
+    }
+    if (customerMode === "manual" && !customerName.trim()) {
+      toast({ title: "Nama pelanggan harus diisi", variant: "destructive" });
+      return;
+    }
     if (items.length === 0) {
       toast({ title: "Tambahkan minimal 1 produk", variant: "destructive" });
       return;
@@ -182,9 +194,9 @@ export default function Sales() {
                 <Input type="date" value={salesDate} onChange={(e) => setSalesDate(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Metode Bayar</Label>
+                <Label>Metode Bayar <span className="text-destructive">*</span></Label>
                 <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                  <SelectTrigger><SelectValue placeholder="Pilih metode" /></SelectTrigger>
+                  <SelectTrigger className={!paymentMethodId ? "border-destructive" : ""}><SelectValue placeholder="Pilih metode" /></SelectTrigger>
                   <SelectContent>
                     {paymentMethods?.map((pm) => (
                       <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>
@@ -204,7 +216,7 @@ export default function Sales() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Pelanggan</CardTitle>
+              <CardTitle className="text-base">Pelanggan <span className="text-destructive">*</span></CardTitle>
               <div className="flex gap-2">
                 <Button
                   variant={customerMode === "existing" ? "default" : "outline"}
@@ -226,7 +238,7 @@ export default function Sales() {
           <CardContent>
             {customerMode === "existing" ? (
               <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger><SelectValue placeholder="Pilih pelanggan" /></SelectTrigger>
+                <SelectTrigger className={!customerId ? "border-destructive" : ""}><SelectValue placeholder="Pilih pelanggan" /></SelectTrigger>
                 <SelectContent>
                   {customers?.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
@@ -238,8 +250,8 @@ export default function Sales() {
             ) : (
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label>Nama</Label>
-                  <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nama pelanggan" />
+                  <Label>Nama <span className="text-destructive">*</span></Label>
+                  <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nama pelanggan" className={customerMode === "manual" && !customerName.trim() ? "border-destructive" : ""} />
                 </div>
                 <div className="space-y-2">
                   <Label>Telepon</Label>
@@ -258,7 +270,7 @@ export default function Sales() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Daftar Produk</CardTitle>
+              <CardTitle className="text-base">Daftar Produk <span className="text-destructive">*</span></CardTitle>
               <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button size="sm">
@@ -304,10 +316,10 @@ export default function Sales() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Produk</TableHead>
-                  <TableHead className="w-24">Harga</TableHead>
-                  <TableHead className="w-20">Qty</TableHead>
-                  <TableHead className="w-24">Diskon</TableHead>
-                  <TableHead className="w-28 text-right">Subtotal</TableHead>
+                  <TableHead className="w-40">Harga</TableHead>
+                  <TableHead className="w-28">Qty</TableHead>
+                  <TableHead className="w-40">Diskon</TableHead>
+                  <TableHead className="w-36 text-right">Subtotal</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -330,7 +342,7 @@ export default function Sales() {
                           type="number"
                           value={item.price}
                           onChange={(e) => updateItem(index, "price", Number(e.target.value))}
-                          className="h-8"
+                          className="h-10 text-base"
                           min={0}
                         />
                       </TableCell>
@@ -339,7 +351,7 @@ export default function Sales() {
                           type="number"
                           value={item.qty}
                           onChange={(e) => updateItem(index, "qty", Number(e.target.value))}
-                          className="h-8"
+                          className="h-10 text-base"
                           min={1}
                         />
                       </TableCell>
@@ -348,7 +360,7 @@ export default function Sales() {
                           type="number"
                           value={item.discount}
                           onChange={(e) => updateItem(index, "discount", Number(e.target.value))}
-                          className="h-8"
+                          className="h-10 text-base"
                           min={0}
                         />
                       </TableCell>

@@ -1,15 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export function useSalesOrders(dateFrom?: string, dateTo?: string, search?: string) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
   return useQuery({
-    queryKey: ["sales-orders", dateFrom, dateTo, search],
+    queryKey: ["sales-orders", storeId, dateFrom, dateTo, search],
     queryFn: async () => {
       let query = supabase
         .from("sales_orders")
         .select("*, payment_methods(name)")
         .order("created_at", { ascending: false });
 
+      if (storeId) {
+        query = query.eq("store_id", storeId);
+      }
       if (dateFrom) {
         query = query.gte("sales_date", dateFrom);
       }
@@ -62,6 +68,7 @@ export function usePaymentMethods() {
 }
 
 export function useCreateSalesTransaction() {
+  const { selectedStore } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: {
@@ -84,6 +91,7 @@ export function useCreateSalesTransaction() {
     }) => {
       const { data, error } = await supabase.rpc("create_sales_transaction", {
         ...params,
+        p_store_id: selectedStore?.id,
         p_items: JSON.parse(JSON.stringify(params.p_items)),
       });
       if (error) throw error;
@@ -98,16 +106,20 @@ export function useCreateSalesTransaction() {
 }
 
 export function useDashboardStats() {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
   return useQuery({
-    queryKey: ["dashboard"],
+    queryKey: ["dashboard", storeId],
     queryFn: async () => {
       const today = new Date().toISOString().split("T")[0];
 
       // Today's sales
-      const { data: todaySales, error: e1 } = await supabase
+      let todaySalesQuery = supabase
         .from("sales_orders")
         .select("grand_total")
         .eq("sales_date", today);
+      if (storeId) todaySalesQuery = todaySalesQuery.eq("store_id", storeId);
+      const { data: todaySales, error: e1 } = await todaySalesQuery;
       if (e1) throw e1;
 
       const totalSalesToday = todaySales?.reduce((sum, s) => sum + (s.grand_total || 0), 0) || 0;
@@ -116,9 +128,14 @@ export function useDashboardStats() {
       // Top products (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { data: salesItems, error: e2 } = await supabase
+      let salesItemsQuery = supabase
         .from("sales_items")
-        .select("product_id, qty, products(name, product_code)");
+        .select("product_id, qty, products(name, product_code), sales_orders!inner(store_id, sales_date)");
+      if (storeId) {
+        salesItemsQuery = salesItemsQuery.eq("sales_orders.store_id", storeId);
+      }
+      salesItemsQuery = salesItemsQuery.gte("sales_orders.sales_date", thirtyDaysAgo.toISOString().split("T")[0]);
+      const { data: salesItems, error: e2 } = await salesItemsQuery;
       if (e2) throw e2;
 
       const productSalesMap: Record<string, { name: string; code: string; totalQty: number }> = {};
@@ -140,15 +157,19 @@ export function useDashboardStats() {
         .slice(0, 10);
 
       // Low stock products
-      const { data: products, error: e3 } = await supabase
+      let productsQuery = supabase
         .from("products")
         .select("id, name, product_code, minimum_stock, is_active")
         .eq("is_active", true);
+      if (storeId) productsQuery = productsQuery.eq("store_id", storeId);
+      const { data: products, error: e3 } = await productsQuery;
       if (e3) throw e3;
 
-      const { data: movements, error: e4 } = await supabase
+      let movementsQuery = supabase
         .from("inventory_movements")
         .select("product_id, qty_in, qty_out");
+      if (storeId) movementsQuery = movementsQuery.eq("store_id", storeId);
+      const { data: movements, error: e4 } = await movementsQuery;
       if (e4) throw e4;
 
       const stockMap: Record<string, number> = {};
@@ -169,11 +190,13 @@ export function useDashboardStats() {
       // Sales chart data (last 7 days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const { data: chartOrders, error: e5 } = await supabase
+      let chartQuery = supabase
         .from("sales_orders")
         .select("sales_date, grand_total")
         .gte("sales_date", sevenDaysAgo.toISOString().split("T")[0])
         .order("sales_date");
+      if (storeId) chartQuery = chartQuery.eq("store_id", storeId);
+      const { data: chartOrders, error: e5 } = await chartQuery;
       if (e5) throw e5;
 
       const chartDataMap: Record<string, number> = {};

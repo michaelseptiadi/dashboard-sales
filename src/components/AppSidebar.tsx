@@ -6,6 +6,7 @@ import {
   Users,
   LogOut,
   Building2,
+  ChevronsUpDown,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,7 +33,7 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { signOut, user } = useAuth();
+  const { signOut, user, selectedStore, setStoreModalOpen } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
@@ -46,7 +47,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-sidebar-foreground">
-                Toko Bangunan
+                {selectedStore?.store_name ?? "Toko Bangunan"}
               </span>
               <span className="text-xs text-sidebar-foreground/60">
                 Dashboard Penjualan
@@ -54,6 +55,24 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+        <SidebarMenuButton
+          tooltip={selectedStore?.store_name ?? "Pilih Toko"}
+          onClick={() => setStoreModalOpen(true)}
+          className="mt-2 w-full justify-between text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <Building2 className="h-4 w-4 shrink-0" />
+          {!collapsed && (
+            <>
+              <div className="ml-2 flex flex-1 flex-col items-start overflow-hidden">
+                <span className="truncate text-xs font-medium leading-tight">
+                  {selectedStore?.store_name ?? "Pilih Toko"}
+                </span>
+                <span className="text-[10px] text-sidebar-foreground/50 leading-tight">Ganti Toko</span>
+              </div>
+              <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+            </>
+          )}
+        </SidebarMenuButton>
       </SidebarHeader>
 
       <SidebarContent>

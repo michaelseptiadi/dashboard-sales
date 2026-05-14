@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { useAuth } from "@/hooks/useAuth";
 
 export type Product = Tables<"products"> & {
   categories?: { name: string } | null;
@@ -9,14 +10,19 @@ export type Product = Tables<"products"> & {
 };
 
 export function useProducts(search?: string, categoryId?: string) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
   return useQuery({
-    queryKey: ["products", search, categoryId],
+    queryKey: ["products", storeId, search, categoryId],
     queryFn: async () => {
       let query = supabase
         .from("products")
         .select("*, categories(name), units(name)")
         .order("name");
 
+      if (storeId) {
+        query = query.eq("store_id", storeId);
+      }
       if (search) {
         query = query.or(`name.ilike.%${search}%,product_code.ilike.%${search}%`);
       }
@@ -28,9 +34,13 @@ export function useProducts(search?: string, categoryId?: string) {
       if (error) throw error;
 
       // Fetch stock for all products
-      const { data: stockData, error: stockError } = await supabase
+      let stockQuery = supabase
         .from("inventory_movements")
         .select("product_id, qty_in, qty_out");
+      if (storeId) {
+        stockQuery = stockQuery.eq("store_id", storeId);
+      }
+      const { data: stockData, error: stockError } = await stockQuery;
       if (stockError) throw stockError;
 
       const stockMap: Record<string, number> = {};
@@ -48,8 +58,10 @@ export function useProducts(search?: string, categoryId?: string) {
 }
 
 export function useActiveProducts(search?: string) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
   return useQuery({
-    queryKey: ["active-products", search],
+    queryKey: ["active-products", storeId, search],
     queryFn: async () => {
       let query = supabase
         .from("products")
@@ -57,6 +69,9 @@ export function useActiveProducts(search?: string) {
         .eq("is_active", true)
         .order("name");
 
+      if (storeId) {
+        query = query.eq("store_id", storeId);
+      }
       if (search) {
         query = query.or(`name.ilike.%${search}%,product_code.ilike.%${search}%`);
       }

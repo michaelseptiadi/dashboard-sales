@@ -1,13 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { useAuth } from "@/hooks/useAuth";
 
 export function useCustomers(search?: string) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
   return useQuery({
-    queryKey: ["customers", search],
+    queryKey: ["customers", storeId, search],
     queryFn: async () => {
       let query = supabase.from("customers").select("*").order("name");
 
+      if (storeId) {
+        query = query.eq("store_id", storeId);
+      }
       if (search) {
         query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
       }
