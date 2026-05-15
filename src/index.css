@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,26 +8,26 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 25% 12%;
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 12%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 50%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 215 25% 22%;
+    --secondary: 215 28% 93%;
+    --secondary-foreground: 222 47% 20%;
 
-    --muted: 214 32% 95%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 215 28% 95%;
+    --muted-foreground: 215 16% 50%;
 
-    --accent: 214 32% 91%;
-    --accent-foreground: 215 25% 22%;
+    --accent: 215 28% 93%;
+    --accent-foreground: 222 47% 20%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -36,43 +38,47 @@
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 50%;
+    --border: 215 28% 90%;
+    --input: 215 28% 90%;
+    --ring: 221 83% 53%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 215 25% 15%;
-    --sidebar-foreground: 214 32% 91%;
-    --sidebar-primary: 217 91% 60%;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 215 28% 88%;
+    --sidebar-primary: 221 83% 63%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 25% 22%;
-    --sidebar-accent-foreground: 214 32% 95%;
-    --sidebar-border: 215 20% 25%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 222 40% 18%;
+    --sidebar-accent-foreground: 215 28% 95%;
+    --sidebar-border: 222 40% 17%;
+    --sidebar-ring: 221 83% 63%;
   }
 
   .dark {
-    --background: 215 25% 8%;
-    --foreground: 214 32% 95%;
+    --background: 222 47% 7%;
+    --foreground: 215 28% 95%;
 
-    --card: 215 25% 12%;
-    --card-foreground: 214 32% 95%;
+    --card: 222 47% 10%;
+    --card-foreground: 215 28% 95%;
 
-    --popover: 215 25% 12%;
-    --popover-foreground: 214 32% 95%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 215 28% 95%;
 
-    --primary: 217 91% 60%;
+    --primary: 221 83% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 25% 18%;
-    --secondary-foreground: 214 32% 91%;
+    --secondary: 222 40% 16%;
+    --secondary-foreground: 215 28% 91%;
 
-    --muted: 215 25% 18%;
+    --muted: 222 40% 16%;
     --muted-foreground: 215 16% 60%;
 
-    --accent: 215 25% 18%;
-    --accent-foreground: 214 32% 95%;
+    --accent: 222 40% 16%;
+    --accent-foreground: 215 28% 95%;
 
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 100%;
@@ -83,18 +89,18 @@
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --border: 215 25% 18%;
-    --input: 215 25% 18%;
-    --ring: 217 91% 60%;
+    --border: 222 40% 16%;
+    --input: 222 40% 16%;
+    --ring: 221 83% 60%;
 
-    --sidebar-background: 215 25% 8%;
-    --sidebar-foreground: 214 32% 91%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 222 47% 7%;
+    --sidebar-foreground: 215 28% 88%;
+    --sidebar-primary: 221 83% 63%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 25% 15%;
-    --sidebar-accent-foreground: 214 32% 95%;
-    --sidebar-border: 215 25% 15%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 222 40% 13%;
+    --sidebar-accent-foreground: 215 28% 95%;
+    --sidebar-border: 222 40% 13%;
+    --sidebar-ring: 221 83% 63%;
   }
 }
 
@@ -104,7 +110,11 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
   }
 }

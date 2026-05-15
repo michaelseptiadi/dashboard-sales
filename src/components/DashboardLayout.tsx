@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { Separator } from "@/components/ui/separator";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -9,14 +10,15 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <main className="flex-1 overflow-auto">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <SidebarTrigger />
-            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-white/80 px-6 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 shadow-sm">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            <Separator orientation="vertical" className="h-5" />
+            <h1 className="text-sm font-semibold text-foreground tracking-tight">{title}</h1>
           </header>
-          <div className="p-6">{children}</div>
+          <div className="p-6 max-w-[1600px]">{children}</div>
         </main>
       </div>
     </SidebarProvider>

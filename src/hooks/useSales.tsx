@@ -2,29 +2,36 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export function useSalesOrders(dateFrom?: string, dateTo?: string, search?: string) {
+interface SalesOrderFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  customerName?: string;
+  paymentMethodId?: string;
+  deliveryType?: string;
+  driverId?: string;
+}
+
+export function useSalesOrders(filters: SalesOrderFilters = {}) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
+  const { dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId } = filters;
   return useQuery({
-    queryKey: ["sales-orders", storeId, dateFrom, dateTo, search],
+    queryKey: ["sales-orders", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId],
     queryFn: async () => {
       let query = supabase
         .from("sales_orders")
         .select("*, payment_methods(name)")
         .order("created_at", { ascending: false });
 
-      if (storeId) {
-        query = query.eq("store_id", storeId);
-      }
-      if (dateFrom) {
-        query = query.gte("sales_date", dateFrom);
-      }
-      if (dateTo) {
-        query = query.lte("sales_date", dateTo);
-      }
-      if (search) {
-        query = query.ilike("invoice_number", `%${search}%`);
-      }
+      if (storeId) query = query.eq("store_id", storeId);
+      if (dateFrom) query = query.gte("sales_date", dateFrom);
+      if (dateTo) query = query.lte("sales_date", dateTo);
+      if (search) query = query.ilike("invoice_number", `%${search}%`);
+      if (customerName) query = query.ilike("customer_name", `%${customerName}%`);
+      if (paymentMethodId) query = query.eq("payment_method_id", paymentMethodId);
+      if (deliveryType) query = query.eq("delivery_types", deliveryType);
+      if (driverId) query = query.eq("driver_id", driverId);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -79,8 +86,8 @@ export function useCreateSalesTransaction() {
       p_customer_phone?: string;
       p_customer_address?: string;
       p_payment_method_id?: string;
-      p_shipping_method?: string;
-      p_sales_channel?: string;
+      p_delivery_types?: "driver" | "self_delivery";
+      p_driver_id?: string;
       p_notes?: string;
       p_items: Array<{
         product_id: string;

@@ -68,6 +68,30 @@ export type Database = {
         }
         Relationships: []
       }
+      drivers: {
+        Row: {
+          id: string
+          driver_name: string
+          phone_number: string | null
+          address: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          driver_name: string
+          phone_number?: string | null
+          address?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          driver_name?: string
+          phone_number?: string | null
+          address?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       inventory_movements: {
         Row: {
           created_at: string
@@ -242,6 +266,8 @@ export type Database = {
           customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
+          delivery_types: string | null
+          driver_id: string | null
           grand_total: number
           id: string
           invoice_number: string
@@ -261,6 +287,8 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_types?: string | null
+          driver_id?: string | null
           grand_total?: number
           id?: string
           invoice_number: string
@@ -280,6 +308,8 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_types?: string | null
+          driver_id?: string | null
           grand_total?: number
           id?: string
           invoice_number?: string
@@ -306,6 +336,13 @@ export type Database = {
             columns: ["payment_method_id"]
             isOneToOne: false
             referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
             referencedColumns: ["id"]
           },
         ]

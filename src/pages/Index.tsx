@@ -23,59 +23,75 @@ export default function Dashboard() {
     <DashboardLayout title="Dashboard">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Penjualan Hari Ini</CardTitle>
-            <DollarSign className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-32" /> : (
-              <div className="text-2xl font-bold">{formatCurrency(data?.totalSalesToday || 0)}</div>
-            )}
+        <Card className="shadow-sm border-0 ring-1 ring-border/60">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Penjualan Hari Ini</p>
+                {isLoading ? <Skeleton className="h-8 w-32" /> : (
+                  <p className="text-2xl font-bold tracking-tight">{formatCurrency(data?.totalSalesToday || 0)}</p>
+                )}
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Transaksi Hari Ini</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : (
-              <div className="text-2xl font-bold">{data?.totalTransactionsToday || 0}</div>
-            )}
+        <Card className="shadow-sm border-0 ring-1 ring-border/60">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Transaksi Hari Ini</p>
+                {isLoading ? <Skeleton className="h-8 w-16" /> : (
+                  <p className="text-2xl font-bold tracking-tight">{data?.totalTransactionsToday || 0}</p>
+                )}
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50">
+                <ShoppingCart className="h-5 w-5 text-violet-600" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Produk Terlaris</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <div className="text-2xl font-bold">{data?.topProducts?.length || 0} Produk</div>
-            )}
+        <Card className="shadow-sm border-0 ring-1 ring-border/60">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Produk Terlaris</p>
+                {isLoading ? <Skeleton className="h-8 w-24" /> : (
+                  <p className="text-2xl font-bold tracking-tight">{data?.topProducts?.length || 0} <span className="text-base font-medium text-muted-foreground">produk</span></p>
+                )}
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Stok Rendah</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : (
-              <div className="text-2xl font-bold text-destructive">{data?.lowStockProducts?.length || 0}</div>
-            )}
+        <Card className="shadow-sm border-0 ring-1 ring-border/60">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Stok Rendah</p>
+                {isLoading ? <Skeleton className="h-8 w-16" /> : (
+                  <p className="text-2xl font-bold tracking-tight text-destructive">{data?.lowStockProducts?.length || 0} <span className="text-base font-medium text-muted-foreground">produk</span></p>
+                )}
+              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Chart */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-base">Grafik Penjualan 7 Hari Terakhir</CardTitle>
+      <Card className="mb-6 shadow-sm border-0 ring-1 ring-border/60">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Grafik Penjualan 7 Hari Terakhir</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -90,7 +106,7 @@ export default function Dashboard() {
                   formatter={(value: number) => [formatCurrency(value), "Total"]}
                   labelFormatter={(label) => formatDate(label)}
                 />
-                <Bar dataKey="total" fill="hsl(217, 91%, 50%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" fill="hsl(221, 83%, 53%)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -100,9 +116,9 @@ export default function Dashboard() {
       {/* Tables */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top Products */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Produk Terlaris</CardTitle>
+        <Card className="shadow-sm border-0 ring-1 ring-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Produk Terlaris</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -140,9 +156,9 @@ export default function Dashboard() {
         </Card>
 
         {/* Low Stock */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Produk Stok Rendah</CardTitle>
+        <Card className="shadow-sm border-0 ring-1 ring-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Produk Stok Rendah</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (

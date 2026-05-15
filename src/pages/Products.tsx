@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits } from "@/hooks/useProducts";
-import { Plus, Search, Pencil } from "lucide-react";
+import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock } from "@/hooks/useProducts";
+import { Plus, Search, Pencil, PackagePlus } from "lucide-react";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value);
@@ -45,12 +45,18 @@ export default function Products() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
+  const [stockDialogOpen, setStockDialogOpen] = useState(false);
+  const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number } | null>(null);
+  const [adjustQty, setAdjustQty] = useState<number>(0);
+  const [adjustType, setAdjustType] = useState<"in" | "out">("in");
 
   const { data: products, isLoading } = useProducts(search, categoryFilter || undefined);
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const adjustStock = useAdjustStock();
+  useRealtimeStock();
 
   const openCreate = () => {
     setEditId(null);
@@ -97,6 +103,27 @@ export default function Products() {
       setDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Gagal menyimpan produk", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const openStockDialog = (product: any) => {
+    setStockProduct({ id: product.id, name: product.name, current_stock: product.current_stock ?? 0 });
+    setAdjustQty(0);
+    setAdjustType("in");
+    setStockDialogOpen(true);
+  };
+
+  const handleAdjustStock = async () => {
+    if (!stockProduct || adjustQty <= 0) {
+      toast({ title: "Jumlah penyesuaian harus lebih dari 0", variant: "destructive" });
+      return;
+    }
+    try {
+      await adjustStock.mutateAsync({ product_id: stockProduct.id, qty: adjustQty, type: adjustType });
+      toast({ title: `Stok berhasil ${adjustType === "in" ? "ditambah" : "dikurangi"} sebesar ${adjustQty}` });
+      setStockDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Gagal menyesuaikan stok", description: error.message, variant: "destructive" });
     }
   };
 
@@ -159,6 +186,7 @@ export default function Products() {
                   <TableHead>Nama</TableHead>
                   <TableHead>Kategori</TableHead>
                   <TableHead>Satuan</TableHead>
+                  <TableHead className="text-right">Harga Modal</TableHead>
                   <TableHead className="text-right">Harga Jual</TableHead>
                   <TableHead className="text-right">Stok</TableHead>
                   <TableHead>Status</TableHead>
@@ -181,14 +209,20 @@ export default function Products() {
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{product.categories?.name || "-"}</TableCell>
                         <TableCell>{product.units?.name || "-"}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(product.capital_price)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(product.selling_price)}</TableCell>
                         <TableCell className="text-right">
-                          <Badge
-                            variant={product.current_stock !== undefined && product.current_stock <= 0 ? "destructive" : isLowStock ? "outline" : "secondary"}
-                            className={isLowStock && product.current_stock !== undefined && product.current_stock > 0 ? "border-warning text-warning" : ""}
-                          >
-                            {product.current_stock ?? 0}
-                          </Badge>
+                          <div className="flex items-center justify-end gap-1">
+                            <Badge
+                              variant={product.current_stock !== undefined && product.current_stock <= 0 ? "destructive" : isLowStock ? "outline" : "secondary"}
+                              className={isLowStock && product.current_stock !== undefined && product.current_stock > 0 ? "border-success text-success" : ""}
+                            >
+                              {product.current_stock ?? 0}
+                            </Badge>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openStockDialog(product)}>
+                              <PackagePlus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Switch
@@ -210,6 +244,58 @@ export default function Products() {
           )}
         </CardContent>
       </Card>
+
+      {/* Stock Adjustment Dialog */}
+      <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sesuaikan Stok — {stockProduct?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted px-4 py-3 text-sm">
+              Stok saat ini: <span className="font-semibold">{stockProduct?.current_stock ?? 0}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>Jenis Penyesuaian</Label>
+              <Select value={adjustType} onValueChange={(v) => setAdjustType(v as "in" | "out")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="in">Tambah Stok (Masuk)</SelectItem>
+                  <SelectItem value="out">Kurangi Stok (Keluar)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Jumlah</Label>
+              <Input
+                type="number"
+                min={1}
+                value={adjustQty}
+                onChange={(e) => setAdjustQty(Number(e.target.value))}
+                placeholder="0"
+              />
+            </div>
+            {stockProduct && adjustQty > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Stok setelah penyesuaian:{" "}
+                <span className="font-semibold">
+                  {adjustType === "in"
+                    ? stockProduct.current_stock + adjustQty
+                    : Math.max(0, stockProduct.current_stock - adjustQty)}
+                </span>
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setStockDialogOpen(false)}>Batal</Button>
+              <Button onClick={handleAdjustStock} disabled={adjustStock.isPending}>
+                {adjustStock.isPending ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

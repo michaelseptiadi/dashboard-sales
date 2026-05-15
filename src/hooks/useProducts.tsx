@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -131,4 +132,56 @@ export function useUnits() {
       return data;
     },
   });
+}
+
+export function useAdjustStock() {
+  const queryClient = useQueryClient();
+  const { selectedStore } = useAuth();
+  return useMutation({
+    mutationFn: async ({
+      product_id,
+      qty,
+      type,
+    }: {
+      product_id: string;
+      qty: number;
+      type: "in" | "out";
+    }) => {
+      const { data, error } = await supabase
+        .from("inventory_movements")
+        .insert({
+          product_id,
+          movement_type: "adjustment",
+          qty_in: type === "in" ? qty : 0,
+          qty_out: type === "out" ? qty : 0,
+          store_id: selectedStore?.id || null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useRealtimeStock() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const channel = supabase
+      .channel("inventory-movements-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inventory_movements" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["products"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 }
