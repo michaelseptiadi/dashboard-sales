@@ -76,8 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    setSelectedStore(null);
     await supabase.auth.signOut();
+    setSelectedStoreState(null);
+    localStorage.removeItem(STORE_STORAGE_KEY);
   };
 
   return (

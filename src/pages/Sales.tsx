@@ -1,16 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { usePaymentMethods, useCreateSalesTransaction } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
-import { generateInvoice } from "@/lib/format";
 import { TransactionInfoCard } from "@/features/sales/components/TransactionInfoCard";
 import { CustomerSelector } from "@/features/sales/components/CustomerSelector";
 import { DeliverySelector } from "@/features/sales/components/DeliverySelector";
 import { ItemsTable } from "@/features/sales/components/ItemsTable";
 import { SuccessScreen } from "@/features/sales/components/SuccessScreen";
+import { CartManager } from "@/features/sales/components/CartManager";
+import { useCart, createEmptyCartData } from "@/hooks/useCart";
 import type { SalesItem } from "@/features/sales/types";
 import type { Product } from "@/hooks/useProducts";
 
@@ -21,24 +22,147 @@ export default function Sales() {
   const { data: drivers } = useDrivers();
   const createTransaction = useCreateSalesTransaction();
 
-  const [invoiceNumber, setInvoiceNumber] = useState(generateInvoice);
-  const [salesDate, setSalesDate] = useState(new Date().toISOString().split("T")[0]);
-  const [customerMode, setCustomerMode] = useState<"existing" | "manual">("existing");
-  const [customerId, setCustomerId] = useState<string>("");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerAddress, setCustomerAddress] = useState("");
-  const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">("self_delivery");
-  const [driverId, setDriverId] = useState("");
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<SalesItem[]>([]);
+  const { carts, activeCartId, activeCart, saveCart, newCart, switchCart, removeCart } = useCart();
+
+  // ── form state (initialised from active cart in localStorage) ──────────────
+  const [invoiceNumber, setInvoiceNumber] = useState(() => activeCart?.invoiceNumber ?? "");
+  const [salesDate, setSalesDate] = useState(() => activeCart?.salesDate ?? new Date().toISOString().split("T")[0]);
+  const [customerMode, setCustomerMode] = useState<"existing" | "manual">(() => activeCart?.customerMode ?? "existing");
+  const [customerId, setCustomerId] = useState<string>(() => activeCart?.customerId ?? "");
+  const [customerName, setCustomerName] = useState(() => activeCart?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(() => activeCart?.customerPhone ?? "");
+  const [customerAddress, setCustomerAddress] = useState(() => activeCart?.customerAddress ?? "");
+  const [paymentMethodId, setPaymentMethodId] = useState(() => activeCart?.paymentMethodId ?? "");
+  const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">(() => activeCart?.deliveryType ?? "self_delivery");
+  const [driverId, setDriverId] = useState(() => activeCart?.driverId ?? "");
+  const [deliveryFee, setDeliveryFee] = useState(() => activeCart?.deliveryFee ?? 0);
+  const [notes, setNotes] = useState(() => activeCart?.notes ?? "");
+  const [items, setItems] = useState<SalesItem[]>(() => activeCart?.items ?? []);
   const [submitted, setSubmitted] = useState(false);
 
   const [productSearch, setProductSearch] = useState("");
   const { data: searchProducts } = useActiveProducts(productSearch);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
+
+  // ── prevent auto-save from firing when we're loading a different cart ──────
+  const loadingCartRef = useRef(false);
+
+  // ── auto-save current form to active cart (debounced) ─────────────────────
+  useEffect(() => {
+    if (loadingCartRef.current) return;
+    const timer = setTimeout(() => {
+      if (!activeCartId) return;
+      saveCart(activeCartId, {
+        invoiceNumber,
+        salesDate,
+        customerMode,
+        customerId,
+        customerName,
+        customerPhone,
+        customerAddress,
+        paymentMethodId,
+        deliveryType,
+        driverId,
+        deliveryFee,
+        notes,
+        items,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    invoiceNumber, salesDate, customerMode, customerId, customerName,
+    customerPhone, customerAddress, paymentMethodId, deliveryType,
+    driverId, deliveryFee, notes, items, activeCartId, saveCart,
+  ]);
+
+  // ── load a cart's data into form fields ───────────────────────────────────
+  const loadCart = useCallback((cart: typeof activeCart) => {
+    if (!cart) return;
+    loadingCartRef.current = true;
+    setInvoiceNumber(cart.invoiceNumber);
+    setSalesDate(cart.salesDate);
+    setCustomerMode(cart.customerMode);
+    setCustomerId(cart.customerId);
+    setCustomerName(cart.customerName);
+    setCustomerPhone(cart.customerPhone);
+    setCustomerAddress(cart.customerAddress);
+    setPaymentMethodId(cart.paymentMethodId);
+    setDeliveryType(cart.deliveryType);
+    setDriverId(cart.driverId);
+    setDeliveryFee(cart.deliveryFee);
+    setNotes(cart.notes);
+    setItems(cart.items);
+    setSubmitted(false);
+    // allow auto-save again after React flushes state updates
+    requestAnimationFrame(() => { loadingCartRef.current = false; });
+  }, []);
+
+  // ── switch to an existing pending cart ────────────────────────────────────
+  const handleSwitchCart = useCallback((id: string) => {
+    if (id === activeCartId) return;
+    const target = carts.find((c) => c.id === id);
+    if (!target) return;
+    switchCart(id);
+    loadCart(target);
+  }, [activeCartId, carts, switchCart, loadCart]);
+
+  // ── create a new pending cart ─────────────────────────────────────────────
+  const handleNewCart = useCallback(() => {
+    const cart = newCart();
+    loadCart(cart);
+  }, [newCart, loadCart]);
+
+  // ── remove a cart (and switch to another) ────────────────────────────────
+  const handleRemoveCart = useCallback((id: string) => {
+    const remaining = carts.filter((c) => c.id !== id);
+    removeCart(id);
+    if (id === activeCartId) {
+      if (remaining.length > 0) {
+        loadCart(remaining[0]);
+      } else {
+        // removeCart creates a fresh cart automatically; load empty defaults
+        const empty = createEmptyCartData();
+        loadingCartRef.current = true;
+        setInvoiceNumber(empty.invoiceNumber);
+        setSalesDate(empty.salesDate);
+        setCustomerMode(empty.customerMode);
+        setCustomerId(empty.customerId);
+        setCustomerName(empty.customerName);
+        setCustomerPhone(empty.customerPhone);
+        setCustomerAddress(empty.customerAddress);
+        setPaymentMethodId(empty.paymentMethodId);
+        setDeliveryType(empty.deliveryType);
+        setDriverId(empty.driverId);
+        setDeliveryFee(empty.deliveryFee);
+        setNotes(empty.notes);
+        setItems(empty.items);
+        setSubmitted(false);
+        requestAnimationFrame(() => { loadingCartRef.current = false; });
+      }
+    }
+  }, [activeCartId, carts, removeCart, loadCart]);
+
+  // When an existing customer is selected, also sync their name into customerName
+  // so the CartManager label reflects the actual customer immediately.
+  const handleSetCustomerId = useCallback((id: string) => {
+    setCustomerId(id);
+    const found = customers?.find((c) => c.id === id);
+    if (found) setCustomerName(found.name);
+  }, [customers]);
+
+  // When switching to manual mode, clear the id-derived name so it doesn't bleed over.
+  const handleSetCustomerMode = useCallback((mode: "existing" | "manual") => {
+    setCustomerMode(mode);
+    if (mode === "manual") {
+      setCustomerId("");
+      setCustomerName("");
+    } else {
+      // restore name from currently selected customer if any
+      const found = customers?.find((c) => c.id === customerId);
+      if (found) setCustomerName(found.name);
+      else setCustomerName("");
+    }
+  }, [customers, customerId]);
 
   const addItem = useCallback(
     (product: Product) => {
@@ -135,22 +259,20 @@ export default function Sales() {
     }
   };
 
-  const resetForm = () => {
-    setInvoiceNumber(generateInvoice());
-    setSalesDate(new Date().toISOString().split("T")[0]);
-    setCustomerMode("existing");
-    setCustomerId("");
-    setCustomerName("");
-    setCustomerPhone("");
-    setCustomerAddress("");
-    setPaymentMethodId("");
-    setDeliveryType("self_delivery");
-    setDriverId("");
-    setDeliveryFee(0);
-    setNotes("");
-    setItems([]);
-    setSubmitted(false);
-  };
+  // Called from SuccessScreen — remove the submitted cart and move on
+  const resetForm = useCallback(() => {
+    const submittedId = activeCartId;
+    const remaining = carts.filter((c) => c.id !== submittedId);
+    removeCart(submittedId);
+    if (remaining.length > 0) {
+      // switch to next pending cart
+      switchCart(remaining[0].id);
+      loadCart(remaining[0]);
+    } else {
+      // start fresh
+      handleNewCart();
+    }
+  }, [activeCartId, carts, removeCart, switchCart, loadCart, handleNewCart]);
 
   if (submitted) {
     return (
@@ -162,6 +284,13 @@ export default function Sales() {
 
   return (
     <DashboardLayout title="Penjualan">
+      <CartManager
+        carts={carts}
+        activeCartId={activeCartId}
+        onSwitch={handleSwitchCart}
+        onNew={handleNewCart}
+        onRemove={handleRemoveCart}
+      />
       <div className="grid items-start gap-6 lg:grid-cols-[360px_1fr]">
         <div className="space-y-4 lg:sticky lg:top-6">
           <TransactionInfoCard
@@ -176,9 +305,9 @@ export default function Sales() {
           />
           <CustomerSelector
             customerMode={customerMode}
-            setCustomerMode={setCustomerMode}
+            setCustomerMode={handleSetCustomerMode}
             customerId={customerId}
-            setCustomerId={setCustomerId}
+            setCustomerId={handleSetCustomerId}
             customerName={customerName}
             setCustomerName={setCustomerName}
             customerPhone={customerPhone}

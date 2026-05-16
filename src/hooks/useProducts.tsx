@@ -86,9 +86,15 @@ export function useActiveProducts(search?: string) {
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
+  const { selectedStore } = useAuth();
   return useMutation({
     mutationFn: async (product: TablesInsert<"products">) => {
-      const { data, error } = await supabase.from("products").insert(product).select().single();
+      if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
+      const { data, error } = await supabase
+        .from("products")
+        .insert({ ...product, store_id: selectedStore.id })
+        .select()
+        .single();
       if (error) throw error;
       return data;
     },
