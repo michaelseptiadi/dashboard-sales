@@ -31,6 +31,7 @@ export default function Sales() {
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">("self_delivery");
   const [driverId, setDriverId] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState(0);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<SalesItem[]>([]);
   const [submitted, setSubmitted] = useState(false);
@@ -79,7 +80,7 @@ export default function Sales() {
 
   const totalAmount = items.reduce((sum, i) => sum + i.qty * i.price, 0);
   const totalDiscount = items.reduce((sum, i) => sum + i.discount, 0);
-  const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0);
+  const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0) + deliveryFee;
 
   const handleSubmit = async () => {
     if (!paymentMethodId) {
@@ -115,6 +116,7 @@ export default function Sales() {
         p_delivery_types: deliveryType || undefined,
         p_driver_id: deliveryType === "driver" && driverId ? driverId : undefined,
         p_notes: notes || undefined,
+        p_delivery_fee: deliveryFee > 0 ? deliveryFee : undefined,
         p_items: items.map((i) => ({
           product_id: i.product_id,
           qty: i.qty,
@@ -144,6 +146,7 @@ export default function Sales() {
     setPaymentMethodId("");
     setDeliveryType("self_delivery");
     setDriverId("");
+    setDeliveryFee(0);
     setNotes("");
     setItems([]);
     setSubmitted(false);
@@ -204,6 +207,8 @@ export default function Sales() {
           setProductSearchOpen={setProductSearchOpen}
           totalAmount={totalAmount}
           totalDiscount={totalDiscount}
+          deliveryFee={deliveryFee}
+          setDeliveryFee={setDeliveryFee}
           grandTotal={grandTotal}
           onSubmit={handleSubmit}
           isPending={createTransaction.isPending}

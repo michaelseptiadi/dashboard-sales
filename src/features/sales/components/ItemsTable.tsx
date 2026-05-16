@@ -1,7 +1,8 @@
-import { Plus, Trash2, Search, Package } from "lucide-react";
+import { Plus, Trash2, Search, Package, Truck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatCurrency } from "@/lib/format";
@@ -20,6 +21,8 @@ interface ItemsTableProps {
   setProductSearchOpen: (v: boolean) => void;
   totalAmount: number;
   totalDiscount: number;
+  deliveryFee: number;
+  setDeliveryFee: (v: number) => void;
   grandTotal: number;
   onSubmit: () => void;
   isPending: boolean;
@@ -37,6 +40,8 @@ export function ItemsTable({
   setProductSearchOpen,
   totalAmount,
   totalDiscount,
+  deliveryFee,
+  setDeliveryFee,
   grandTotal,
   onSubmit,
   isPending,
@@ -180,6 +185,18 @@ export function ItemsTable({
                 <div className="flex justify-between gap-12 text-xs text-muted-foreground">
                   <span className="text-destructive">Total Diskon</span>
                   <span className="text-destructive">− {formatCurrency(totalDiscount)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-12 text-xs text-muted-foreground">
+                  <Label className="flex items-center gap-1 text-xs font-normal text-muted-foreground cursor-pointer">
+                    <Truck className="h-3.5 w-3.5" /> Biaya Kirim
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                    className="h-7 w-32 text-right text-xs"
+                  />
                 </div>
                 <div className="flex justify-between gap-12 pt-1 text-xl font-bold text-foreground">
                   <span>Grand Total</span>

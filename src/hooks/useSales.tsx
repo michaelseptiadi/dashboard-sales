@@ -24,7 +24,7 @@ export function useSalesOrders(filters: SalesOrderFilters = {}) {
     queryFn: async () => {
       let query = supabase
         .from("sales_orders")
-        .select("*, payment_methods(name)")
+        .select("*, payment_methods(name), customers(name)")
         .order("created_at", { ascending: false });
 
       if (storeId) query = query.eq("store_id", storeId);
@@ -50,7 +50,7 @@ export function useSalesDetail(orderId: string | null) {
     queryFn: async () => {
       const { data: order, error: orderError } = await supabase
         .from("sales_orders")
-        .select("*, payment_methods(name)")
+        .select("*, payment_methods(name), customers(name)")
         .eq("id", orderId!)
         .maybeSingle();
       if (orderError) throw orderError;
@@ -92,6 +92,7 @@ export function useCreateSalesTransaction() {
       p_delivery_types?: "driver" | "self_delivery";
       p_driver_id?: string;
       p_notes?: string;
+      p_delivery_fee?: number;
       p_items: Array<{
         product_id: string;
         qty: number;

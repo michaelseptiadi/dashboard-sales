@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
@@ -172,7 +169,7 @@ export default function SalesHistory() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">{order.customer_name || "-"}</span>
+                          <span className="text-sm">{(order as any).customers?.name || order.customer_name || "-"}</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{(order.payment_methods as any)?.name || "-"}</span>
@@ -216,7 +213,7 @@ export default function SalesHistory() {
                 {[
                   { label: "No. Invoice", value: <span className="font-mono font-semibold">{detail.order.invoice_number}</span> },
                   { label: "Tanggal", value: new Date(detail.order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) },
-                  { label: "Pelanggan", value: detail.order.customer_name || "-" },
+                  { label: "Pelanggan", value: (detail.order as any).customers?.name || detail.order.customer_name || "-" },
                   { label: "Metode Bayar", value: (detail.order.payment_methods as any)?.name || "-" },
                   {
                     label: "Pengiriman",
@@ -285,6 +282,12 @@ export default function SalesHistory() {
                     <span>Total Diskon</span>
                     <span className="text-destructive">− {formatCurrency(detail.order.total_discount)}</span>
                   </div>
+                  {(detail.order as any).delivery_fee > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Biaya Kirim</span>
+                      <span className="text-foreground">+ {formatCurrency((detail.order as any).delivery_fee)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between rounded-xl bg-primary/5 px-4 py-2.5 font-bold text-primary">
                     <span>Grand Total</span>
                     <span>{formatCurrency(detail.order.grand_total)}</span>
