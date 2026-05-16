@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SearchInput } from "@/components/SearchInput";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers, useCreateCustomer, useUpdateCustomer } from "@/hooks/useCustomers";
-import { Plus, Search, Pencil } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 
 interface CustomerFormData {
   name: string;
@@ -93,15 +95,12 @@ export default function Customers() {
       <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama atau telepon..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+            <SearchInput
+              containerClassName="flex-1 min-w-[200px]"
+              placeholder="Cari nama atau telepon..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
             <Button onClick={openCreate}>
               <Plus className="mr-1 h-4 w-4" /> Tambah Pelanggan
             </Button>
@@ -116,9 +115,7 @@ export default function Customers() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton />
           ) : (
             <Table>
               <TableHeader>
@@ -190,12 +187,11 @@ export default function Customers() {
               <Label>Alamat</Label>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Alamat lengkap" />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleSave} disabled={createCustomer.isPending || updateCustomer.isPending}>
-                {(createCustomer.isPending || updateCustomer.isPending) ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </div>
+            <DialogFormActions
+              onCancel={() => setDialogOpen(false)}
+              onSave={handleSave}
+              isPending={createCustomer.isPending || updateCustomer.isPending}
+            />
           </div>
         </DialogContent>
       </Dialog>

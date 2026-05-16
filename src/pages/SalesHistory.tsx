@@ -10,31 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { DeliveryBadge } from "@/components/DeliveryBadge";
+import { formatCurrency } from "@/lib/format";
 import { useSalesOrders, useSalesDetail, usePaymentMethods } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
-import { Search, Eye, X, Truck, User, Receipt, Package, CreditCard, CalendarDays, ChevronRight } from "lucide-react";
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value);
-}
-
-function DeliveryBadge({ type, driverName }: { type: string | null; driverName: string }) {
-  if (type === "driver") {
-    return (
-      <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 font-normal">
-        <Truck className="h-3 w-3" /> {driverName}
-      </Badge>
-    );
-  }
-  if (type === "self_delivery") {
-    return (
-      <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 font-normal">
-        <User className="h-3 w-3" /> Ambil Sendiri
-      </Badge>
-    );
-  }
-  return <span className="text-muted-foreground">-</span>;
-}
+import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight } from "lucide-react";
 
 export default function SalesHistory() {
   const [search, setSearch] = useState("");
@@ -148,14 +129,14 @@ export default function SalesHistory() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="space-y-px px-6 pb-4">
-                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+                <TableSkeleton rows={6} rowClassName="h-14 w-full rounded-lg" />
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="pl-6">Invoice</TableHead>
-                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Tanggal Pesanan</TableHead>
                     <TableHead>Pelanggan</TableHead>
                     <TableHead>Pembayaran</TableHead>
                     <TableHead>Pengiriman</TableHead>

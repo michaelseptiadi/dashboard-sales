@@ -2,19 +2,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useDashboardStats } from "@/hooks/useSales";
+import { useDashboardStats } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react";
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value);
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-}
+import { formatCurrency, formatDate } from "@/lib/format";
 
 export default function Dashboard() {
   const { data, isLoading } = useDashboardStats();

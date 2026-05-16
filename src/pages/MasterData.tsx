@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useSimpleTable, useCreateRow, useUpdateRow, useDeleteRow, useDrivers, useCreateDriver, useUpdateDriver, useDeleteDriver, type SimpleRow, type MasterTableName, type Driver } from "@/hooks/useMasterData";
 import { Plus, Pencil, Trash2, Tag, Ruler, Truck, Phone, MapPin } from "lucide-react";
@@ -110,11 +111,7 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
 
         <CardContent className="pt-0 flex-1">
           {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-lg" />
-              ))}
-            </div>
+            <TableSkeleton rows={5} rowClassName="h-10 w-full rounded-lg" />
           ) : rows?.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
               <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-xl ${iconBgClass} opacity-60`}>
@@ -185,12 +182,11 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
                 autoFocus
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleSave} disabled={createRow.isPending || updateRow.isPending}>
-                {createRow.isPending || updateRow.isPending ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </div>
+            <DialogFormActions
+              onCancel={() => setDialogOpen(false)}
+              onSave={handleSave}
+              isPending={createRow.isPending || updateRow.isPending}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -314,11 +310,7 @@ function DriverTable() {
 
         <CardContent className="pt-0">
           {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-lg" />
-              ))}
-            </div>
+            <TableSkeleton rows={4} rowClassName="h-10 w-full rounded-lg" />
           ) : drivers?.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 opacity-60">
@@ -417,12 +409,11 @@ function DriverTable() {
                 placeholder="Contoh: Jl. Merdeka No. 10, Jakarta"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleSave} disabled={createDriver.isPending || updateDriver.isPending}>
-                {createDriver.isPending || updateDriver.isPending ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </div>
+            <DialogFormActions
+              onCancel={() => setDialogOpen(false)}
+              onSave={handleSave}
+              isPending={createDriver.isPending || updateDriver.isPending}
+            />
           </div>
         </DialogContent>
       </Dialog>

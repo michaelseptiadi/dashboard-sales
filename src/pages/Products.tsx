@@ -9,14 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SearchInput } from "@/components/SearchInput";
+import { TableSkeleton } from "@/components/TableSkeleton";
+import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/format";
 import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock } from "@/hooks/useProducts";
-import { Plus, Search, Pencil, PackagePlus } from "lucide-react";
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value);
-}
+import { Plus, Pencil, PackagePlus } from "lucide-react";
 
 interface ProductFormData {
   product_code: string;
@@ -141,15 +140,12 @@ export default function Products() {
       <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama atau kode produk..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+            <SearchInput
+              containerClassName="flex-1 min-w-[200px]"
+              placeholder="Cari nama atau kode produk..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
             <Select value={categoryFilter || "all"} onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Semua Kategori" />
@@ -175,9 +171,7 @@ export default function Products() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
+            <TableSkeleton />
           ) : (
             <Table>
               <TableHeader>
@@ -287,12 +281,11 @@ export default function Products() {
                 </span>
               </p>
             )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setStockDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleAdjustStock} disabled={adjustStock.isPending}>
-                {adjustStock.isPending ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </div>
+            <DialogFormActions
+              onCancel={() => setStockDialogOpen(false)}
+              onSave={handleAdjustStock}
+              isPending={adjustStock.isPending}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -352,12 +345,11 @@ export default function Products() {
                 <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleSave} disabled={createProduct.isPending || updateProduct.isPending}>
-                {(createProduct.isPending || updateProduct.isPending) ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </div>
+            <DialogFormActions
+              onCancel={() => setDialogOpen(false)}
+              onSave={handleSave}
+              isPending={createProduct.isPending || updateProduct.isPending}
+            />
           </div>
         </DialogContent>
       </Dialog>
