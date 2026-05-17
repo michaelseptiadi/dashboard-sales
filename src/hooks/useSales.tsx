@@ -13,19 +13,30 @@ interface SalesOrderFilters {
   paymentMethodId?: string;
   deliveryType?: string;
   driverId?: string;
+  /** "paid" | "unpaid" (unpaid covers both unpaid + half_payment) | undefined = all */
+  transactionStatus?: "paid" | "unpaid";
+  page?: number;
+  pageSize?: number;
 }
 
 export function useSalesOrders(filters: SalesOrderFilters = {}) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
-  const { dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId } = filters;
+  const {
+    dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId,
+    transactionStatus, page = 1, pageSize = 10,
+  } = filters;
   return useQuery({
-    queryKey: ["sales-orders", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId],
+    queryKey: ["sales-orders", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId, transactionStatus, page, pageSize],
     queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to   = from + pageSize - 1;
+
       let query = supabase
         .from("sales_orders")
         .select("*, payment_methods(name), customers(name)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (storeId) query = query.eq("store_id", storeId);
       if (dateFrom) query = query.gte("sales_date", dateFrom);
@@ -35,10 +46,47 @@ export function useSalesOrders(filters: SalesOrderFilters = {}) {
       if (paymentMethodId) query = query.eq("payment_method_id", paymentMethodId);
       if (deliveryType) query = query.eq("delivery_types", deliveryType);
       if (driverId) query = query.eq("driver_id", driverId);
+      if (transactionStatus === "paid") query = query.eq("transaction_status", "paid");
+      if (transactionStatus === "unpaid") query = query.neq("transaction_status", "paid");
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data ?? [];
+    },
+  });
+}
+
+type BaseFilters = Omit<SalesOrderFilters, "transactionStatus" | "page" | "pageSize">;
+
+/** Two HEAD-only count queries (no data transferred) — used for tab badges. */
+export function useSalesOrderStatusCounts(filters: BaseFilters = {}) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
+  const { dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId } = filters;
+
+  return useQuery({
+    queryKey: ["sales-order-counts", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId],
+    queryFn: async () => {
+      const applyBase = (q: ReturnType<typeof supabase.from>) => {
+        if (storeId) q = (q as any).eq("store_id", storeId);
+        if (dateFrom) q = (q as any).gte("sales_date", dateFrom);
+        if (dateTo) q = (q as any).lte("sales_date", dateTo);
+        if (search) q = (q as any).ilike("invoice_number", `%${search}%`);
+        if (customerName) q = (q as any).ilike("customer_name", `%${customerName}%`);
+        if (paymentMethodId) q = (q as any).eq("payment_method_id", paymentMethodId);
+        if (deliveryType) q = (q as any).eq("delivery_types", deliveryType);
+        if (driverId) q = (q as any).eq("driver_id", driverId);
+        return q;
+      };
+      const [paidRes, unpaidRes] = await Promise.all([
+        applyBase(supabase.from("sales_orders").select("*", { count: "exact", head: true })).eq("transaction_status", "paid"),
+        applyBase(supabase.from("sales_orders").select("*", { count: "exact", head: true })).neq("transaction_status", "paid"),
+      ]);
+      return {
+        allCount:    (paidRes.count ?? 0) + (unpaidRes.count ?? 0),
+        paidCount:   paidRes.count ?? 0,
+        unpaidCount: unpaidRes.count ?? 0,
+      };
     },
   });
 }

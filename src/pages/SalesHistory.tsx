@@ -13,11 +13,12 @@ import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
 import { formatCurrency } from "@/lib/format";
-import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs } from "@/hooks/useSales";
+import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function TransactionStatusBadge({ status }: { status: string | null | undefined }) {
   if (!status) return null;
@@ -47,16 +48,23 @@ export default function SalesHistory() {
   const [paymentNotes, setPaymentNotes] = useState("");
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [statusTab, setStatusTab] = useState<"all" | "paid" | "unpaid">("all");
 
-  const { data: orders, isLoading } = useSalesOrders({ dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId });
+  const { data: ordersData, isLoading } = useSalesOrders({
+    dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId,
+    transactionStatus: statusTab === "all" ? undefined : statusTab,
+    page: currentPage,
+    pageSize,
+  });
+  const { data: statusCounts } = useSalesOrderStatusCounts({ dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId });
   const { data: detail, isLoading: detailLoading } = useSalesDetail(selectedOrderId);
   const { data: paymentLogs, isLoading: logsLoading } = usePaymentLogs(selectedOrderId);
   const { data: drivers } = useDrivers();
   const { data: paymentMethods } = usePaymentMethods();
   const { mutate: addPaymentLog, isPending: paymentPending } = useAddPaymentLog();
 
-  // Reset to first page when filters or pageSize change
-  useEffect(() => { setCurrentPage(1); }, [search, dateFrom, dateTo, customerName, paymentMethodId, deliveryType, driverId, pageSize]);
+  // Reset to first page when filters, pageSize, or tab change
+  useEffect(() => { setCurrentPage(1); }, [search, dateFrom, dateTo, customerName, paymentMethodId, deliveryType, driverId, pageSize, statusTab]);
 
   // Reset payment input whenever a different order is opened
   useEffect(() => { setPaymentAmount(0); setPaymentNotes(""); }, [selectedOrderId]);
@@ -72,11 +80,17 @@ export default function SalesHistory() {
     setCurrentPage(1);
   };
 
-  const totalCount = orders?.length ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const paginatedOrders = orders?.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endIndex = Math.min(currentPage * pageSize, totalCount);
+  const orders       = ordersData ?? [];
+  const paidCount    = statusCounts?.paidCount ?? 0;
+  const unpaidCount  = statusCounts?.unpaidCount ?? 0;
+  const totalCount   =
+    statusTab === "paid"   ? paidCount :
+    statusTab === "unpaid" ? unpaidCount :
+    statusCounts?.allCount ?? 0;
+
+  const totalPages       = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startIndex       = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex         = Math.min(currentPage * pageSize, totalCount);
 
   const getPageButtons = (): (number | "...")[] => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -161,12 +175,24 @@ export default function SalesHistory() {
         </Card>
 
         {/* Table */}
+        <Tabs value={statusTab} onValueChange={(v) => { setStatusTab(v as typeof statusTab); setCurrentPage(1); }}>
         <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Receipt className="h-4 w-4 text-primary" /> Daftar Transaksi
-              </CardTitle>
+          <CardHeader className="pb-0">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+              <TabsList className="h-9">
+                <TabsTrigger value="all" className="text-xs gap-1.5">
+                  Semua
+                  {orders && <span className="rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-[10px] font-medium">{orders.length}</span>}
+                </TabsTrigger>
+                <TabsTrigger value="paid" className="text-xs gap-1.5">
+                  Lunas
+                  {orders && paidCount > 0 && <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">{paidCount}</span>}
+                </TabsTrigger>
+                <TabsTrigger value="unpaid" className="text-xs gap-1.5">
+                  Belum Lunas
+                  {orders && unpaidCount > 0 && <span className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-medium">{unpaidCount}</span>}
+                </TabsTrigger>
+              </TabsList>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <span>Tampilkan</span>
@@ -210,7 +236,7 @@ export default function SalesHistory() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!orders || orders.length === 0 ? (
+                  {!isLoading && (!orders || orders.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={8} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -221,7 +247,7 @@ export default function SalesHistory() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (paginatedOrders ?? []).map((order) => (
+                    (orders ?? []).map((order) => (
                       <TableRow
                         key={order.id}
                         className="cursor-pointer group"
@@ -303,6 +329,7 @@ export default function SalesHistory() {
             )}
           </CardContent>
         </Card>
+        </Tabs>
       </div>
 
       {/* Detail Modal */}
