@@ -68,6 +68,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_logs: {
+        Row: {
+          id: string
+          sales_order_id: string
+          store_id: string | null
+          amount: number
+          notes: string | null
+          paid_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          sales_order_id: string
+          store_id?: string | null
+          amount: number
+          notes?: string | null
+          paid_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          sales_order_id?: string
+          store_id?: string | null
+          amount?: number
+          notes?: string | null
+          paid_at?: string
+          created_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_logs_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       drivers: {
         Row: {
           id: string
@@ -279,6 +317,8 @@ export type Database = {
           store_id: string | null
           total_amount: number
           total_discount: number
+          transaction_status: 'paid' | 'unpaid' | 'half_payment'
+          unpaid_transaction: number
           user_id: string
         }
         Insert: {
@@ -300,6 +340,8 @@ export type Database = {
           store_id?: string | null
           total_amount?: number
           total_discount?: number
+          transaction_status?: 'paid' | 'unpaid' | 'half_payment'
+          unpaid_transaction?: number
           user_id: string
         }
         Update: {
@@ -321,6 +363,8 @@ export type Database = {
           store_id?: string | null
           total_amount?: number
           total_discount?: number
+          transaction_status?: 'paid' | 'unpaid' | 'half_payment'
+          unpaid_transaction?: number
           user_id?: string
         }
         Relationships: [

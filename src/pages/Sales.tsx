@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useActiveProducts } from "@/hooks/useProducts";
-import { usePaymentMethods, useCreateSalesTransaction } from "@/hooks/useSales";
+import { usePaymentMethods, useCreateSalesTransaction, useAddPaymentLog } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { TransactionInfoCard } from "@/features/sales/components/TransactionInfoCard";
 import { CustomerSelector } from "@/features/sales/components/CustomerSelector";
@@ -21,6 +21,7 @@ export default function Sales() {
   const { data: paymentMethods } = usePaymentMethods();
   const { data: drivers } = useDrivers();
   const createTransaction = useCreateSalesTransaction();
+  const { mutateAsync: addPaymentLog } = useAddPaymentLog();
 
   const { carts, activeCartId, activeCart, saveCart, newCart, switchCart, removeCart } = useCart();
 
@@ -38,7 +39,9 @@ export default function Sales() {
   const [deliveryFee, setDeliveryFee] = useState(() => activeCart?.deliveryFee ?? 0);
   const [notes, setNotes] = useState(() => activeCart?.notes ?? "");
   const [items, setItems] = useState<SalesItem[]>(() => activeCart?.items ?? []);
+  const [paymentAmount, setPaymentAmount] = useState(() => activeCart?.paymentAmount ?? 0);
   const [submitted, setSubmitted] = useState(false);
+  const submittedDataRef = useRef<{ invoice: string; total: number } | null>(null);
 
   const [productSearch, setProductSearch] = useState("");
   const { data: searchProducts } = useActiveProducts(productSearch);
@@ -66,13 +69,14 @@ export default function Sales() {
         deliveryFee,
         notes,
         items,
+        paymentAmount,
       });
     }, 400);
     return () => clearTimeout(timer);
   }, [
     invoiceNumber, salesDate, customerMode, customerId, customerName,
     customerPhone, customerAddress, paymentMethodId, deliveryType,
-    driverId, deliveryFee, notes, items, activeCartId, saveCart,
+    driverId, deliveryFee, notes, items, paymentAmount, activeCartId, saveCart,
   ]);
 
   // ── load a cart's data into form fields ───────────────────────────────────
@@ -92,6 +96,7 @@ export default function Sales() {
     setDeliveryFee(cart.deliveryFee);
     setNotes(cart.notes);
     setItems(cart.items);
+    setPaymentAmount(cart.paymentAmount ?? 0);
     setSubmitted(false);
     // allow auto-save again after React flushes state updates
     requestAnimationFrame(() => { loadingCartRef.current = false; });
@@ -136,6 +141,7 @@ export default function Sales() {
         setDeliveryFee(empty.deliveryFee);
         setNotes(empty.notes);
         setItems(empty.items);
+        setPaymentAmount(0);
         setSubmitted(false);
         requestAnimationFrame(() => { loadingCartRef.current = false; });
       }
@@ -229,7 +235,7 @@ export default function Sales() {
     }
 
     try {
-      await createTransaction.mutateAsync({
+      const orderId = await createTransaction.mutateAsync({
         p_invoice_number: invoiceNumber,
         p_sales_date: salesDate,
         p_customer_id: customerMode === "existing" && customerId ? customerId : undefined,
@@ -248,6 +254,40 @@ export default function Sales() {
           discount: i.discount,
         })),
       });
+      if (paymentAmount > 0 && orderId) {
+        await addPaymentLog({
+          orderId: orderId as string,
+          amount: Math.min(paymentAmount, grandTotal),
+        });
+      }
+      // Capture submitted data for the SuccessScreen before resetting the form
+      submittedDataRef.current = { invoice: invoiceNumber, total: grandTotal };
+      // Remove the submitted cart and reset the form to the next/empty cart
+      const submittedId = activeCartId;
+      const remaining = carts.filter((c) => c.id !== submittedId);
+      removeCart(submittedId);
+      if (remaining.length > 0) {
+        switchCart(remaining[0].id);
+        loadCart(remaining[0]);
+      } else {
+        const empty = createEmptyCartData();
+        loadingCartRef.current = true;
+        setInvoiceNumber(empty.invoiceNumber);
+        setSalesDate(empty.salesDate);
+        setCustomerMode(empty.customerMode);
+        setCustomerId(empty.customerId);
+        setCustomerName(empty.customerName);
+        setCustomerPhone(empty.customerPhone);
+        setCustomerAddress(empty.customerAddress);
+        setPaymentMethodId(empty.paymentMethodId);
+        setDeliveryType(empty.deliveryType);
+        setDriverId(empty.driverId);
+        setDeliveryFee(empty.deliveryFee);
+        setNotes(empty.notes);
+        setItems(empty.items);
+        setPaymentAmount(0);
+        requestAnimationFrame(() => { loadingCartRef.current = false; });
+      }
       setSubmitted(true);
       toast({ title: "Transaksi berhasil disimpan!" });
     } catch (error: any) {
@@ -259,25 +299,20 @@ export default function Sales() {
     }
   };
 
-  // Called from SuccessScreen — remove the submitted cart and move on
+  // Called from SuccessScreen — form is already reset; just clear the success overlay
   const resetForm = useCallback(() => {
-    const submittedId = activeCartId;
-    const remaining = carts.filter((c) => c.id !== submittedId);
-    removeCart(submittedId);
-    if (remaining.length > 0) {
-      // switch to next pending cart
-      switchCart(remaining[0].id);
-      loadCart(remaining[0]);
-    } else {
-      // start fresh
-      handleNewCart();
-    }
-  }, [activeCartId, carts, removeCart, switchCart, loadCart, handleNewCart]);
+    submittedDataRef.current = null;
+    setSubmitted(false);
+  }, []);
 
   if (submitted) {
     return (
       <DashboardLayout title="Penjualan">
-        <SuccessScreen invoiceNumber={invoiceNumber} grandTotal={grandTotal} onReset={resetForm} />
+        <SuccessScreen
+          invoiceNumber={submittedDataRef.current?.invoice ?? invoiceNumber}
+          grandTotal={submittedDataRef.current?.total ?? grandTotal}
+          onReset={resetForm}
+        />
       </DashboardLayout>
     );
   }
@@ -339,6 +374,8 @@ export default function Sales() {
           deliveryFee={deliveryFee}
           setDeliveryFee={setDeliveryFee}
           grandTotal={grandTotal}
+          paymentAmount={paymentAmount}
+          setPaymentAmount={setPaymentAmount}
           onSubmit={handleSubmit}
           isPending={createTransaction.isPending}
         />

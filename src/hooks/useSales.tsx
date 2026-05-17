@@ -116,4 +116,89 @@ export function useCreateSalesTransaction() {
   });
 }
 
+/**
+/**
+ * Fetch all payment log entries for a given sales order.
+ */
+export function usePaymentLogs(orderId: string | null) {
+  return useQuery({
+    queryKey: ["payment-logs", orderId],
+    enabled: !!orderId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_logs")
+        .select("*")
+        .eq("sales_order_id", orderId!)
+        .order("paid_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
 
+/**
+ * Record a payment for a sales order.
+ * Inserts a row into payment_logs; the DB trigger automatically
+ * recalculates unpaid_transaction and transaction_status on sales_orders.
+ */
+export function useAddPaymentLog() {
+  const queryClient = useQueryClient();
+  const { selectedStore } = useAuth();
+  return useMutation({
+    mutationFn: async ({
+      orderId,
+      amount,
+      notes,
+    }: {
+      orderId: string;
+      amount: number;
+      notes?: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("payment_logs")
+        .insert({
+          sales_order_id: orderId,
+          store_id: selectedStore?.id ?? null,
+          amount,
+          notes: notes || null,
+          created_by: user?.id ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: ["payment-logs", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-detail", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+/**
+ * @deprecated Use useAddPaymentLog instead.
+ * Kept for backward compatibility — delegates to a direct update.
+ */
+export function useUpdatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderId, unpaidAmount }: { orderId: string; unpaidAmount: number }) => {
+      const { data, error } = await supabase
+        .from("sales_orders")
+        .update({ unpaid_transaction: Math.max(0, unpaidAmount) })
+        .eq("id", orderId)
+        .select("id, unpaid_transaction, transaction_status")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-detail", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}

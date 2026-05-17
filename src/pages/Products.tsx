@@ -3,6 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -334,11 +335,11 @@ export default function Products() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Harga Jual</Label>
-                <Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: Number(e.target.value) })} min={0} />
+                <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} />
               </div>
               <div className="space-y-2">
                 <Label>Harga Modal</Label>
-                <Input type="number" value={form.capital_price} onChange={(e) => setForm({ ...form, capital_price: Number(e.target.value) })} min={0} />
+                <CurrencyInput value={form.capital_price} onChange={(v) => setForm({ ...form, capital_price: v })} />
               </div>
               <div className="space-y-2">
                 <Label>Stok Minimum</Label>

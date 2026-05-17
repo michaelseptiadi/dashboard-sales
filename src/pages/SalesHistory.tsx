@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,9 +13,26 @@ import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
 import { formatCurrency } from "@/lib/format";
-import { useSalesOrders, useSalesDetail, usePaymentMethods } from "@/hooks/useSales";
+import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
-import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+
+function TransactionStatusBadge({ status }: { status: string | null | undefined }) {
+  if (!status) return null;
+  const map: Record<string, { label: string; className: string }> = {
+    paid:         { label: "Lunas",          className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800" },
+    unpaid:       { label: "Belum Bayar",    className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800" },
+    half_payment: { label: "Bayar Sebagian", className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800" },
+  };
+  const cfg = map[status] ?? { label: status, className: "" };
+  return (
+    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
+      {cfg.label}
+    </Badge>
+  );
+}
 
 export default function SalesHistory() {
   const [search, setSearch] = useState("");
@@ -23,11 +43,23 @@ export default function SalesHistory() {
   const [deliveryType, setDeliveryType] = useState("");
   const [driverId, setDriverId] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: orders, isLoading } = useSalesOrders({ dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId });
   const { data: detail, isLoading: detailLoading } = useSalesDetail(selectedOrderId);
+  const { data: paymentLogs, isLoading: logsLoading } = usePaymentLogs(selectedOrderId);
   const { data: drivers } = useDrivers();
   const { data: paymentMethods } = usePaymentMethods();
+  const { mutate: addPaymentLog, isPending: paymentPending } = useAddPaymentLog();
+
+  // Reset to first page when filters or pageSize change
+  useEffect(() => { setCurrentPage(1); }, [search, dateFrom, dateTo, customerName, paymentMethodId, deliveryType, driverId, pageSize]);
+
+  // Reset payment input whenever a different order is opened
+  useEffect(() => { setPaymentAmount(0); setPaymentNotes(""); }, [selectedOrderId]);
 
   const getDriverName = (id: string | null) =>
     drivers?.find((d) => d.id === id)?.driver_name ?? "-";
@@ -37,6 +69,23 @@ export default function SalesHistory() {
   const resetFilters = () => {
     setSearch(""); setDateFrom(""); setDateTo("");
     setCustomerName(""); setPaymentMethodId(""); setDeliveryType(""); setDriverId("");
+    setCurrentPage(1);
+  };
+
+  const totalCount = orders?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const paginatedOrders = orders?.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+
+  const getPageButtons = (): (number | "...")[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | "...")[] = [1];
+    if (currentPage > 3) pages.push("...");
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push("...");
+    pages.push(totalPages);
+    return pages;
   };
 
   return (
@@ -114,13 +163,31 @@ export default function SalesHistory() {
         {/* Table */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Receipt className="h-4 w-4 text-primary" /> Daftar Transaksi
               </CardTitle>
-              {orders && (
-                <span className="text-sm text-muted-foreground">{orders.length} transaksi</span>
-              )}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span>Tampilkan</span>
+                  <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                    <SelectTrigger className="h-7 w-[70px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 30, 50, 100].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span>data</span>
+                </div>
+                {orders && (
+                  <span className="text-sm text-muted-foreground">
+                    {totalCount === 0 ? "0 transaksi" : `${startIndex}–${endIndex} dari ${totalCount} transaksi`}
+                  </span>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -138,13 +205,14 @@ export default function SalesHistory() {
                     <TableHead>Pembayaran</TableHead>
                     <TableHead>Pengiriman</TableHead>
                     <TableHead className="text-right pr-4">Grand Total</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="w-10 pr-6" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {!orders || orders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-16 text-center">
+                      <TableCell colSpan={8} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Receipt className="h-10 w-10 opacity-20" />
                           <p className="text-sm font-medium">Tidak ada transaksi</p>
@@ -153,7 +221,7 @@ export default function SalesHistory() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    orders.map((order) => (
+                    (paginatedOrders ?? []).map((order) => (
                       <TableRow
                         key={order.id}
                         className="cursor-pointer group"
@@ -180,6 +248,9 @@ export default function SalesHistory() {
                         <TableCell className="text-right pr-4 font-semibold">
                           {formatCurrency(order.grand_total)}
                         </TableCell>
+                        <TableCell>
+                          <TransactionStatusBadge status={(order as any).transaction_status} />
+                        </TableCell>
                         <TableCell className="pr-6">
                           <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </TableCell>
@@ -188,6 +259,47 @@ export default function SalesHistory() {
                   )}
                 </TableBody>
               </Table>
+            )}
+            {/* Pagination */}
+            {!isLoading && totalCount > 0 && (
+              <div className="flex items-center justify-between border-t px-6 py-3">
+                <p className="text-xs text-muted-foreground">
+                  Halaman {currentPage} dari {totalPages}
+                </p>
+                <Pagination className="w-auto mx-0 justify-end">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    {getPageButtons().map((page, idx) =>
+                      page === "..." ? (
+                        <PaginationItem key={`ellipsis-${idx}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            isActive={page === currentPage}
+                            onClick={() => setCurrentPage(page as number)}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    )}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -297,6 +409,136 @@ export default function SalesHistory() {
                   <p className="mt-3 text-xs text-muted-foreground">
                     <span className="font-medium">Catatan:</span> {detail.order.notes}
                   </p>
+                )}
+              </div>
+
+              {/* Payment Section */}
+              <div className="border-t bg-muted/30 px-5 py-4">
+                <p className="mb-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <Wallet className="h-3.5 w-3.5" /> Status Pembayaran
+                </p>
+                <div className="flex flex-wrap items-start gap-4">
+                  {/* Current status info */}
+                  <div className="flex-1 min-w-[180px] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Status</span>
+                      <TransactionStatusBadge status={detail.order.transaction_status} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Sisa Tagihan</span>
+                      <span className={`text-sm font-semibold ${
+                        detail.order.unpaid_transaction <= 0
+                          ? "text-emerald-600"
+                          : "text-destructive"
+                      }`}>
+                        {formatCurrency(Math.max(0, detail.order.unpaid_transaction))}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Sudah Dibayar</span>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(Math.max(0, detail.order.grand_total - detail.order.unpaid_transaction))}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Payment input — only shown when there's still something owed */}
+                  {detail.order.unpaid_transaction > 0 ? (() => {
+                    const maxPayable = detail.order.unpaid_transaction;
+                    const isOverMax = paymentAmount > 0 && paymentAmount > maxPayable;
+                    const isInvalid = paymentAmount <= 0 || isOverMax;
+                    return (
+                    <div className="flex-1 min-w-[180px] space-y-2">
+                      <Label className="text-xs">Catat Pembayaran</Label>
+                      <div className="flex gap-2">
+                        <CurrencyInput
+                          placeholder={`Maks. ${formatCurrency(maxPayable)}`}
+                          value={paymentAmount}
+                          onChange={setPaymentAmount}
+                          className={`h-9 text-sm ${isOverMax ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        />
+                        <Button
+                          size="sm"
+                          disabled={isInvalid || paymentPending}
+                          onClick={() => {
+                            if (isInvalid || !selectedOrderId) return;
+                            addPaymentLog(
+                              { orderId: selectedOrderId, amount: paymentAmount, notes: paymentNotes || undefined },
+                              { onSuccess: () => { setPaymentAmount(0); setPaymentNotes(""); } }
+                            );
+                          }}
+                        >
+                          {paymentPending ? "Menyimpan..." : "Bayar"}
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="Catatan (opsional)"
+                        value={paymentNotes}
+                        onChange={(e) => setPaymentNotes(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                      {isOverMax ? (
+                        <p className="text-xs text-destructive">
+                          Jumlah melebihi sisa tagihan ({formatCurrency(maxPayable)}).
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Masukkan jumlah yang diterima dari pelanggan.
+                        </p>
+                      )}
+
+                    </div>
+                    );
+                  })() : (
+                    <div className="flex flex-1 min-w-[180px] items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-4 py-3">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Transaksi sudah lunas</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment History */}
+              <div className="border-t px-5 py-4">
+                <p className="mb-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <History className="h-3.5 w-3.5" /> Riwayat Pembayaran
+                </p>
+                {logsLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                  </div>
+                ) : !paymentLogs || paymentLogs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Belum ada pembayaran yang dicatat.</p>
+                ) : (
+                  <div className="rounded-xl border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/40 hover:bg-muted/40">
+                          <TableHead className="pl-4 text-xs">Waktu</TableHead>
+                          <TableHead className="text-xs">Catatan</TableHead>
+                          <TableHead className="text-right pr-4 text-xs">Jumlah</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paymentLogs.map((log) => (
+                          <TableRow key={log.id} className="hover:bg-muted/20">
+                            <TableCell className="pl-4 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(log.paid_at).toLocaleString("id-ID", {
+                                day: "2-digit", month: "short", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                              })}
+                            </TableCell>
+                            <TableCell className="py-2 text-xs text-muted-foreground">
+                              {log.notes || <span className="italic opacity-50">—</span>}
+                            </TableCell>
+                            <TableCell className="text-right pr-4 py-2 text-sm font-semibold text-emerald-600">
+                              + {formatCurrency(log.amount)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </div>
             </div>

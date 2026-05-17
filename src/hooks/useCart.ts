@@ -20,6 +20,7 @@ export interface PendingCart {
   deliveryFee: number;
   notes: string;
   items: SalesItem[];
+  paymentAmount: number;
 }
 
 export type CartFormData = Omit<PendingCart, "id" | "createdAt">;
@@ -39,6 +40,7 @@ export function createEmptyCartData(): CartFormData {
     deliveryFee: 0,
     notes: "",
     items: [],
+    paymentAmount: 0,
   };
 }
 

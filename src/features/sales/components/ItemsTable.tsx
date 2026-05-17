@@ -2,6 +2,7 @@ import { Plus, Trash2, Search, Package, Truck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -24,6 +25,8 @@ interface ItemsTableProps {
   deliveryFee: number;
   setDeliveryFee: (v: number) => void;
   grandTotal: number;
+  paymentAmount: number;
+  setPaymentAmount: (v: number) => void;
   onSubmit: () => void;
   isPending: boolean;
 }
@@ -43,9 +46,12 @@ export function ItemsTable({
   deliveryFee,
   setDeliveryFee,
   grandTotal,
+  paymentAmount,
+  setPaymentAmount,
   onSubmit,
   isPending,
 }: ItemsTableProps) {
+  const kembalian = paymentAmount > grandTotal ? paymentAmount - grandTotal : 0;
   return (
     <Card className="min-h-[500px]">
       <CardHeader>
@@ -129,12 +135,10 @@ export function ItemsTable({
                     <div className="text-xs text-muted-foreground">{item.product_code}</div>
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <CurrencyInput
                       value={item.price}
-                      onChange={(e) => updateItem(index, "price", Number(e.target.value))}
+                      onChange={(v) => updateItem(index, "price", v)}
                       className="h-9 text-sm"
-                      min={0}
                     />
                   </TableCell>
                   <TableCell>
@@ -147,12 +151,10 @@ export function ItemsTable({
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
+                    <CurrencyInput
                       value={item.discount}
-                      onChange={(e) => updateItem(index, "discount", Number(e.target.value))}
+                      onChange={(v) => updateItem(index, "discount", v)}
                       className="h-9 text-sm"
-                      min={0}
                     />
                   </TableCell>
                   <TableCell className="text-right font-medium text-sm">
@@ -190,17 +192,38 @@ export function ItemsTable({
                   <Label className="flex items-center gap-1 text-xs font-normal text-muted-foreground cursor-pointer">
                     <Truck className="h-3.5 w-3.5" /> Biaya Kirim
                   </Label>
-                  <Input
-                    type="number"
-                    min={0}
+                  <CurrencyInput
                     value={deliveryFee}
-                    onChange={(e) => setDeliveryFee(Number(e.target.value))}
+                    onChange={setDeliveryFee}
                     className="h-7 w-32 text-right text-xs"
                   />
                 </div>
                 <div className="flex justify-between gap-12 pt-1 text-xl font-bold text-foreground">
                   <span>Grand Total</span>
                   <span className="text-primary">{formatCurrency(grandTotal)}</span>
+                </div>
+                <div className="mt-3 border-t pt-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-12">
+                    <span className="text-sm font-medium">Dibayar</span>
+                    <CurrencyInput
+                      value={paymentAmount}
+                      onChange={setPaymentAmount}
+                      placeholder="Jumlah bayar..."
+                      className="h-8 w-40 text-right text-sm font-semibold"
+                    />
+                  </div>
+                  {paymentAmount > 0 && (
+                    <div className="flex justify-between gap-12 text-sm">
+                      <span className={kembalian > 0 ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>
+                        {kembalian > 0 ? "Kembalian" : "Sisa Bayar"}
+                      </span>
+                      <span className={kembalian > 0 ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>
+                        {kembalian > 0
+                          ? formatCurrency(kembalian)
+                          : formatCurrency(grandTotal - paymentAmount)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
