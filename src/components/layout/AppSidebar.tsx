@@ -8,6 +8,7 @@ import {
   LogOut,
   Building2,
   ChevronsUpDown,
+  Truck,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +17,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -25,13 +27,28 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
-  { title: "Transaksi", url: "/penjualan", icon: ShoppingCart, end: false },
-  { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false },
-  { title: "Produk", url: "/produk", icon: Package, end: false },
-  { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false },
-  { title: "Master Data", url: "/master-data", icon: Database, end: false },
+const menuGroups = [
+  {
+    items: [
+      { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
+    ],
+  },
+  {
+    label: "Transaksi",
+    items: [
+      { title: "Transaksi Pending", url: "/penjualan", icon: ShoppingCart, end: false },
+      { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false },
+      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false },
+    ],
+  },
+  {
+    label: "Master Data",
+    items: [
+      { title: "Produk", url: "/produk", icon: Package, end: false },
+      { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false },
+      { title: "Master Data", url: "/master-data", icon: Database, end: false },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -82,26 +99,31 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={item.title}
-                    isActive={isActive(item.url, item.end)}
-                  >
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {menuGroups.map((group, gi) => (
+          <SidebarGroup key={gi}>
+            {group.label && (
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.title}
+                      isActive={isActive(item.url, item.end)}
+                    >
+                      <Link to={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border px-4 py-4">

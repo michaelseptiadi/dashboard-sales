@@ -13,6 +13,7 @@ import SalesHistory from "./pages/SalesHistory";
 import Products from "./pages/Products";
 import Customers from "./pages/Customers";
 import MasterData from "./pages/MasterData";
+import Pengiriman from "./pages/Pengiriman";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ const AppRoutes = () => (
       <Route path="/produk" element={<ProtectedRoute><Products /></ProtectedRoute>} />
       <Route path="/pelanggan" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
       <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
+      <Route path="/pengiriman" element={<ProtectedRoute><Pengiriman /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </>

@@ -105,7 +105,7 @@ export function useSalesDetail(orderId: string | null) {
 
       const { data: items, error: itemsError } = await supabase
         .from("sales_items")
-        .select("*, products(name, product_code)")
+        .select("*, products(name, product_code), delivery_status")
         .eq("sales_order_id", orderId!);
       if (itemsError) throw itemsError;
 

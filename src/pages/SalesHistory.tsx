@@ -35,6 +35,21 @@ function TransactionStatusBadge({ status }: { status: string | null | undefined 
   );
 }
 
+function ItemDeliveryStatusBadge({ status }: { status: string | null | undefined }) {
+  const map: Record<string, { label: string; className: string }> = {
+    pending:     { label: "Pending",       className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400" },
+    self_pickup: { label: "Ambil Sendiri", className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400" },
+    in_delivery: { label: "Dalam Kirim",   className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" },
+    delivered:   { label: "Terkirim",      className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400" },
+  };
+  const cfg = map[status ?? "pending"] ?? map["pending"];
+  return (
+    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
+      {cfg.label}
+    </Badge>
+  );
+}
+
 export default function SalesHistory() {
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -387,6 +402,7 @@ export default function SalesHistory() {
                         <TableHead className="text-right text-xs">Harga</TableHead>
                         <TableHead className="text-right text-xs">Qty</TableHead>
                         <TableHead className="text-right text-xs">Diskon</TableHead>
+                        <TableHead className="text-xs">Status Kirim</TableHead>
                         <TableHead className="text-right pr-4 text-xs">Subtotal</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -401,6 +417,9 @@ export default function SalesHistory() {
                           <TableCell className="text-right text-sm py-2.5">{item.qty}</TableCell>
                           <TableCell className="text-right text-sm py-2.5 text-destructive">
                             {item.discount > 0 ? `- ${formatCurrency(item.discount)}` : "-"}
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            <ItemDeliveryStatusBadge status={(item as any).delivery_status} />
                           </TableCell>
                           <TableCell className="text-right pr-4 text-sm font-medium py-2.5">{formatCurrency(item.subtotal)}</TableCell>
                         </TableRow>

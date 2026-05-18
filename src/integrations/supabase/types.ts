@@ -249,9 +249,113 @@ export type Database = {
           },
         ]
       }
+      delivery_items: {
+        Row: {
+          id: string
+          delivery_id: string
+          sales_order_id: string
+          sales_item_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          delivery_id: string
+          sales_order_id: string
+          sales_item_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          delivery_id?: string
+          sales_order_id?: string
+          sales_item_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_items_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_items_sales_item_id_fkey"
+            columns: ["sales_item_id"]
+            isOneToOne: false
+            referencedRelation: "sales_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deliveries: {
+        Row: {
+          id: string
+          delivery_number: string
+          delivery_date: string
+          delivery_status: string
+          driver_id: string | null
+          ritase_fee: number
+          notes: string | null
+          store_id: string | null
+          user_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          delivery_number: string
+          delivery_date?: string
+          delivery_status?: string
+          driver_id?: string | null
+          ritase_fee?: number
+          notes?: string | null
+          store_id?: string | null
+          user_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          delivery_number?: string
+          delivery_date?: string
+          delivery_status?: string
+          driver_id?: string | null
+          ritase_fee?: number
+          notes?: string | null
+          store_id?: string | null
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_items: {
         Row: {
           created_at: string
+          delivery_status: string
           discount: number
           id: string
           price: number
@@ -262,6 +366,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_status?: string
           discount?: number
           id?: string
           price?: number
@@ -272,6 +377,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_status?: string
           discount?: number
           id?: string
           price?: number
@@ -304,6 +410,7 @@ export type Database = {
           customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
+          delivery_status: string
           delivery_types: string | null
           driver_id: string | null
           grand_total: number
@@ -327,6 +434,7 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_status?: string
           delivery_types?: string | null
           driver_id?: string | null
           grand_total?: number
@@ -350,6 +458,7 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_status?: string
           delivery_types?: string | null
           driver_id?: string | null
           grand_total?: number
@@ -441,6 +550,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_delivery: {
+        Args: {
+          p_delivery_date?: string
+          p_driver_id?: string
+          p_ritase_fee?: number
+          p_notes?: string
+          p_store_id?: string
+          p_items?: Json
+        }
+        Returns: string
+      }
       create_sales_transaction: {
         Args: {
           p_customer_address?: string
