@@ -9,9 +9,11 @@ import {
   Building2,
   ChevronsUpDown,
   Truck,
+  UserCog,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import type { Role } from "@/hooks/useAuth";
 import {
   Sidebar,
   SidebarContent,
@@ -26,33 +28,60 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-const menuGroups = [
+type MenuItem = {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  end: boolean;
+  /** Store-level roles that can see this item. Empty means superadmin-only. */
+  roles: Role[];
+  superadminOnly?: boolean;
+};
+
+type MenuGroup = {
+  label?: string;
+  items: MenuItem[];
+};
+
+const menuGroups: MenuGroup[] = [
   {
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true },
+      { title: "Dashboard", url: "/", icon: LayoutDashboard, end: true, roles: ["admin"] },
     ],
   },
   {
     label: "Transaksi",
     items: [
-      { title: "Transaksi Pending", url: "/penjualan", icon: ShoppingCart, end: false },
-      { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false },
-      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false },
+      { title: "Transaksi Pending", url: "/penjualan", icon: ShoppingCart, end: false, roles: ["admin", "cashier"] },
+      { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false, roles: ["admin"] },
+      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false, roles: ["admin", "cashier"] },
     ],
   },
   {
     label: "Master Data",
     items: [
-      { title: "Produk", url: "/produk", icon: Package, end: false },
-      { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false },
-      { title: "Master Data", url: "/master-data", icon: Database, end: false },
+      { title: "Produk", url: "/produk", icon: Package, end: false, roles: ["admin"] },
+      { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false, roles: ["admin"] },
+      { title: "Master Data", url: "/master-data", icon: Database, end: false, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Sistem",
+    items: [
+      { title: "Manajemen User", url: "/users", icon: UserCog, end: false, roles: [], superadminOnly: true },
     ],
   },
 ];
 
+const ROLE_LABEL: Record<Role, string> = {
+  admin: "Admin",
+  cashier: "Kasir",
+};
+
 export function AppSidebar() {
-  const { signOut, user, selectedStore, setStoreModalOpen } = useAuth();
+  const { signOut, user, selectedStore, setStoreModalOpen, currentRole, isSuperAdmin } = useAuth();
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
@@ -61,6 +90,17 @@ export function AppSidebar() {
     if (end) return location.pathname === url;
     return location.pathname === url || location.pathname.startsWith(url + "/");
   };
+
+  const canSeeItem = (item: MenuItem) => {
+    if (item.superadminOnly) return isSuperAdmin;
+    if (isSuperAdmin) return true;
+    if (!currentRole) return false;
+    return item.roles.includes(currentRole);
+  };
+
+  const visibleGroups = menuGroups
+    .map((group) => ({ ...group, items: group.items.filter(canSeeItem) }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <Sidebar collapsible="icon">
@@ -99,7 +139,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {menuGroups.map((group, gi) => (
+        {visibleGroups.map((group, gi) => (
           <SidebarGroup key={gi}>
             {group.label && (
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
@@ -128,7 +168,18 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border px-4 py-4">
         {!collapsed && (
-          <p className="mb-2 truncate text-xs text-sidebar-foreground/50">{user?.email}</p>
+          <div className="mb-2 flex items-center gap-2">
+            <p className="truncate text-xs text-sidebar-foreground/50 flex-1">{user?.email}</p>
+            {isSuperAdmin ? (
+              <Badge className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-500">
+                Superadmin
+              </Badge>
+            ) : currentRole ? (
+              <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">
+                {ROLE_LABEL[currentRole]}
+              </Badge>
+            ) : null}
+          </div>
         )}
         <Button
           variant="ghost"
@@ -143,3 +194,5 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+

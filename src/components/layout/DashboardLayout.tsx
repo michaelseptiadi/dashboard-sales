@@ -1,6 +1,12 @@
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
+
+const CASHIER_ALLOWED_ROUTES = ["/penjualan", "/pengiriman"];
+const SUPERADMIN_ONLY_ROUTES = ["/users"];
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -8,6 +14,31 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
+  const { currentRole, roleLoading, isSuperAdmin, superAdminLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (roleLoading || superAdminLoading) return;
+
+    // Superadmin-only pages: redirect non-superadmins away
+    if (SUPERADMIN_ONLY_ROUTES.includes(location.pathname) && !isSuperAdmin) {
+      navigate("/", { replace: true });
+      return;
+    }
+
+    // Superadmin bypasses all other restrictions
+    if (isSuperAdmin) return;
+
+    // Cashier: only allowed on specific routes
+    if (
+      currentRole === "cashier" &&
+      !CASHIER_ALLOWED_ROUTES.includes(location.pathname)
+    ) {
+      navigate("/penjualan", { replace: true });
+    }
+  }, [currentRole, roleLoading, isSuperAdmin, superAdminLoading, location.pathname, navigate]);
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -24,3 +55,5 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
     </SidebarProvider>
   );
 }
+
+
