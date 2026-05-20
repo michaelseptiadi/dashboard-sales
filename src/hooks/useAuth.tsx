@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 
 type Store = Database["public"]["Tables"]["stores"]["Row"];
+export type Role = "admin" | "cashier";
 
 const STORE_STORAGE_KEY = "selected_store";
 
@@ -25,6 +26,10 @@ interface AuthContextType {
   setSelectedStore: (store: Store | null) => void;
   storeModalOpen: boolean;
   setStoreModalOpen: (open: boolean) => void;
+  currentRole: Role | null;
+  roleLoading: boolean;
+  isSuperAdmin: boolean;
+  superAdminLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -65,6 +70,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Store-level role for the currently selected store
+  const { data: currentRole = null, isLoading: roleLoading } = useQuery({
+    queryKey: ["user_role", user?.id, selectedStore?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_store_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .eq("store_id", selectedStore!.id)
+        .single();
+      if (error) return null;
+      return (data?.role as Role) ?? null;
+    },
+    enabled: !!user && !!selectedStore,
+  });
+
+  // App-level superadmin flag
+  const { data: isSuperAdmin = false, isLoading: superAdminLoading } = useQuery({
+    queryKey: ["is_superadmin", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user!.id)
+        .eq("role", "superadmin")
+        .single();
+      return !!data;
+    },
+    enabled: !!user,
+  });
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
@@ -82,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, selectedStore, setSelectedStore, storeModalOpen, setStoreModalOpen, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, selectedStore, setSelectedStore, storeModalOpen, setStoreModalOpen, currentRole, roleLoading, isSuperAdmin, superAdminLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -97,14 +133,29 @@ export function useAuth() {
 }
 
 export function useStoresList() {
+  const { user, isSuperAdmin, superAdminLoading } = useAuth();
   return useQuery({
-    queryKey: ["stores"],
+    queryKey: ["stores", user?.id, isSuperAdmin],
     queryFn: async () => {
-      let query = supabase.from("stores").select("*").order("store_name");
-
-      const { data, error } = await query;
+      if (isSuperAdmin) {
+        const { data, error } = await supabase
+          .from("stores")
+          .select("*")
+          .eq("is_active", true)
+          .order("store_name");
+        if (error) throw error;
+        return data ?? [];
+      }
+      const { data, error } = await supabase
+        .from("user_store_roles")
+        .select("store:stores(*)")
+        .eq("user_id", user!.id);
       if (error) throw error;
-      return data;
+      return (data ?? [])
+        .map((r) => r.store as Store | null)
+        .filter((s): s is Store => s !== null && s.is_active);
     },
+    enabled: !!user && !superAdminLoading,
   });
 }
+
