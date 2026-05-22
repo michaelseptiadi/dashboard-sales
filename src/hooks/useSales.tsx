@@ -5,6 +5,22 @@ import { useAuth } from "@/hooks/useAuth";
 // useDashboardStats has been moved to useDashboard.ts — re-exported here for backward compatibility.
 export { useDashboardStats } from "@/hooks/useDashboard";
 
+/** Resolve matching customer IDs for the name query, then build an OR filter string. */
+async function buildCustomerOrFilter(nameQuery: string): Promise<string> {
+  const { data } = await supabase
+    .from("customers")
+    .select("id")
+    .or(`name.ilike.%${nameQuery}%,address.ilike.%${nameQuery}%`);
+  const parts = [
+    `customer_name.ilike.%${nameQuery}%`,
+    `customer_address.ilike.%${nameQuery}%`,
+  ];
+  if (data && data.length > 0) {
+    parts.push(`customer_id.in.(${data.map((c) => c.id).join(",")})`);
+  }
+  return parts.join(",");
+}
+
 interface SalesOrderFilters {
   dateFrom?: string;
   dateTo?: string;
@@ -13,7 +29,6 @@ interface SalesOrderFilters {
   paymentMethodId?: string;
   deliveryType?: string;
   driverId?: string;
-  /** "paid" | "unpaid" (unpaid covers both unpaid + half_payment) | undefined = all */
   transactionStatus?: "paid" | "unpaid";
   page?: number;
   pageSize?: number;
@@ -34,7 +49,7 @@ export function useSalesOrders(filters: SalesOrderFilters = {}) {
 
       let query = supabase
         .from("sales_orders")
-        .select("*, payment_methods(name), customers(name)")
+        .select("*, payment_methods(name), customers(name, address)")
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -42,7 +57,7 @@ export function useSalesOrders(filters: SalesOrderFilters = {}) {
       if (dateFrom) query = query.gte("sales_date", dateFrom);
       if (dateTo) query = query.lte("sales_date", dateTo);
       if (search) query = query.ilike("invoice_number", `%${search}%`);
-      if (customerName) query = query.ilike("customer_name", `%${customerName}%`);
+      if (customerName) query = query.or(await buildCustomerOrFilter(customerName));
       if (paymentMethodId) query = query.eq("payment_method_id", paymentMethodId);
       if (deliveryType) query = query.eq("delivery_types", deliveryType);
       if (driverId) query = query.eq("driver_id", driverId);
@@ -67,12 +82,13 @@ export function useSalesOrderStatusCounts(filters: BaseFilters = {}) {
   return useQuery({
     queryKey: ["sales-order-counts", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId],
     queryFn: async () => {
+      const customerOrFilter = customerName ? await buildCustomerOrFilter(customerName) : null;
       const applyBase = (q: ReturnType<typeof supabase.from>) => {
         if (storeId) q = (q as any).eq("store_id", storeId);
         if (dateFrom) q = (q as any).gte("sales_date", dateFrom);
         if (dateTo) q = (q as any).lte("sales_date", dateTo);
         if (search) q = (q as any).ilike("invoice_number", `%${search}%`);
-        if (customerName) q = (q as any).ilike("customer_name", `%${customerName}%`);
+        if (customerOrFilter) q = (q as any).or(customerOrFilter);
         if (paymentMethodId) q = (q as any).eq("payment_method_id", paymentMethodId);
         if (deliveryType) q = (q as any).eq("delivery_types", deliveryType);
         if (driverId) q = (q as any).eq("driver_id", driverId);
@@ -98,7 +114,7 @@ export function useSalesDetail(orderId: string | null) {
     queryFn: async () => {
       const { data: order, error: orderError } = await supabase
         .from("sales_orders")
-        .select("*, payment_methods(name), customers(name)")
+        .select("*, payment_methods(name), customers(name, address)")
         .eq("id", orderId!)
         .maybeSingle();
       if (orderError) throw orderError;
@@ -222,6 +238,41 @@ export function useAddPaymentLog() {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-detail", orderId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useMarkSelfPickupItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderId, productIds }: { orderId: string; productIds: string[] }) => {
+      if (productIds.length === 0) return;
+      const { error } = await supabase
+        .from("sales_items")
+        .update({ delivery_status: "self_pickup" })
+        .eq("sales_order_id", orderId)
+        .in("product_id", productIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders-for-delivery"] });
+    },
+  });
+}
+
+export function useUpdateItemDeliveryStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ itemId, status }: { itemId: string; status: "pending" | "self_pickup" }) => {
+      const { error } = await supabase
+        .from("sales_items")
+        .update({ delivery_status: status })
+        .eq("id", itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders-for-delivery"] });
     },
   });
 }

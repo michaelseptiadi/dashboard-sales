@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
 import { formatCurrency } from "@/lib/format";
-import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts } from "@/hooks/useSales";
+import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts, useUpdateItemDeliveryStatus } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
@@ -77,6 +77,7 @@ export default function SalesHistory() {
   const { data: drivers } = useDrivers();
   const { data: paymentMethods } = usePaymentMethods();
   const { mutate: addPaymentLog, isPending: paymentPending } = useAddPaymentLog();
+  const { mutate: updateItemStatus, isPending: itemStatusPending } = useUpdateItemDeliveryStatus();
 
   // Reset to first page when filters, pageSize, or tab change
   useEffect(() => { setCurrentPage(1); }, [search, dateFrom, dateTo, customerName, paymentMethodId, deliveryType, driverId, pageSize, statusTab]);
@@ -133,7 +134,7 @@ export default function SalesHistory() {
                 </div>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input placeholder="Nama pelanggan..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9 pl-8 text-sm" />
+                  <Input placeholder="Nama / Alamat pelanggan..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9 pl-8 text-sm" />
                 </div>
                 <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 text-sm" />
                 <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 text-sm" />
@@ -272,13 +273,25 @@ export default function SalesHistory() {
                           <span className="font-mono text-sm font-medium">{order.invoice_number}</span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                            {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                          <div className="flex items-start gap-1.5">
+                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-sm">
+                                {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(order.sales_date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">{(order as any).customers?.name || order.customer_name || "-"}</span>
+                          <p className="text-sm">{(order as any).customers?.name || order.customer_name || "-"}</p>
+                          {((order as any).customers?.address || order.customer_address) && (
+                            <p className="text-xs text-muted-foreground leading-snug">
+                              {(order as any).customers?.address || order.customer_address}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{(order.payment_methods as any)?.name || "-"}</span>
@@ -382,10 +395,10 @@ export default function SalesHistory() {
                 ))}
               </div>
 
-              {detail.order.customer_address && (
+              {((detail.order as any).customers?.address || detail.order.customer_address) && (
                 <div className="px-5 py-3 border-b bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-0.5">Alamat</p>
-                  <p className="text-sm">{detail.order.customer_address}</p>
+                  <p className="text-sm">{(detail.order as any).customers?.address || detail.order.customer_address}</p>
                 </div>
               )}
 
@@ -419,7 +432,29 @@ export default function SalesHistory() {
                             {item.discount > 0 ? `- ${formatCurrency(item.discount)}` : "-"}
                           </TableCell>
                           <TableCell className="py-2.5">
-                            <ItemDeliveryStatusBadge status={(item as any).delivery_status} />
+                            {(() => {
+                              const st: string = (item as any).delivery_status ?? "pending";
+                              if (st === "in_delivery" || st === "delivered") {
+                                return <ItemDeliveryStatusBadge status={st} />;
+                              }
+                              return (
+                                <Select
+                                  value={st}
+                                  onValueChange={(v) =>
+                                    updateItemStatus({ itemId: item.id, status: v as "pending" | "self_pickup" })
+                                  }
+                                  disabled={itemStatusPending}
+                                >
+                                  <SelectTrigger className="h-7 w-fit border-0 p-0 shadow-none focus:ring-0 [&>svg]:ml-1 gap-0">
+                                    <ItemDeliveryStatusBadge status={st} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="self_pickup">Ambil Sendiri</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-right pr-4 text-sm font-medium py-2.5">{formatCurrency(item.subtotal)}</TableCell>
                         </TableRow>
@@ -452,9 +487,13 @@ export default function SalesHistory() {
                   </div>
                 </div>
                 {detail.order.notes && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    <span className="font-medium">Catatan:</span> {detail.order.notes}
-                  </p>
+                  <div className="mt-3 flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
+                    <span className="mt-0.5 text-amber-500 shrink-0">📝</span>
+                    <div>
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Catatan</p>
+                      <p className="text-xs text-amber-800 dark:text-amber-300">{detail.order.notes}</p>
+                    </div>
+                  </div>
                 )}
               </div>
 

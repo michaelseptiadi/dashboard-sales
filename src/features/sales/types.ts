@@ -6,4 +6,5 @@ export interface SalesItem {
   price: number;
   discount: number;
   subtotal: number;
+  self_pickup?: boolean;
 }
