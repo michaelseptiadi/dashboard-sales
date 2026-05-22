@@ -84,6 +84,42 @@ export function useActiveProducts(search?: string) {
   });
 }
 
+export function useLowStockProducts() {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
+  return useQuery({
+    queryKey: ["low-stock-products", storeId],
+    queryFn: async () => {
+      let query = supabase
+        .from("products")
+        .select("id, name, product_code, minimum_stock")
+        .eq("is_active", true)
+        .gt("minimum_stock", 0);
+      if (storeId) query = query.eq("store_id", storeId);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      let stockQuery = supabase
+        .from("inventory_movements")
+        .select("product_id, qty_in, qty_out");
+      if (storeId) stockQuery = stockQuery.eq("store_id", storeId);
+      const { data: stockData, error: stockError } = await stockQuery;
+      if (stockError) throw stockError;
+
+      const stockMap: Record<string, number> = {};
+      stockData?.forEach((m) => {
+        if (!stockMap[m.product_id]) stockMap[m.product_id] = 0;
+        stockMap[m.product_id] += (m.qty_in || 0) - (m.qty_out || 0);
+      });
+
+      return (data || [])
+        .map((p) => ({ ...p, current_stock: stockMap[p.id] ?? 0 }))
+        .filter((p) => p.current_stock < p.minimum_stock);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   const { selectedStore } = useAuth();
