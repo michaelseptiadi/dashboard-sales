@@ -112,7 +112,11 @@ function AddUserDialog({
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
       if (error) throw error;
       // Upsert profile as fallback in case the DB trigger didn't fire yet
       if (data.user) {
