@@ -217,6 +217,23 @@ export default function Sales() {
     );
   };
 
+  // Keep deliveryType in sync with items: all self_pickup → self_delivery, otherwise → driver
+  useEffect(() => {
+    if (items.length === 0) return;
+    const allSelfPickup = items.every((i) => i.self_pickup);
+    if (allSelfPickup) {
+      if (deliveryType !== "self_delivery") {
+        setDeliveryType("self_delivery");
+        setDriverId("");
+      }
+    } else {
+      if (deliveryType !== "driver") {
+        setDeliveryType("driver");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   const totalAmount = items.reduce((sum, i) => sum + i.qty * i.price, 0);
   const totalDiscount = items.reduce((sum, i) => sum + i.discount, 0);
   const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0) + deliveryFee;
