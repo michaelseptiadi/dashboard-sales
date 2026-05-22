@@ -14,6 +14,7 @@ import Products from "./pages/Products";
 import Customers from "./pages/Customers";
 import MasterData from "./pages/MasterData";
 import Pengiriman from "./pages/Pengiriman";
+import PengirimanForm from "./pages/PengirimanForm";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
@@ -74,6 +75,8 @@ const AppRoutes = () => (
       <Route path="/pelanggan" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
       <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
       <Route path="/pengiriman" element={<ProtectedRoute><Pengiriman /></ProtectedRoute>} />
+      <Route path="/pengiriman/buat" element={<ProtectedRoute><PengirimanForm /></ProtectedRoute>} />
+      <Route path="/pengiriman/:id/edit" element={<ProtectedRoute><PengirimanForm /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

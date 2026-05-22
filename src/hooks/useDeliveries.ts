@@ -73,17 +73,59 @@ export interface DeliveryFilters {
   dateTo?: string;
   driverId?: string;
   status?: string;
+  customerSearch?: string;
+}
+
+/**
+ * Resolve delivery IDs that contain any sales order matching the customer search
+ * (by customer_name, customer_address, or linked customers.name / customers.address).
+ */
+async function resolveDeliveryIdsForCustomer(customerSearch: string, storeId?: string): Promise<string[] | null> {
+  // Step 1: find matching customer IDs from the customers table
+  const { data: linkedCustomers } = await supabase
+    .from("customers")
+    .select("id")
+    .or(`name.ilike.%${customerSearch}%,address.ilike.%${customerSearch}%`);
+
+  const orParts = [
+    `customer_name.ilike.%${customerSearch}%`,
+    `customer_address.ilike.%${customerSearch}%`,
+  ];
+  if (linkedCustomers && linkedCustomers.length > 0) {
+    orParts.push(`customer_id.in.(${linkedCustomers.map((c) => c.id).join(",")})`);
+  }
+
+  // Step 2: find sales_order IDs matching the customer search
+  let orderQuery = supabase.from("sales_orders").select("id").or(orParts.join(","));
+  if (storeId) orderQuery = orderQuery.eq("store_id", storeId);
+  const { data: orders } = await orderQuery;
+  if (!orders || orders.length === 0) return []; // no matches → return empty (caller should short-circuit)
+
+  // Step 3: find delivery IDs that have those sales orders
+  const { data: diData } = await supabase
+    .from("delivery_items")
+    .select("delivery_id")
+    .in("sales_order_id", orders.map((o) => o.id));
+
+  return [...new Set((diData ?? []).map((di) => di.delivery_id))];
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export function useDeliveries(filters: DeliveryFilters = {}) {
   const { selectedStore } = useAuth();
-  const { dateFrom, dateTo, driverId, status } = filters;
+  const { dateFrom, dateTo, driverId, status, customerSearch } = filters;
 
   return useQuery<Delivery[]>({
-    queryKey: ["deliveries", selectedStore?.id, dateFrom, dateTo, driverId, status],
+    queryKey: ["deliveries", selectedStore?.id, dateFrom, dateTo, driverId, status, customerSearch],
     queryFn: async () => {
+      // Resolve delivery IDs for customer search before building main query
+      let restrictToDeliveryIds: string[] | null = null;
+      if (customerSearch) {
+        restrictToDeliveryIds = await resolveDeliveryIdsForCustomer(customerSearch, selectedStore?.id);
+        if (restrictToDeliveryIds.length === 0) return []; // no matching deliveries
+      }
+
       let query = supabase
         .from("deliveries")
         .select("*, drivers(driver_name, phone_number), delivery_items(id, sales_order_id, sales_item_id)")
@@ -95,6 +137,7 @@ export function useDeliveries(filters: DeliveryFilters = {}) {
       if (dateTo) query = query.lte("delivery_date", dateTo);
       if (driverId) query = query.eq("driver_id", driverId);
       if (status) query = query.eq("delivery_status", status);
+      if (restrictToDeliveryIds) query = query.in("id", restrictToDeliveryIds);
 
       const { data, error } = await query;
       if (error) throw error;
