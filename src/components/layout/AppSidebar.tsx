@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useLowStockProducts } from "@/hooks/useProducts";
 import type { Role } from "@/hooks/useAuth";
 import {
   Sidebar,
@@ -85,6 +86,8 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const collapsed = state === "collapsed";
+  const { data: lowStockItems } = useLowStockProducts();
+  const lowStockCount = lowStockItems?.length ?? 0;
 
   const isActive = (url: string, end: boolean) => {
     if (end) return location.pathname === url;
@@ -155,7 +158,12 @@ export function AppSidebar() {
                     >
                       <Link to={item.url}>
                         <item.icon />
-                        <span>{item.title}</span>
+                        <span className="flex-1">{item.title}</span>
+                        {item.url === "/produk" && lowStockCount > 0 && (
+                          <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] leading-none bg-destructive hover:bg-destructive text-white">
+                            {lowStockCount}
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

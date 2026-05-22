@@ -28,14 +28,14 @@ export type CartFormData = Omit<PendingCart, "id" | "createdAt">;
 export function createEmptyCartData(): CartFormData {
   return {
     invoiceNumber: generateInvoice(),
-    salesDate: new Date().toISOString().split("T")[0],
+    salesDate: new Date().toISOString().slice(0, 16),
     customerMode: "existing",
     customerId: "",
     customerName: "",
     customerPhone: "",
     customerAddress: "",
     paymentMethodId: "",
-    deliveryType: "self_delivery",
+    deliveryType: "driver",
     driverId: "",
     deliveryFee: 0,
     notes: "",

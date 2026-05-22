@@ -15,8 +15,8 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
-import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock } from "@/hooks/useProducts";
-import { Plus, Pencil, PackagePlus } from "lucide-react";
+import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
+import { Plus, Pencil, PackagePlus, AlertTriangle } from "lucide-react";
 
 interface ProductFormData {
   product_code: string;
@@ -51,6 +51,7 @@ export default function Products() {
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
 
   const { data: products, isLoading } = useProducts(search, categoryFilter || undefined);
+  const { data: lowStockItems } = useLowStockProducts();
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const createProduct = useCreateProduct();
@@ -58,9 +59,18 @@ export default function Products() {
   const adjustStock = useAdjustStock();
   useRealtimeStock();
 
+  const nextProductCode = () => {
+    const existing = (products ?? [])
+      .map((p) => p.product_code)
+      .filter((code) => /^BRG-\d+$/.test(code))
+      .map((code) => parseInt(code.replace("BRG-", ""), 10));
+    const max = existing.length > 0 ? Math.max(...existing) : 0;
+    return `BRG-${String(max + 1).padStart(4, "0")}`;
+  };
+
   const openCreate = () => {
     setEditId(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, product_code: nextProductCode() });
     setDialogOpen(true);
   };
 
@@ -79,8 +89,8 @@ export default function Products() {
   };
 
   const handleSave = async () => {
-    if (!form.product_code || !form.name) {
-      toast({ title: "Kode dan nama produk wajib diisi", variant: "destructive" });
+    if (!form.product_code || !form.name || !form.category_id || !form.unit_id || !form.selling_price || !form.capital_price) {
+      toast({ title: "Semua field wajib diisi", variant: "destructive" });
       return;
     }
     try {
@@ -137,10 +147,64 @@ export default function Products() {
 
   return (
     <DashboardLayout title="Manajemen Produk">
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4">
+      {/* Low stock alert */}
+      {lowStockItems && lowStockItems.length > 0 && (
+        <Card className="mb-5 border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30">
+          <CardHeader className="px-5 pb-2 pt-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                Peringatan Stok Menipis
+              </CardTitle>
+              <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-600 dark:bg-red-900/60 dark:text-red-400">
+                {lowStockItems.length} produk
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-red-400/80 dark:text-red-500/70">Klik kartu untuk menyesuaikan stok</p>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="flex gap-3 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-red-300 [&::-webkit-scrollbar-track]:bg-transparent">
+              {lowStockItems.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => openStockDialog(p)}
+                  className="group shrink-0 w-44 cursor-pointer rounded-xl border border-red-200 bg-white px-3.5 py-3 shadow-sm transition-all hover:border-red-400 hover:shadow-md dark:border-red-700 dark:bg-red-950/60 dark:hover:border-red-500"
+                >
+                  <p className="truncate text-sm font-semibold text-red-800 dark:text-red-200">{p.name}</p>
+                  <p className="mb-3 font-mono text-[11px] text-red-400 dark:text-red-500">{p.product_code}</p>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-[10px] tracking-wide text-red-400/70">Stok Sekarang</p>
+                      <p className="text-2xl font-bold leading-none text-red-700 dark:text-red-300">{p.current_stock}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] tracking-wide text-red-400/70">Min. Stok</p>
+                      <p className="text-base font-semibold text-red-400 dark:text-red-500">{p.minimum_stock}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {/* Products Table */}
+      <Card>
+        <CardHeader className="px-6 pb-4 pt-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <CardTitle className="text-base">Daftar Produk</CardTitle>
+              {products && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {products.length}
+                </span>
+              )}
+            </div>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="mr-1.5 h-4 w-4" /> Tambah Produk
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-3 pt-1">
             <SearchInput
               containerClassName="flex-1 min-w-[200px]"
               placeholder="Cari nama atau kode produk..."
@@ -158,63 +222,53 @@ export default function Products() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" /> Tambah Produk
-            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Products Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Daftar Produk</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 pb-0">
           {isLoading ? (
-            <TableSkeleton />
+            <div className="px-6 pb-6"><TableSkeleton /></div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Satuan</TableHead>
-                  <TableHead className="text-right">Harga Modal</TableHead>
-                  <TableHead className="text-right">Harga Jual</TableHead>
-                  <TableHead className="text-right">Stok</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                <TableRow className="border-t bg-muted/30">
+                  <TableHead className="pl-6 text-xs">Kode</TableHead>
+                  <TableHead className="text-xs">Nama</TableHead>
+                  <TableHead className="text-xs">Kategori</TableHead>
+                  <TableHead className="text-xs">Satuan</TableHead>
+                  <TableHead className="text-right text-xs">Harga Modal</TableHead>
+                  <TableHead className="text-right text-xs">Harga Jual</TableHead>
+                  <TableHead className="text-right text-xs">Stok</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="w-10 pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                      Tidak ada produk ditemukan
+                    <TableCell colSpan={9} className="py-16 text-center text-muted-foreground">
+                      <PackagePlus className="mx-auto mb-2 h-8 w-8 opacity-25" />
+                      <p className="text-sm">Tidak ada produk ditemukan</p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   products?.map((product) => {
                     const isLowStock = product.current_stock !== undefined && product.current_stock <= product.minimum_stock;
                     return (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-mono text-sm">{product.product_code}</TableCell>
+                      <TableRow key={product.id} className="group">
+                        <TableCell className="pl-6 font-mono text-xs text-muted-foreground">{product.product_code}</TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{product.categories?.name || "-"}</TableCell>
-                        <TableCell>{product.units?.name || "-"}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(product.capital_price)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(product.selling_price)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{product.categories?.name || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{product.units?.name || "—"}</TableCell>
+                        <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(product.capital_price)}</TableCell>
+                        <TableCell className="text-right text-sm font-medium">{formatCurrency(product.selling_price)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Badge
-                              variant={product.current_stock !== undefined && product.current_stock <= 0 ? "destructive" : isLowStock ? "outline" : "secondary"}
-                              className={isLowStock && product.current_stock !== undefined && product.current_stock > 0 ? "border-success text-success" : ""}
+                              className={isLowStock ? "bg-red-100 text-red-700 border-red-300 hover:bg-red-100" : "bg-green-100 text-green-700 border-green-300 hover:bg-green-100"}
                             >
                               {product.current_stock ?? 0}
                             </Badge>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openStockDialog(product)}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
                               <PackagePlus className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -225,9 +279,9 @@ export default function Products() {
                             onCheckedChange={() => handleToggleActive(product.id, product.is_active)}
                           />
                         </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
-                            <Pencil className="h-4 w-4" />
+                        <TableCell className="pr-6">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
+                            <Pencil className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -242,13 +296,15 @@ export default function Products() {
 
       {/* Stock Adjustment Dialog */}
       <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Sesuaikan Stok — {stockProduct?.name}</DialogTitle>
+            <DialogTitle className="text-base">Sesuaikan Stok</DialogTitle>
+            <p className="text-sm text-muted-foreground">{stockProduct?.name}</p>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-md bg-muted px-4 py-3 text-sm">
-              Stok saat ini: <span className="font-semibold">{stockProduct?.current_stock ?? 0}</span>
+            <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
+              <span className="text-sm text-muted-foreground">Stok saat ini</span>
+              <span className="text-2xl font-bold tabular-nums">{stockProduct?.current_stock ?? 0}</span>
             </div>
             <div className="space-y-2">
               <Label>Jenis Penyesuaian</Label>
@@ -273,14 +329,16 @@ export default function Products() {
               />
             </div>
             {stockProduct && adjustQty > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Stok setelah penyesuaian:{" "}
-                <span className="font-semibold">
+              <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
+                <span className="text-sm text-muted-foreground">Stok setelah</span>
+                <span className={`text-2xl font-bold tabular-nums ${
+                  adjustType === "in" ? "text-green-600" : "text-red-600"
+                }`}>
                   {adjustType === "in"
                     ? stockProduct.current_stock + adjustQty
                     : Math.max(0, stockProduct.current_stock - adjustQty)}
                 </span>
-              </p>
+              </div>
             )}
             <DialogFormActions
               onCancel={() => setStockDialogOpen(false)}
@@ -300,17 +358,17 @@ export default function Products() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Kode Produk *</Label>
-                <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" />
+                <Label>Kode Produk</Label>
+                <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" disabled/>
               </div>
               <div className="space-y-2">
-                <Label>Nama Produk *</Label>
+                <Label>Nama Produk <span className="text-destructive">*</span></Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Kategori</Label>
+                <Label>Kategori <span className="text-destructive">*</span></Label>
                 <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                   <SelectContent>
@@ -321,7 +379,7 @@ export default function Products() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Satuan</Label>
+                <Label>Satuan <span className="text-destructive">*</span></Label>
                 <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Pilih satuan" /></SelectTrigger>
                   <SelectContent>
@@ -334,11 +392,11 @@ export default function Products() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Harga Jual</Label>
+                <Label>Harga Jual <span className="text-destructive">*</span></Label>
                 <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} />
               </div>
               <div className="space-y-2">
-                <Label>Harga Modal</Label>
+                <Label>Harga Modal <span className="text-destructive">*</span></Label>
                 <CurrencyInput value={form.capital_price} onChange={(v) => setForm({ ...form, capital_price: v })} />
               </div>
               <div className="space-y-2">

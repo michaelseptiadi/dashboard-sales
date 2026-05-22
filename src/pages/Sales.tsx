@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useActiveProducts } from "@/hooks/useProducts";
-import { usePaymentMethods, useCreateSalesTransaction, useAddPaymentLog } from "@/hooks/useSales";
+import { usePaymentMethods, useCreateSalesTransaction, useAddPaymentLog, useMarkSelfPickupItems } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { TransactionInfoCard } from "@/features/sales/components/TransactionInfoCard";
 import { CustomerSelector } from "@/features/sales/components/CustomerSelector";
@@ -22,19 +22,20 @@ export default function Sales() {
   const { data: drivers } = useDrivers();
   const createTransaction = useCreateSalesTransaction();
   const { mutateAsync: addPaymentLog } = useAddPaymentLog();
+  const { mutateAsync: markSelfPickup } = useMarkSelfPickupItems();
 
   const { carts, activeCartId, activeCart, saveCart, newCart, switchCart, removeCart } = useCart();
 
   // ── form state (initialised from active cart in localStorage) ──────────────
   const [invoiceNumber, setInvoiceNumber] = useState(() => activeCart?.invoiceNumber ?? "");
-  const [salesDate, setSalesDate] = useState(() => activeCart?.salesDate ?? new Date().toISOString().split("T")[0]);
+  const [salesDate, setSalesDate] = useState(() => activeCart?.salesDate ?? new Date().toISOString().slice(0, 16));
   const [customerMode, setCustomerMode] = useState<"existing" | "manual">(() => activeCart?.customerMode ?? "existing");
   const [customerId, setCustomerId] = useState<string>(() => activeCart?.customerId ?? "");
   const [customerName, setCustomerName] = useState(() => activeCart?.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(() => activeCart?.customerPhone ?? "");
   const [customerAddress, setCustomerAddress] = useState(() => activeCart?.customerAddress ?? "");
   const [paymentMethodId, setPaymentMethodId] = useState(() => activeCart?.paymentMethodId ?? "");
-  const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">(() => activeCart?.deliveryType ?? "self_delivery");
+  const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">(() => activeCart?.deliveryType ?? "driver");
   const [driverId, setDriverId] = useState(() => activeCart?.driverId ?? "");
   const [deliveryFee, setDeliveryFee] = useState(() => activeCart?.deliveryFee ?? 0);
   const [notes, setNotes] = useState(() => activeCart?.notes ?? "");
@@ -208,6 +209,31 @@ export default function Sales() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const toggleItemSelfPickup = (index: number) => {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, self_pickup: !item.self_pickup } : item
+      )
+    );
+  };
+
+  // Keep deliveryType in sync with items: all self_pickup → self_delivery, otherwise → driver
+  useEffect(() => {
+    if (items.length === 0) return;
+    const allSelfPickup = items.every((i) => i.self_pickup);
+    if (allSelfPickup) {
+      if (deliveryType !== "self_delivery") {
+        setDeliveryType("self_delivery");
+        setDriverId("");
+      }
+    } else {
+      if (deliveryType !== "driver") {
+        setDeliveryType("driver");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   const totalAmount = items.reduce((sum, i) => sum + i.qty * i.price, 0);
   const totalDiscount = items.reduce((sum, i) => sum + i.discount, 0);
   const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0) + deliveryFee;
@@ -259,6 +285,13 @@ export default function Sales() {
           orderId: orderId as string,
           amount: Math.min(paymentAmount, grandTotal),
         });
+      }
+      // Mark self_pickup items
+      const selfPickupProductIds = items
+        .filter((i) => i.self_pickup)
+        .map((i) => i.product_id);
+      if (selfPickupProductIds.length > 0 && orderId) {
+        await markSelfPickup({ orderId: orderId as string, productIds: selfPickupProductIds });
       }
       // Capture submitted data for the SuccessScreen before resetting the form
       submittedDataRef.current = { invoice: invoiceNumber, total: grandTotal };
@@ -363,6 +396,7 @@ export default function Sales() {
           items={items}
           addItem={addItem}
           updateItem={updateItem}
+          toggleItemSelfPickup={toggleItemSelfPickup}
           removeItem={removeItem}
           productSearch={productSearch}
           setProductSearch={setProductSearch}

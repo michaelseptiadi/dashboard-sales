@@ -43,14 +43,14 @@ export function TransactionInfoCard({
           <Label className="text-xs">No. Invoice</Label>
           <Input value={invoiceNumber} readOnly className="bg-muted font-mono text-sm h-9" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Tanggal</Label>
+            <Label className="text-xs">Tanggal &amp; Waktu</Label>
             <Input
-              type="date"
+              type="datetime-local"
               value={salesDate}
               onChange={(e) => setSalesDate(e.target.value)}
-              className="h-9 text-sm"
+              className="h-9 text-sm w-full"
             />
           </div>
           <div className="space-y-1.5">

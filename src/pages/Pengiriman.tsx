@@ -1,37 +1,31 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { useDrivers } from "@/hooks/useMasterData";
 import {
   useDeliveries,
   useDeliveryDetail,
-  useSalesOrdersForDelivery,
-  useCreateDelivery,
-  useUpdateDelivery,
   useUpdateDeliveryStatus,
   useDeleteDelivery,
   type Delivery,
   type DeliveryStatus,
-  type SalesOrderForDelivery,
 } from "@/hooks/useDeliveries";
 import {
-  Plus, Pencil, Trash2, Truck, Search, X, ChevronDown,
-  Package, CheckCircle2, Clock, AlertCircle, RefreshCw, Eye,
+  Plus, Pencil, Trash2, Truck, Search, X,
+  CheckCircle2, Clock, AlertCircle, Eye,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -92,132 +86,8 @@ function ItemDeliveryStatusBadge({ status }: { status: string }) {
   );
 }
 
-// ── Form state types ───────────────────────────────────────────────────────────
-
-interface FormOrderEntry {
-  order: SalesOrderForDelivery;
-  selectedItemIds: Set<string>;
-}
-
-const pad = (n: number) => String(n).padStart(2, "0");
-const nowDatetimeLocal = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-const toDatetimeLocal = (iso: string): string => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
 const formatDateTime = (iso: string): string =>
   new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-
-const today = nowDatetimeLocal();
-
-function buildFormOrders(detail: ReturnType<typeof useDeliveryDetail>["data"]): FormOrderEntry[] {
-  if (!detail) return [];
-  const orderMap = new Map<string, FormOrderEntry>();
-
-  for (const di of detail.delivery_items) {
-    const orderId = di.sales_order_id;
-    if (!orderMap.has(orderId)) {
-      if (!di.sales_orders) continue;
-      orderMap.set(orderId, {
-        order: {
-          id: orderId,
-          invoice_number: di.sales_orders.invoice_number,
-          customer_name: di.sales_orders.customer_name,
-          customer_address: di.sales_orders.customer_address,
-          sales_date: di.sales_orders.sales_date,
-          delivery_status: "",
-          sales_items: [],
-        },
-        selectedItemIds: new Set(),
-      });
-    }
-    const entry = orderMap.get(orderId)!;
-    if (di.sales_items) {
-      // Avoid duplicates
-      if (!entry.order.sales_items.find((s) => s.id === di.sales_items!.id)) {
-        entry.order.sales_items.push(di.sales_items);
-      }
-      entry.selectedItemIds.add(di.sales_item_id);
-    }
-  }
-
-  return Array.from(orderMap.values());
-}
-
-// ── TransactionPicker dialog ───────────────────────────────────────────────────
-
-interface TransactionPickerProps {
-  open: boolean;
-  onClose: () => void;
-  onAdd: (order: SalesOrderForDelivery) => void;
-  alreadySelectedIds: Set<string>;
-}
-
-function TransactionPicker({ open, onClose, onAdd, alreadySelectedIds }: TransactionPickerProps) {
-  const [search, setSearch] = useState("");
-  const { data: orders = [], isLoading } = useSalesOrdersForDelivery(search);
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Pilih Transaksi</DialogTitle>
-        </DialogHeader>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Cari no. invoice atau nama pelanggan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 text-sm"
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Memuat...</p>
-          ) : orders.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Tidak ada transaksi ditemukan</p>
-          ) : (
-            orders.map((order) => {
-              const pendingCount = order.sales_items.filter((i) => i.delivery_status === "pending").length;
-              const isAdded = alreadySelectedIds.has(order.id);
-              return (
-                <div
-                  key={order.id}
-                  className={`rounded-lg border p-3 transition-colors ${
-                    isAdded
-                      ? "bg-muted/50 border-muted cursor-default opacity-60"
-                      : "cursor-pointer hover:border-primary/50 hover:bg-accent/30"
-                  }`}
-                  onClick={() => { if (!isAdded) { onAdd(order); onClose(); } }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">{order.invoice_number}</p>
-                      <p className="text-xs text-muted-foreground">{order.customer_name ?? "—"}</p>
-                      <p className="text-xs text-muted-foreground">{order.sales_date}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs text-muted-foreground">
-                        {order.sales_items.length} item{order.sales_items.length !== 1 && "s"}
-                      </p>
-                      <p className="text-xs font-medium text-amber-600">{pendingCount} belum kirim</p>
-                      {isAdded && <Badge variant="secondary" className="text-xs mt-1">Sudah dipilih</Badge>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── DeliveryDetailDialog ───────────────────────────────────────────────────────
 
 function DeliveryDetailDialog({
@@ -231,7 +101,7 @@ function DeliveryDetailDialog({
 
   const groupedByOrder = useMemo(() => {
     if (!detail) return [];
-    const map = new Map<string, { invoiceNumber: string; customerName: string; items: typeof detail.delivery_items }>();
+    const map = new Map<string, { invoiceNumber: string; customerName: string; customerAddress: string | null; items: typeof detail.delivery_items }>();
     for (const di of detail.delivery_items) {
       if (!di.sales_orders) continue;
       const oid = di.sales_order_id;
@@ -239,6 +109,7 @@ function DeliveryDetailDialog({
         map.set(oid, {
           invoiceNumber: di.sales_orders.invoice_number,
           customerName: di.sales_orders.customer_name ?? "—",
+          customerAddress: di.sales_orders.customer_address ?? null,
           items: [],
         });
       }
@@ -290,12 +161,15 @@ function DeliveryDetailDialog({
             <div className="space-y-4">
               {groupedByOrder.map((group) => (
                 <div key={group.invoiceNumber} className="rounded-lg border p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
                       <p className="text-sm font-semibold">{group.invoiceNumber}</p>
-                      <p className="text-xs text-muted-foreground">{group.customerName}</p>
+                      <p className="text-sm font-medium text-foreground">{group.customerName}</p>
+                      {group.customerAddress && (
+                        <p className="text-xs text-muted-foreground leading-snug">{group.customerAddress}</p>
+                      )}
                     </div>
-                    <Badge variant="outline" className="text-xs">{group.items.length} item</Badge>
+                    <Badge variant="outline" className="text-xs shrink-0">{group.items.length} item</Badge>
                   </div>
                   <div className="rounded border overflow-hidden">
                     <Table>
@@ -341,6 +215,7 @@ function DeliveryDetailDialog({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Pengiriman() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { data: drivers = [] } = useDrivers();
 
@@ -349,158 +224,22 @@ export default function Pengiriman() {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterDriver, setFilterDriver] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterCustomer, setFilterCustomer] = useState("");
 
   const { data: deliveries = [], isLoading } = useDeliveries({
     dateFrom: filterDateFrom,
     dateTo: filterDateTo,
     driverId: filterDriver || undefined,
     status: filterStatus || undefined,
+    customerSearch: filterCustomer || undefined,
   });
 
-  const activeFilterCount = [filterDateFrom, filterDateTo, filterDriver, filterStatus].filter(Boolean).length;
+  const activeFilterCount = [filterDateFrom, filterDateTo, filterDriver, filterStatus, filterCustomer].filter(Boolean).length;
 
   const resetFilters = () => {
     setFilterDateFrom(""); setFilterDateTo("");
-    setFilterDriver(""); setFilterStatus("");
+    setFilterDriver(""); setFilterStatus(""); setFilterCustomer("");
   };
-
-  // ── Sheet / Form state ──
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [transPickerOpen, setTransPickerOpen] = useState(false);
-
-  // Form fields
-  const [formDate, setFormDate] = useState(today);
-  const [formDriver, setFormDriver] = useState("");
-  const [formRitase, setFormRitase] = useState(0);
-  const [formNotes, setFormNotes] = useState("");
-  const [formOrders, setFormOrders] = useState<FormOrderEntry[]>([]);
-
-  // Load detail for edit
-  const { data: editDetail, isLoading: editLoading } = useDeliveryDetail(editId);
-
-  useEffect(() => {
-    if (editDetail && editId) {
-      setFormDate(toDatetimeLocal(editDetail.delivery_date));
-      setFormDriver(editDetail.driver_id ?? "");
-      setFormRitase(editDetail.ritase_fee ?? 0);
-      setFormNotes(editDetail.notes ?? "");
-      setFormOrders(buildFormOrders(editDetail));
-    }
-  }, [editDetail, editId]);
-
-  const openCreate = () => {
-    setEditId(null);
-    setFormDate(today);
-    setFormDriver("");
-    setFormRitase(0);
-    setFormNotes("");
-    setFormOrders([]);
-    setSheetOpen(true);
-  };
-
-  const openEdit = (delivery: Delivery) => {
-    setEditId(delivery.id);
-    setFormDate(delivery.delivery_date ? toDatetimeLocal(delivery.delivery_date) : today);
-    setFormDriver(delivery.driver_id ?? "");
-    setFormRitase(delivery.ritase_fee ?? 0);
-    setFormNotes(delivery.notes ?? "");
-    setFormOrders([]); // will be populated by useEffect when editDetail loads
-    setSheetOpen(true);
-  };
-
-  const closeSheet = () => {
-    setSheetOpen(false);
-    setEditId(null);
-    setFormOrders([]);
-  };
-
-  // ── Order/item selection ──
-  const alreadySelectedOrderIds = useMemo(
-    () => new Set(formOrders.map((e) => e.order.id)),
-    [formOrders]
-  );
-
-  const addOrderToForm = (order: SalesOrderForDelivery) => {
-    if (alreadySelectedOrderIds.has(order.id)) return;
-    // Pre-select only 'pending' items
-    const pendingIds = new Set(
-      order.sales_items
-        .filter((i) => i.delivery_status === "pending")
-        .map((i) => i.id)
-    );
-    setFormOrders((prev) => [...prev, { order, selectedItemIds: pendingIds }]);
-  };
-
-  const removeOrderFromForm = (orderId: string) => {
-    setFormOrders((prev) => prev.filter((e) => e.order.id !== orderId));
-  };
-
-  const toggleItem = (orderId: string, itemId: string) => {
-    setFormOrders((prev) =>
-      prev.map((e) => {
-        if (e.order.id !== orderId) return e;
-        const next = new Set(e.selectedItemIds);
-        if (next.has(itemId)) next.delete(itemId);
-        else next.add(itemId);
-        return { ...e, selectedItemIds: next };
-      })
-    );
-  };
-
-  // ── Mutations ──
-  const createDelivery = useCreateDelivery();
-  const updateDelivery = useUpdateDelivery();
-
-  const handleSave = async () => {
-    if (!formDate) {
-      toast({ title: "Tanggal pengiriman wajib diisi", variant: "destructive" });
-      return;
-    }
-    const items = formOrders.flatMap((e) =>
-      [...e.selectedItemIds].map((itemId) => ({
-        sales_order_id: e.order.id,
-        sales_item_id:  itemId,
-      }))
-    );
-    if (!formDriver) {
-      toast({ title: "Driver wajib dipilih", variant: "destructive" });
-      return;
-    }
-    if (items.length === 0) {
-      toast({ title: "Pilih minimal satu item untuk dikirim", variant: "destructive" });
-      return;
-    }
-
-    try {
-      if (editId) {
-        await updateDelivery.mutateAsync({
-          id: editId,
-          delivery_date: formDate,
-          driver_id: formDriver,
-          ritase_fee: formRitase,
-          notes: formNotes || null,
-          newItems: items,
-        });
-        toast({ title: "Pengiriman berhasil diperbarui" });
-      } else {
-        await createDelivery.mutateAsync({
-          p_delivery_date: formDate,
-          p_driver_id: formDriver,
-          p_ritase_fee: formRitase,
-          p_notes: formNotes || null,
-          p_items: items,
-        });
-        toast({ title: "Pengiriman berhasil dibuat" });
-      }
-      closeSheet();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Terjadi kesalahan";
-      toast({ title: "Gagal menyimpan", description: msg, variant: "destructive" });
-    }
-  };
-
-  const isPending = createDelivery.isPending || updateDelivery.isPending;
 
   // ── Status update ──
   const updateStatus = useUpdateDeliveryStatus();
@@ -545,6 +284,18 @@ export default function Pengiriman() {
           <CardContent className="pt-5 pb-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex flex-col gap-1">
+                <Label className="text-xs">Nama / Alamat Pelanggan</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari nama atau alamat..."
+                    value={filterCustomer}
+                    onChange={(e) => setFilterCustomer(e.target.value)}
+                    className="h-9 pl-8 text-sm w-52"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
                 <Label className="text-xs">Dari Tanggal</Label>
                 <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="h-9 text-sm w-36" />
               </div>
@@ -587,7 +338,7 @@ export default function Pengiriman() {
                 </Button>
               )}
               <div className="ml-auto">
-                <Button onClick={openCreate} className="h-9 gap-2">
+                <Button onClick={() => navigate("/pengiriman/buat")} className="h-9 gap-2">
                   <Plus className="h-4 w-4" />
                   Buat Pengiriman
                 </Button>
@@ -681,7 +432,7 @@ export default function Pengiriman() {
                                 size="icon"
                                 className="h-7 w-7"
                                 title="Edit"
-                                onClick={() => openEdit(delivery)}
+                                onClick={() => navigate(`/pengiriman/${delivery.id}/edit`)}
                                 disabled={delivery.delivery_status === "delivered"}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
@@ -707,170 +458,6 @@ export default function Pengiriman() {
           </CardContent>
         </Card>
       </div>
-
-      {/* ── Create / Edit Sheet ───────────────────────────────────────────────── */}
-      <Sheet open={sheetOpen} onOpenChange={(o) => { if (!o) closeSheet(); }}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0 overflow-hidden">
-          <SheetHeader className="px-6 py-4 border-b shrink-0">
-            <SheetTitle className="flex items-center gap-2">
-              <Truck className="h-4 w-4" />
-              {editId ? "Edit Pengiriman" : "Buat Pengiriman"}
-            </SheetTitle>
-          </SheetHeader>
-
-          {editId && editLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
-              {/* ── Basic info ── */}
-              <div className="px-6 py-5 space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Informasi Pengiriman</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Tanggal & Waktu Pengiriman *</Label>
-                    <Input
-                      type="datetime-local"
-                      value={formDate}
-                      onChange={(e) => setFormDate(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Driver *</Label>
-                    <Select value={formDriver || ""} onValueChange={setFormDriver}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Pilih Driver" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {drivers.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>{d.driver_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Ritase (Insentif Driver)</Label>
-                    <CurrencyInput value={formRitase} onChange={setFormRitase} className="h-9" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Catatan</Label>
-                    <Input
-                      value={formNotes}
-                      onChange={(e) => setFormNotes(e.target.value)}
-                      placeholder="Opsional..."
-                      className="h-9"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* ── Transactions & Items ── */}
-              <div className="px-6 py-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Transaksi & Item ({formOrders.reduce((s, e) => s + e.selectedItemIds.size, 0)} item dipilih)
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setTransPickerOpen(true)}
-                    className="h-8 gap-1.5 text-xs"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Tambah Transaksi
-                  </Button>
-                </div>
-
-                {formOrders.length === 0 ? (
-                  <div className="rounded-lg border-2 border-dashed border-muted-foreground/20 p-8 text-center">
-                    <Package className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                    <p className="text-sm text-muted-foreground">Belum ada transaksi dipilih</p>
-                    <p className="text-xs text-muted-foreground/70 mt-1">Klik "Tambah Transaksi" untuk memilih</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {formOrders.map((entry) => (
-                      <div key={entry.order.id} className="rounded-lg border">
-                        {/* Order header */}
-                        <div className="flex items-center justify-between px-3 py-2 bg-muted/30 rounded-t-lg border-b">
-                          <div>
-                            <p className="text-sm font-semibold">{entry.order.invoice_number}</p>
-                            <p className="text-xs text-muted-foreground">{entry.order.customer_name ?? "—"}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {entry.selectedItemIds.size}/{entry.order.sales_items.length} item
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                              onClick={() => removeOrderFromForm(entry.order.id)}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                        {/* Items */}
-                        <div className="divide-y">
-                          {entry.order.sales_items.map((item) => {
-                            const isChecked = entry.selectedItemIds.has(item.id);
-                            const isDisabled = item.delivery_status === "delivered" || item.delivery_status === "in_delivery";
-                            return (
-                              <div
-                                key={item.id}
-                                className={`flex items-center gap-3 px-3 py-2 ${isDisabled ? "opacity-50" : "hover:bg-muted/20"}`}
-                              >
-                                <Checkbox
-                                  checked={isChecked}
-                                  onCheckedChange={() => !isDisabled && toggleItem(entry.order.id, item.id)}
-                                  disabled={isDisabled}
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm truncate">{item.products?.name ?? "—"}</p>
-                                  <p className="text-xs text-muted-foreground">{item.products?.product_code}</p>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <p className="text-xs font-medium">Qty: {item.qty}</p>
-                                  <p className="text-xs text-muted-foreground">{formatCurrency(item.subtotal)}</p>
-                                </div>
-                                <ItemDeliveryStatusBadge status={item.delivery_status} />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Footer actions ── */}
-          <div className="border-t px-6 py-4 shrink-0 flex items-center justify-end gap-3 bg-background">
-            <Button variant="outline" onClick={closeSheet} disabled={isPending}>
-              Batal
-            </Button>
-            <Button onClick={handleSave} disabled={isPending || (editId ? editLoading : false)}>
-              {isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
-              {editId ? "Simpan Perubahan" : "Buat Pengiriman"}
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* ── Transaction Picker Dialog ── */}
-      <TransactionPicker
-        open={transPickerOpen}
-        onClose={() => setTransPickerOpen(false)}
-        onAdd={addOrderToForm}
-        alreadySelectedIds={alreadySelectedOrderIds}
-      />
 
       {/* ── Detail Dialog ── */}
       <DeliveryDetailDialog deliveryId={detailId} onClose={() => setDetailId(null)} />

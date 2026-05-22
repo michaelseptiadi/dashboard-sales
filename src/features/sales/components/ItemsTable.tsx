@@ -1,11 +1,15 @@
-import { Plus, Trash2, Search, Package, Truck } from "lucide-react";
+import { Plus, Trash2, Search, Package, Truck, User, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
 import type { Product } from "@/hooks/useProducts";
@@ -14,6 +18,7 @@ interface ItemsTableProps {
   items: SalesItem[];
   addItem: (product: Product) => void;
   updateItem: (index: number, field: keyof SalesItem, value: number) => void;
+  toggleItemSelfPickup: (index: number) => void;
   removeItem: (index: number) => void;
   productSearch: string;
   setProductSearch: (v: string) => void;
@@ -35,6 +40,7 @@ export function ItemsTable({
   items,
   addItem,
   updateItem,
+  toggleItemSelfPickup,
   removeItem,
   productSearch,
   setProductSearch,
@@ -113,13 +119,14 @@ export function ItemsTable({
               <TableHead className="w-24">Qty</TableHead>
               <TableHead className="w-36">Diskon</TableHead>
               <TableHead className="w-36 text-right">Subtotal</TableHead>
+              <TableHead className="w-40">Pengiriman</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-16 text-center">
+                <TableCell colSpan={7} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Package className="h-10 w-10 opacity-20" />
                     <p className="text-sm">Belum ada produk.</p>
@@ -159,6 +166,42 @@ export function ItemsTable({
                   </TableCell>
                   <TableCell className="text-right font-medium text-sm">
                     {formatCurrency(item.subtotal)}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="flex items-center gap-1 focus:outline-none">
+                          {item.self_pickup ? (
+                            <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 font-normal cursor-pointer hover:bg-blue-100">
+                              <User className="h-3 w-3" /> Ambil Sendiri
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 font-normal cursor-pointer hover:bg-emerald-100">
+                              <Truck className="h-3 w-3" /> Dikirim
+                            </Badge>
+                          )}
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          onClick={() => item.self_pickup && toggleItemSelfPickup(index)}
+                          className="gap-2"
+                        >
+                          <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 font-normal">
+                            <Truck className="h-3 w-3" /> Dikirim
+                          </Badge>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => !item.self_pickup && toggleItemSelfPickup(index)}
+                          className="gap-2"
+                        >
+                          <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 font-normal">
+                            <User className="h-3 w-3" /> Ambil Sendiri
+                          </Badge>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                   <TableCell>
                     <Button
