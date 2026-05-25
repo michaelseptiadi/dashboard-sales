@@ -135,6 +135,7 @@ export type Database = {
           created_at: string
           id: string
           movement_type: string
+          notes: string | null
           product_id: string
           qty_in: number
           qty_out: number
@@ -145,6 +146,7 @@ export type Database = {
           created_at?: string
           id?: string
           movement_type: string
+          notes?: string | null
           product_id: string
           qty_in?: number
           qty_out?: number
@@ -155,6 +157,7 @@ export type Database = {
           created_at?: string
           id?: string
           movement_type?: string
+          notes?: string | null
           product_id?: string
           qty_in?: number
           qty_out?: number

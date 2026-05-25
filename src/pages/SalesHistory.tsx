@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,46 +8,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
+
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
+import { TransactionStatusBadge } from "@/components/TransactionStatusBadge";
+import { ItemDeliveryStatusBadge } from "@/components/ItemDeliveryStatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts, useUpdateItemDeliveryStatus } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
+import { FilterBar } from "@/components/FilterBar";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { Search, Truck, Receipt, Package, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-function TransactionStatusBadge({ status }: { status: string | null | undefined }) {
-  if (!status) return null;
-  const map: Record<string, { label: string; className: string }> = {
-    paid:         { label: "Lunas",          className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800" },
-    unpaid:       { label: "Belum Bayar",    className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800" },
-    half_payment: { label: "Bayar Sebagian", className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800" },
-  };
-  const cfg = map[status] ?? { label: status, className: "" };
-  return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
-      {cfg.label}
-    </Badge>
-  );
-}
-
-function ItemDeliveryStatusBadge({ status }: { status: string | null | undefined }) {
-  const map: Record<string, { label: string; className: string }> = {
-    pending:     { label: "Pending",       className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400" },
-    self_pickup: { label: "Ambil Sendiri", className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400" },
-    in_delivery: { label: "Dalam Kirim",   className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" },
-    delivered:   { label: "Terkirim",      className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400" },
-  };
-  const cfg = map[status ?? "pending"] ?? map["pending"];
-  return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
-      {cfg.label}
-    </Badge>
-  );
-}
 
 export default function SalesHistory() {
   const [search, setSearch] = useState("");
@@ -123,72 +96,67 @@ export default function SalesHistory() {
       <div className="space-y-5">
 
         {/* Filter Bar */}
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="space-y-3">
-              {/* Row 1 */}
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input placeholder="No. Invoice..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8 text-sm" />
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input placeholder="Nama / Alamat pelanggan..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9 pl-8 text-sm" />
-                </div>
-                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 text-sm" />
-                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 text-sm" />
+        <FilterBar activeFilterCount={activeFilterCount} onReset={resetFilters}>
+          <FilterBar.Row>
+            <FilterBar.Field label="No. Invoice">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="No. Invoice..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8 text-sm w-40" />
               </div>
-
-              {/* Row 2 */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Select value={paymentMethodId || "__all__"} onValueChange={(v) => setPaymentMethodId(v === "__all__" ? "" : v)}>
-                  <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs">
-                    <CreditCard className="mr-1.5 h-3 w-3 text-muted-foreground" />
-                    <SelectValue />
+            </FilterBar.Field>
+            <FilterBar.Field label="Nama / Alamat Pelanggan">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="Nama / Alamat..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9 pl-8 text-sm w-52" />
+              </div>
+            </FilterBar.Field>
+            <FilterBar.Field label="Rentang Tanggal">
+              <DateRangePicker
+                from={dateFrom}
+                to={dateTo}
+                onFromChange={setDateFrom}
+                onToChange={setDateTo}
+                className="w-64"
+              />
+            </FilterBar.Field>
+            <FilterBar.Field label="Pembayaran">
+              <Select value={paymentMethodId || "__all__"} onValueChange={(v) => setPaymentMethodId(v === "__all__" ? "" : v)}>
+                <SelectTrigger className="h-9 text-sm w-44">
+                  <SelectValue placeholder="Semua Pembayaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Pembayaran</SelectItem>
+                  {paymentMethods?.map((pm) => <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FilterBar.Field>
+            <FilterBar.Field label="Pengiriman">
+              <Select value={deliveryType || "__all__"} onValueChange={(v) => { const val = v === "__all__" ? "" : v; setDeliveryType(val); if (val !== "driver") setDriverId(""); }}>
+                <SelectTrigger className="h-9 text-sm w-44">
+                  <SelectValue placeholder="Semua Pengiriman" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Pengiriman</SelectItem>
+                  <SelectItem value="self_delivery">Ambil Sendiri</SelectItem>
+                  <SelectItem value="driver">Kirim Supir</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterBar.Field>
+            {deliveryType === "driver" && (
+              <FilterBar.Field label="Driver">
+                <Select value={driverId || "__all__"} onValueChange={(v) => setDriverId(v === "__all__" ? "" : v)}>
+                  <SelectTrigger className="h-9 text-sm w-40">
+                    <SelectValue placeholder="Semua Supir" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__all__">Semua Pembayaran</SelectItem>
-                    {paymentMethods?.map((pm) => <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>)}
+                    <SelectItem value="__all__">Semua Supir</SelectItem>
+                    {drivers?.map((d) => <SelectItem key={d.id} value={d.id}>{d.driver_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-
-                <Select value={deliveryType || "__all__"} onValueChange={(v) => { const val = v === "__all__" ? "" : v; setDeliveryType(val); if (val !== "driver") setDriverId(""); }}>
-                  <SelectTrigger className="h-8 w-auto min-w-[150px] text-xs">
-                    <Truck className="mr-1.5 h-3 w-3 text-muted-foreground" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Semua Pengiriman</SelectItem>
-                    <SelectItem value="self_delivery">Ambil Sendiri</SelectItem>
-                    <SelectItem value="driver">Kirim Supir</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {deliveryType === "driver" && (
-                  <Select value={driverId || "__all__"} onValueChange={(v) => setDriverId(v === "__all__" ? "" : v)}>
-                    <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">Semua Supir</SelectItem>
-                      {drivers?.map((d) => <SelectItem key={d.id} value={d.id}>{d.driver_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {activeFilterCount > 0 && (
-                  <>
-                    <Separator orientation="vertical" className="h-5" />
-                    <button onClick={resetFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                      <X className="h-3 w-3" /> Reset ({activeFilterCount})
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </FilterBar.Field>
+            )}
+          </FilterBar.Row>
+        </FilterBar>
 
         {/* Table */}
         <Tabs value={statusTab} onValueChange={(v) => { setStatusTab(v as typeof statusTab); setCurrentPage(1); }}>
@@ -263,10 +231,19 @@ export default function SalesHistory() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (orders ?? []).map((order) => (
+                    (orders ?? []).map((order) => {
+                        const statusCls =
+                          (order as any).transaction_status === "paid"
+                            ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
+                            : (order as any).transaction_status === "unpaid"
+                            ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                            : (order as any).transaction_status === "half_payment"
+                            ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+                            : "";
+                        return (
                       <TableRow
                         key={order.id}
-                        className="cursor-pointer group"
+                        className={`cursor-pointer group ${statusCls}`}
                         onClick={() => setSelectedOrderId(order.id)}
                       >
                         <TableCell className="pl-6">
@@ -309,7 +286,8 @@ export default function SalesHistory() {
                           <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </TableCell>
                       </TableRow>
-                    ))
+                        );
+                      })
                   )}
                 </TableBody>
               </Table>

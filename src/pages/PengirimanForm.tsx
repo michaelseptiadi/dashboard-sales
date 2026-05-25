@@ -440,7 +440,7 @@ export default function PengirimanForm() {
                         <div className="divide-y">
                           {entry.order.sales_items.map((item) => {
                             const isChecked  = entry.selectedItemIds.has(item.id);
-                            const isDisabled = item.delivery_status === "delivered" || item.delivery_status === "in_delivery";
+                            const isDisabled = item.delivery_status !== "pending";
                             return (
                               <div
                                 key={item.id}

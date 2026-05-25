@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/SearchInput";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
-import { useCustomers, useCreateCustomer, useUpdateCustomer } from "@/hooks/useCustomers";
-import { Plus, Pencil } from "lucide-react";
+import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
+import { Plus, Eye, Users } from "lucide-react";
 
 interface CustomerFormData {
   name: string;
@@ -25,29 +26,16 @@ const emptyForm: CustomerFormData = { name: "", phone: "", address: "", email: "
 
 export default function Customers() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerFormData>(emptyForm);
 
   const { data: customers, isLoading } = useCustomers(search);
   const createCustomer = useCreateCustomer();
-  const updateCustomer = useUpdateCustomer();
 
   const openCreate = () => {
-    setEditId(null);
     setForm(emptyForm);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (customer: any) => {
-    setEditId(customer.id);
-    setForm({
-      name: customer.name,
-      phone: customer.phone || "",
-      address: customer.address || "",
-      email: customer.email || "",
-    });
     setDialogOpen(true);
   };
 
@@ -57,100 +45,92 @@ export default function Customers() {
       return;
     }
     try {
-      if (editId) {
-        await updateCustomer.mutateAsync({
-          id: editId,
-          ...form,
-          phone: form.phone || null,
-          address: form.address || null,
-          email: form.email || null,
-        });
-        toast({ title: "Pelanggan berhasil diperbarui" });
-      } else {
-        await createCustomer.mutateAsync({
-          ...form,
-          phone: form.phone || null,
-          address: form.address || null,
-          email: form.email || null,
-        });
-        toast({ title: "Pelanggan berhasil ditambahkan" });
-      }
+      await createCustomer.mutateAsync({
+        ...form,
+        phone: form.phone || null,
+        address: form.address || null,
+        email: form.email || null,
+      });
+      toast({ title: "Pelanggan berhasil ditambahkan" });
       setDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Gagal menyimpan pelanggan", description: error.message, variant: "destructive" });
     }
   };
 
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
-    try {
-      await updateCustomer.mutateAsync({ id, is_active: !currentActive });
-    } catch (error: any) {
-      toast({ title: "Gagal mengubah status", description: error.message, variant: "destructive" });
-    }
-  };
-
   return (
     <DashboardLayout title="Manajemen Pelanggan">
-      {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4">
+      <Card>
+        <CardHeader className="px-6 pb-4 pt-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <CardTitle className="text-base">Daftar Pelanggan</CardTitle>
+              {customers && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {customers.length}
+                </span>
+              )}
+            </div>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="mr-1.5 h-4 w-4" /> Tambah Pelanggan
+            </Button>
+          </div>
+          <div className="pt-1">
             <SearchInput
-              containerClassName="flex-1 min-w-[200px]"
               placeholder="Cari nama atau telepon..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <Button onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" /> Tambah Pelanggan
-            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Customers Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Daftar Pelanggan</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 pb-0">
           {isLoading ? (
-            <TableSkeleton />
+            <div className="px-6 pb-6"><TableSkeleton /></div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Telepon</TableHead>
-                  <TableHead>Alamat</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                <TableRow className="border-t bg-muted/30">
+                  <TableHead className="pl-6 text-xs">Nama</TableHead>
+                  <TableHead className="text-xs">Telepon</TableHead>
+                  <TableHead className="text-xs">Alamat</TableHead>
+                  <TableHead className="text-xs">Email</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="w-10 pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {customers?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                      Tidak ada pelanggan ditemukan
+                    <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
+                      <Users className="mx-auto mb-2 h-8 w-8 opacity-25" />
+                      <p className="text-sm">Tidak ada pelanggan ditemukan</p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   customers?.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.name}</TableCell>
-                      <TableCell>{customer.phone || "-"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{customer.address || "-"}</TableCell>
-                      <TableCell>{customer.email || "-"}</TableCell>
+                    <TableRow key={customer.id} className="group">
+                      <TableCell className="pl-6 font-medium">{customer.name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{customer.phone || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{customer.address || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{customer.email || "—"}</TableCell>
                       <TableCell>
-                        <Switch
-                          checked={customer.is_active}
-                          onCheckedChange={() => handleToggleActive(customer.id, customer.is_active)}
-                        />
+                        <Badge
+                          variant="outline"
+                          className={customer.is_active
+                            ? "text-xs text-green-700 bg-green-50 border-green-200 dark:bg-green-950/30 dark:text-green-400"
+                            : "text-xs text-slate-500 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400"}
+                        >
+                          {customer.is_active ? "Aktif" : "Nonaktif"}
+                        </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(customer)}>
-                          <Pencil className="h-4 w-4" />
+                      <TableCell className="pr-6">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => navigate(`/pelanggan/${customer.id}`)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -162,11 +142,11 @@ export default function Customers() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
+      {/* Add Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editId ? "Edit Pelanggan" : "Tambah Pelanggan"}</DialogTitle>
+            <DialogTitle>Tambah Pelanggan</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -190,7 +170,7 @@ export default function Customers() {
             <DialogFormActions
               onCancel={() => setDialogOpen(false)}
               onSave={handleSave}
-              isPending={createCustomer.isPending || updateCustomer.isPending}
+              isPending={createCustomer.isPending}
             />
           </div>
         </DialogContent>

@@ -47,8 +47,41 @@ export function useUpdateCustomer() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer", variables.id] });
+    },
+  });
+}
+
+export function useCustomerById(customerId: string | null) {
+  return useQuery({
+    queryKey: ["customer", customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", customerId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useCustomerTransactions(customerId: string | null) {
+  return useQuery({
+    queryKey: ["customer-transactions", customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_orders")
+        .select("id, invoice_number, sales_date, grand_total, total_amount, total_discount, unpaid_transaction, transaction_status, payment_methods(name)")
+        .eq("customer_id", customerId!)
+        .order("sales_date", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }
