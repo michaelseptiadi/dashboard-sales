@@ -148,8 +148,9 @@ export function useUpdateProduct() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", variables.id] });
     },
   });
 }
@@ -206,8 +207,10 @@ export function useAdjustStock() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", variables.product_id] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-movements", variables.product_id] });
     },
   });
 }
