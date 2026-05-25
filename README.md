@@ -1,53 +1,77 @@
-# Welcome to your Lovable project
+# Puri Indah Sales
 
-## Project info
+A sales management web application for Puri Indah, built to handle daily sales operations across multiple stores.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Sales** — Create and manage sales transactions with cart-based ordering
+- **Sales History** — View and track past transactions
+- **Products** — Manage product catalog and pricing
+- **Customers** — Customer data management
+- **Deliveries (Pengiriman)** — Manage delivery orders and driver assignments
+- **Master Data** — Configure drivers and other reference data
+- **Users** — User and role management per store
+- **Multi-store support** — Switch between stores with role-based access control
+- **Authentication** — Supabase-powered auth with protected routes
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend**: React 18 + TypeScript + Vite
+- **UI**: shadcn/ui (Radix UI + Tailwind CSS)
+- **State / Data fetching**: TanStack Query v5
+- **Backend**: Supabase (PostgreSQL + Auth + RLS)
+- **Package manager**: Bun
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- [Bun](https://bun.sh) (recommended) or Node.js 18+
+- A Supabase project (the project ID is pre-configured in `supabase/config.toml`)
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Getting Started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# 1. Clone the repository
 git clone <YOUR_GIT_URL>
+cd puri-indah-sales
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. Install dependencies
+bun install
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. Set up environment variables
+#    Create a .env file in the project root:
+VITE_SUPABASE_URL=https://<your-project-id>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# 4. Start the development server
+bun run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Available Scripts
 
-**Use GitHub Codespaces**
+| Command | Description |
+|---|---|
+| `bun run dev` | Start the development server |
+| `bun run build` | Build for production |
+| `bun run preview` | Preview the production build locally |
+| `bun run lint` | Run ESLint |
+| `bun run test` | Run tests once |
+| `bun run test:watch` | Run tests in watch mode |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+## Database Migrations
+
+Migrations are located in `supabase/migrations/`. To apply them to a local Supabase instance:
+
+```sh
+supabase db reset
+```
+
+Or push to a remote project:
+
+```sh
+supabase db push
+```
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
