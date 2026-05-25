@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { SearchInput } from "@/components/SearchInput";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
-import { useCustomers, useCreateCustomer, useUpdateCustomer } from "@/hooks/useCustomers";
-import { Plus, Pencil } from "lucide-react";
+import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
+import { Plus, Eye } from "lucide-react";
 
 interface CustomerFormData {
   name: string;
@@ -25,29 +26,16 @@ const emptyForm: CustomerFormData = { name: "", phone: "", address: "", email: "
 
 export default function Customers() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerFormData>(emptyForm);
 
   const { data: customers, isLoading } = useCustomers(search);
   const createCustomer = useCreateCustomer();
-  const updateCustomer = useUpdateCustomer();
 
   const openCreate = () => {
-    setEditId(null);
     setForm(emptyForm);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (customer: any) => {
-    setEditId(customer.id);
-    setForm({
-      name: customer.name,
-      phone: customer.phone || "",
-      address: customer.address || "",
-      email: customer.email || "",
-    });
     setDialogOpen(true);
   };
 
@@ -57,35 +45,16 @@ export default function Customers() {
       return;
     }
     try {
-      if (editId) {
-        await updateCustomer.mutateAsync({
-          id: editId,
-          ...form,
-          phone: form.phone || null,
-          address: form.address || null,
-          email: form.email || null,
-        });
-        toast({ title: "Pelanggan berhasil diperbarui" });
-      } else {
-        await createCustomer.mutateAsync({
-          ...form,
-          phone: form.phone || null,
-          address: form.address || null,
-          email: form.email || null,
-        });
-        toast({ title: "Pelanggan berhasil ditambahkan" });
-      }
+      await createCustomer.mutateAsync({
+        ...form,
+        phone: form.phone || null,
+        address: form.address || null,
+        email: form.email || null,
+      });
+      toast({ title: "Pelanggan berhasil ditambahkan" });
       setDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Gagal menyimpan pelanggan", description: error.message, variant: "destructive" });
-    }
-  };
-
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
-    try {
-      await updateCustomer.mutateAsync({ id, is_active: !currentActive });
-    } catch (error: any) {
-      toast({ title: "Gagal mengubah status", description: error.message, variant: "destructive" });
     }
   };
 
@@ -143,14 +112,18 @@ export default function Customers() {
                       <TableCell className="max-w-[200px] truncate">{customer.address || "-"}</TableCell>
                       <TableCell>{customer.email || "-"}</TableCell>
                       <TableCell>
-                        <Switch
-                          checked={customer.is_active}
-                          onCheckedChange={() => handleToggleActive(customer.id, customer.is_active)}
-                        />
+                        <Badge
+                          variant="outline"
+                          className={customer.is_active
+                            ? "text-xs text-green-700 bg-green-50 border-green-200"
+                            : "text-xs text-slate-500 bg-slate-100 border-slate-200"}
+                        >
+                          {customer.is_active ? "Aktif" : "Nonaktif"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(customer)}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/pelanggan/${customer.id}`)}>
+                          <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -162,11 +135,11 @@ export default function Customers() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
+      {/* Add Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editId ? "Edit Pelanggan" : "Tambah Pelanggan"}</DialogTitle>
+            <DialogTitle>Tambah Pelanggan</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -190,7 +163,7 @@ export default function Customers() {
             <DialogFormActions
               onCancel={() => setDialogOpen(false)}
               onSave={handleSave}
-              isPending={createCustomer.isPending || updateCustomer.isPending}
+              isPending={createCustomer.isPending}
             />
           </div>
         </DialogContent>
