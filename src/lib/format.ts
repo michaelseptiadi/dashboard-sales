@@ -17,3 +17,7 @@ export function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
 }
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}

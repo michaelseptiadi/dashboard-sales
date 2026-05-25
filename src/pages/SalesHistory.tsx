@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
+import { TransactionStatusBadge } from "@/components/TransactionStatusBadge";
+import { ItemDeliveryStatusBadge } from "@/components/ItemDeliveryStatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts, useUpdateItemDeliveryStatus } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
@@ -19,36 +20,6 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Search, X, Truck, Receipt, Package, CreditCard, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-function TransactionStatusBadge({ status }: { status: string | null | undefined }) {
-  if (!status) return null;
-  const map: Record<string, { label: string; className: string }> = {
-    paid:         { label: "Lunas",          className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800" },
-    unpaid:       { label: "Belum Bayar",    className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800" },
-    half_payment: { label: "Bayar Sebagian", className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800" },
-  };
-  const cfg = map[status] ?? { label: status, className: "" };
-  return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
-      {cfg.label}
-    </Badge>
-  );
-}
-
-function ItemDeliveryStatusBadge({ status }: { status: string | null | undefined }) {
-  const map: Record<string, { label: string; className: string }> = {
-    pending:     { label: "Pending",       className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400" },
-    self_pickup: { label: "Ambil Sendiri", className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400" },
-    in_delivery: { label: "Dalam Kirim",   className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" },
-    delivered:   { label: "Terkirim",      className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400" },
-  };
-  const cfg = map[status ?? "pending"] ?? map["pending"];
-  return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
-      {cfg.label}
-    </Badge>
-  );
-}
 
 export default function SalesHistory() {
   const [search, setSearch] = useState("");
@@ -263,10 +234,19 @@ export default function SalesHistory() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (orders ?? []).map((order) => (
+                    (orders ?? []).map((order) => {
+                        const statusCls =
+                          (order as any).transaction_status === "paid"
+                            ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
+                            : (order as any).transaction_status === "unpaid"
+                            ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                            : (order as any).transaction_status === "half_payment"
+                            ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+                            : "";
+                        return (
                       <TableRow
                         key={order.id}
-                        className="cursor-pointer group"
+                        className={`cursor-pointer group ${statusCls}`}
                         onClick={() => setSelectedOrderId(order.id)}
                       >
                         <TableCell className="pl-6">
@@ -309,7 +289,8 @@ export default function SalesHistory() {
                           <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </TableCell>
                       </TableRow>
-                    ))
+                        );
+                      })
                   )}
                 </TableBody>
               </Table>
