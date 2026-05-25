@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,209 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Separator } from "@/components/ui/separator";
 import { TableSkeleton } from "@/components/TableSkeleton";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateTime } from "@/lib/format";
+import { DeliveryStatusBadge, DELIVERY_STATUS_CONFIG } from "@/components/DeliveryStatusBadge";
+import { DeliveryDetailDialog } from "@/components/DeliveryDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useDrivers } from "@/hooks/useMasterData";
 import {
   useDeliveries,
-  useDeliveryDetail,
   useUpdateDeliveryStatus,
   useDeleteDelivery,
   type Delivery,
   type DeliveryStatus,
 } from "@/hooks/useDeliveries";
-import {
-  Plus, Pencil, Trash2, Truck, Search, X,
-  CheckCircle2, Clock, AlertCircle, Eye,
-} from "lucide-react";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const DELIVERY_STATUS_CONFIG: Record<
-  DeliveryStatus,
-  { label: string; className: string; icon: React.ReactNode }
-> = {
-  pending: {
-    label: "Menunggu",
-    className: "bg-amber-100 text-amber-700 border-amber-200",
-    icon: <Clock className="h-3 w-3" />,
-  },
-  in_progress: {
-    label: "Dalam Perjalanan",
-    className: "bg-blue-100 text-blue-700 border-blue-200",
-    icon: <Truck className="h-3 w-3" />,
-  },
-  delivered: {
-    label: "Terkirim",
-    className: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <CheckCircle2 className="h-3 w-3" />,
-  },
-  failed: {
-    label: "Gagal",
-    className: "bg-red-100 text-red-700 border-red-200",
-    icon: <AlertCircle className="h-3 w-3" />,
-  },
-};
-
-const ITEM_DELIVERY_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  pending:     { label: "Belum",         className: "bg-slate-100 text-slate-600 border-slate-200" },
-  in_delivery: { label: "Dalam Pengiriman", className: "bg-blue-100 text-blue-700 border-blue-200" },
-  delivered:   { label: "Terkirim",      className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  self_pickup: { label: "Ambil Sendiri", className: "bg-purple-100 text-purple-700 border-purple-200" },
-};
-
-function DeliveryStatusBadge({ status }: { status: DeliveryStatus | string }) {
-  const cfg = DELIVERY_STATUS_CONFIG[status as DeliveryStatus] ?? {
-    label: status,
-    className: "",
-    icon: null,
-  };
-  return (
-    <Badge variant="outline" className={`flex items-center gap-1 text-xs font-medium ${cfg.className}`}>
-      {cfg.icon}
-      {cfg.label}
-    </Badge>
-  );
-}
-
-function ItemDeliveryStatusBadge({ status }: { status: string }) {
-  const cfg = ITEM_DELIVERY_STATUS_CONFIG[status] ?? { label: status, className: "" };
-  return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
-      {cfg.label}
-    </Badge>
-  );
-}
-
-const formatDateTime = (iso: string): string =>
-  new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-// ── DeliveryDetailDialog ───────────────────────────────────────────────────────
-
-function DeliveryDetailDialog({
-  deliveryId,
-  onClose,
-}: {
-  deliveryId: string | null;
-  onClose: () => void;
-}) {
-  const { data: detail, isLoading } = useDeliveryDetail(deliveryId);
-
-  const groupedByOrder = useMemo(() => {
-    if (!detail) return [];
-    const map = new Map<string, { invoiceNumber: string; customerName: string; customerAddress: string | null; items: typeof detail.delivery_items }>();
-    for (const di of detail.delivery_items) {
-      if (!di.sales_orders) continue;
-      const oid = di.sales_order_id;
-      if (!map.has(oid)) {
-        map.set(oid, {
-          invoiceNumber: di.sales_orders.invoice_number,
-          customerName: di.sales_orders.customer_name ?? "—",
-          customerAddress: di.sales_orders.customer_address ?? null,
-          items: [],
-        });
-      }
-      map.get(oid)!.items.push(di);
-    }
-    return Array.from(map.values());
-  }, [detail]);
-
-  return (
-    <Dialog open={!!deliveryId} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Truck className="h-4 w-4" />
-            {isLoading ? "Memuat..." : detail?.delivery_number ?? "Detail Pengiriman"}
-          </DialogTitle>
-        </DialogHeader>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Memuat detail...</p>
-        ) : detail ? (
-          <div className="flex-1 overflow-y-auto space-y-4">
-            {/* Info row */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                <span className="text-muted-foreground">Tanggal</span>
-                <p className="font-medium">{formatDateTime(detail.delivery_date)}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status</span>
-                <div className="mt-0.5"><DeliveryStatusBadge status={detail.delivery_status} /></div>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Driver</span>
-                <p className="font-medium">{detail.drivers?.driver_name ?? "—"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Ritase</span>
-                <p className="font-medium">{formatCurrency(detail.ritase_fee)}</p>
-              </div>
-              {detail.notes && (
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Catatan</span>
-                  <p className="font-medium">{detail.notes}</p>
-                </div>
-              )}
-            </div>
-            <Separator />
-            {/* Items grouped by order */}
-            <div className="space-y-4">
-              {groupedByOrder.map((group) => (
-                <div key={group.invoiceNumber} className="rounded-lg border p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold">{group.invoiceNumber}</p>
-                      <p className="text-sm font-medium text-foreground">{group.customerName}</p>
-                      {group.customerAddress && (
-                        <p className="text-xs text-muted-foreground leading-snug">{group.customerAddress}</p>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="text-xs shrink-0">{group.items.length} item</Badge>
-                  </div>
-                  <div className="rounded border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
-                          <TableHead className="text-xs py-2">Produk</TableHead>
-                          <TableHead className="text-xs py-2 text-right">Qty</TableHead>
-                          <TableHead className="text-xs py-2 text-right">Subtotal</TableHead>
-                          <TableHead className="text-xs py-2">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {group.items.map((di) => (
-                          <TableRow key={di.id}>
-                            <TableCell className="text-xs py-1.5">
-                              <p>{di.sales_items?.products?.name ?? "—"}</p>
-                              <p className="text-muted-foreground">{di.sales_items?.products?.product_code ?? ""}</p>
-                            </TableCell>
-                            <TableCell className="text-xs py-1.5 text-right">{di.sales_items?.qty ?? "—"}</TableCell>
-                            <TableCell className="text-xs py-1.5 text-right">
-                              {di.sales_items ? formatCurrency(di.sales_items.subtotal) : "—"}
-                            </TableCell>
-                            <TableCell className="text-xs py-1.5">
-                              <ItemDeliveryStatusBadge status={di.sales_items?.delivery_status ?? "pending"} />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground py-6 text-center">Data tidak ditemukan</p>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { Plus, Pencil, Trash2, Truck, Search, X, Eye } from "lucide-react";
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -433,7 +245,7 @@ export default function Pengiriman() {
                                 className="h-7 w-7"
                                 title="Edit"
                                 onClick={() => navigate(`/pengiriman/${delivery.id}/edit`)}
-                                disabled={delivery.delivery_status === "delivered"}
+                                disabled={delivery.delivery_status !== "pending"}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
