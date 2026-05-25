@@ -5,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterBar } from "@/components/FilterBar";
+import { DateRangePicker } from "@/components/DateRangePicker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -22,7 +23,7 @@ import {
   type Delivery,
   type DeliveryStatus,
 } from "@/hooks/useDeliveries";
-import { Plus, Pencil, Trash2, Truck, Search, X, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Truck, Search, Eye } from "lucide-react";
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -92,72 +93,69 @@ export default function Pengiriman() {
       <div className="space-y-5">
 
         {/* ── Filter bar ── */}
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs">Nama / Alamat Pelanggan</Label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari nama atau alamat..."
-                    value={filterCustomer}
-                    onChange={(e) => setFilterCustomer(e.target.value)}
-                    className="h-9 pl-8 text-sm w-52"
-                  />
-                </div>
+        <FilterBar
+          activeFilterCount={activeFilterCount}
+          onReset={resetFilters}
+          action={
+            <Button
+              onClick={() => navigate("/pengiriman/buat")}
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Buat Pengiriman
+            </Button>
+          }
+        >
+          <FilterBar.Row>
+            <FilterBar.Field label="Nama / Alamat Pelanggan">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama atau alamat..."
+                  value={filterCustomer}
+                  onChange={(e) => setFilterCustomer(e.target.value)}
+                  className="h-9 pl-8 text-sm w-52"
+                />
               </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs">Dari Tanggal</Label>
-                <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="h-9 text-sm w-36" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs">Sampai Tanggal</Label>
-                <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="h-9 text-sm w-36" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs">Driver</Label>
-                <Select value={filterDriver || "__all__"} onValueChange={(v) => setFilterDriver(v === "__all__" ? "" : v)}>
-                  <SelectTrigger className="h-9 text-sm w-44">
-                    <SelectValue placeholder="Semua Driver" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Semua Driver</SelectItem>
-                    {drivers.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.driver_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs">Status</Label>
-                <Select value={filterStatus || "__all__"} onValueChange={(v) => setFilterStatus(v === "__all__" ? "" : v)}>
-                  <SelectTrigger className="h-9 text-sm w-44">
-                    <SelectValue placeholder="Semua Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Semua Status</SelectItem>
-                    {(Object.keys(DELIVERY_STATUS_CONFIG) as DeliveryStatus[]).map((s) => (
-                      <SelectItem key={s} value={s}>{DELIVERY_STATUS_CONFIG[s].label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 gap-1 text-muted-foreground">
-                  <X className="h-3.5 w-3.5" />
-                  Reset ({activeFilterCount})
-                </Button>
-              )}
-              <div className="ml-auto">
-                <Button onClick={() => navigate("/pengiriman/buat")} className="h-9 gap-2">
-                  <Plus className="h-4 w-4" />
-                  Buat Pengiriman
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </FilterBar.Field>
+            <FilterBar.Field label="Rentang Tanggal">
+              <DateRangePicker
+                from={filterDateFrom}
+                to={filterDateTo}
+                onFromChange={setFilterDateFrom}
+                onToChange={setFilterDateTo}
+                className="w-64"
+              />
+            </FilterBar.Field>
+            <FilterBar.Field label="Driver">
+              <Select value={filterDriver || "__all__"} onValueChange={(v) => setFilterDriver(v === "__all__" ? "" : v)}>
+                <SelectTrigger className="h-9 text-sm w-44">
+                  <SelectValue placeholder="Semua Driver" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Driver</SelectItem>
+                  {drivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.driver_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterBar.Field>
+            <FilterBar.Field label="Status">
+              <Select value={filterStatus || "__all__"} onValueChange={(v) => setFilterStatus(v === "__all__" ? "" : v)}>
+                <SelectTrigger className="h-9 text-sm w-44">
+                  <SelectValue placeholder="Semua Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Status</SelectItem>
+                  {(Object.keys(DELIVERY_STATUS_CONFIG) as DeliveryStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>{DELIVERY_STATUS_CONFIG[s].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterBar.Field>
+          </FilterBar.Row>
+        </FilterBar>
 
         {/* ── Table ── */}
         <Card>
