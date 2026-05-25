@@ -195,8 +195,19 @@ export default function Pengiriman() {
                         ?? drivers.find((d) => d.id === delivery.driver_id)?.driver_name
                         ?? "—";
 
+                      const statusRowCls =
+                        delivery.delivery_status === "delivered"
+                          ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
+                          : delivery.delivery_status === "in_progress"
+                          ? "bg-blue-50 hover:bg-blue-100/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/30"
+                          : delivery.delivery_status === "pending"
+                          ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+                          : delivery.delivery_status === "failed"
+                          ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                          : "";
+
                       return (
-                        <TableRow key={delivery.id} className="hover:bg-muted/20">
+                        <TableRow key={delivery.id} className={statusRowCls}>
                           <TableCell className="text-sm font-medium">{delivery.delivery_number}</TableCell>
                           <TableCell className="text-sm">{formatDateTime(delivery.delivery_date)}</TableCell>
                           <TableCell className="text-sm">{driverName}</TableCell>
