@@ -13,7 +13,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Users } from "lucide-react";
 
 interface CustomerFormData {
   name: string;
@@ -60,70 +60,77 @@ export default function Customers() {
 
   return (
     <DashboardLayout title="Manajemen Pelanggan">
-      {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-4">
+      <Card>
+        <CardHeader className="px-6 pb-4 pt-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <CardTitle className="text-base">Daftar Pelanggan</CardTitle>
+              {customers && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {customers.length}
+                </span>
+              )}
+            </div>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="mr-1.5 h-4 w-4" /> Tambah Pelanggan
+            </Button>
+          </div>
+          <div className="pt-1">
             <SearchInput
-              containerClassName="flex-1 min-w-[200px]"
               placeholder="Cari nama atau telepon..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <Button onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" /> Tambah Pelanggan
-            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Customers Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Daftar Pelanggan</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 pb-0">
           {isLoading ? (
-            <TableSkeleton />
+            <div className="px-6 pb-6"><TableSkeleton /></div>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Telepon</TableHead>
-                  <TableHead>Alamat</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                <TableRow className="border-t bg-muted/30">
+                  <TableHead className="pl-6 text-xs">Nama</TableHead>
+                  <TableHead className="text-xs">Telepon</TableHead>
+                  <TableHead className="text-xs">Alamat</TableHead>
+                  <TableHead className="text-xs">Email</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="w-10 pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {customers?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                      Tidak ada pelanggan ditemukan
+                    <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
+                      <Users className="mx-auto mb-2 h-8 w-8 opacity-25" />
+                      <p className="text-sm">Tidak ada pelanggan ditemukan</p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   customers?.map((customer) => (
-                    <TableRow key={customer.id}>
-                      <TableCell className="font-medium">{customer.name}</TableCell>
-                      <TableCell>{customer.phone || "-"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{customer.address || "-"}</TableCell>
-                      <TableCell>{customer.email || "-"}</TableCell>
+                    <TableRow key={customer.id} className="group">
+                      <TableCell className="pl-6 font-medium">{customer.name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{customer.phone || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{customer.address || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{customer.email || "—"}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
                           className={customer.is_active
-                            ? "text-xs text-green-700 bg-green-50 border-green-200"
-                            : "text-xs text-slate-500 bg-slate-100 border-slate-200"}
+                            ? "text-xs text-green-700 bg-green-50 border-green-200 dark:bg-green-950/30 dark:text-green-400"
+                            : "text-xs text-slate-500 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400"}
                         >
                           {customer.is_active ? "Aktif" : "Nonaktif"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/pelanggan/${customer.id}`)}>
-                          <Eye className="h-4 w-4" />
+                      <TableCell className="pr-6">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => navigate(`/pelanggan/${customer.id}`)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
                     </TableRow>
