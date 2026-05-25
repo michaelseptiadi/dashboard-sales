@@ -184,10 +184,12 @@ export function useAdjustStock() {
       product_id,
       qty,
       type,
+      notes,
     }: {
       product_id: string;
       qty: number;
       type: "in" | "out";
+      notes?: string;
     }) => {
       const { data, error } = await supabase
         .from("inventory_movements")
@@ -196,6 +198,7 @@ export function useAdjustStock() {
           movement_type: "adjustment",
           qty_in: type === "in" ? qty : 0,
           qty_out: type === "out" ? qty : 0,
+          notes: notes || null,
           store_id: selectedStore?.id || null,
         })
         .select()
@@ -205,6 +208,73 @@ export function useAdjustStock() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useProductById(productId: string | null) {
+  return useQuery({
+    queryKey: ["product", productId],
+    enabled: !!productId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, categories(name), units(name)")
+        .eq("id", productId!)
+        .single();
+      if (error) throw error;
+      return data as Product;
+    },
+  });
+}
+
+export type InventoryMovement = Tables<"inventory_movements"> & {
+  invoiceNumber?: string | null;
+  stockAfter: number;
+};
+
+export function useInventoryMovements(productId: string | null) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
+  return useQuery({
+    queryKey: ["inventory-movements", productId, storeId],
+    enabled: !!productId,
+    queryFn: async () => {
+      let query = supabase
+        .from("inventory_movements")
+        .select("id, product_id, movement_type, reference_id, qty_in, qty_out, notes, store_id, created_at")
+        .eq("product_id", productId!)
+        .order("created_at", { ascending: true });
+      if (storeId) query = query.eq("store_id", storeId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      const movements = data || [];
+
+      // Resolve invoice numbers for sale movements
+      const saleRefIds = movements
+        .filter((m) => m.movement_type === "sale" && m.reference_id)
+        .map((m) => m.reference_id as string);
+      let invoiceMap: Record<string, string> = {};
+      if (saleRefIds.length > 0) {
+        const { data: orders } = await supabase
+          .from("sales_orders")
+          .select("id, invoice_number")
+          .in("id", saleRefIds);
+        orders?.forEach((o) => { invoiceMap[o.id] = o.invoice_number; });
+      }
+
+      // Compute running stock balance (ascending), then reverse for display
+      let running = 0;
+      const withBalance = movements.map((m) => {
+        running += (m.qty_in || 0) - (m.qty_out || 0);
+        return {
+          ...m,
+          invoiceNumber: m.reference_id ? (invoiceMap[m.reference_id] ?? null) : null,
+          stockAfter: running,
+        } as InventoryMovement;
+      });
+      return withBalance.reverse(); // newest first
     },
   });
 }

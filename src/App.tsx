@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Sales from "./pages/Sales";
 import SalesHistory from "./pages/SalesHistory";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
 import Customers from "./pages/Customers";
 import MasterData from "./pages/MasterData";
 import Pengiriman from "./pages/Pengiriman";
@@ -72,6 +73,7 @@ const AppRoutes = () => (
       <Route path="/penjualan" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
       <Route path="/riwayat" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
       <Route path="/produk" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+      <Route path="/produk/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
       <Route path="/pelanggan" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
       <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
       <Route path="/pengiriman" element={<ProtectedRoute><Pengiriman /></ProtectedRoute>} />

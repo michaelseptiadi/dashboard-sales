@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -16,7 +18,7 @@ import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
 import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
-import { Plus, Pencil, PackagePlus, AlertTriangle } from "lucide-react";
+import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
 
 interface ProductFormData {
   product_code: string;
@@ -40,15 +42,16 @@ const emptyForm: ProductFormData = {
 
 export default function Products() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number } | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(0);
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
+  const [adjustNotes, setAdjustNotes] = useState("");
 
   const { data: products, isLoading } = useProducts(search, categoryFilter || undefined);
   const { data: lowStockItems } = useLowStockProducts();
@@ -69,22 +72,7 @@ export default function Products() {
   };
 
   const openCreate = () => {
-    setEditId(null);
     setForm({ ...emptyForm, product_code: nextProductCode() });
-    setDialogOpen(true);
-  };
-
-  const openEdit = (product: any) => {
-    setEditId(product.id);
-    setForm({
-      product_code: product.product_code,
-      name: product.name,
-      category_id: product.category_id || "",
-      unit_id: product.unit_id || "",
-      selling_price: product.selling_price,
-      capital_price: product.capital_price,
-      minimum_stock: product.minimum_stock,
-    });
     setDialogOpen(true);
   };
 
@@ -94,22 +82,12 @@ export default function Products() {
       return;
     }
     try {
-      if (editId) {
-        await updateProduct.mutateAsync({
-          id: editId,
-          ...form,
-          category_id: form.category_id || null,
-          unit_id: form.unit_id || null,
-        });
-        toast({ title: "Produk berhasil diperbarui" });
-      } else {
-        await createProduct.mutateAsync({
-          ...form,
-          category_id: form.category_id || null,
-          unit_id: form.unit_id || null,
-        });
-        toast({ title: "Produk berhasil ditambahkan" });
-      }
+      await createProduct.mutateAsync({
+        ...form,
+        category_id: form.category_id || null,
+        unit_id: form.unit_id || null,
+      });
+      toast({ title: "Produk berhasil ditambahkan" });
       setDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Gagal menyimpan produk", description: error.message, variant: "destructive" });
@@ -120,6 +98,7 @@ export default function Products() {
     setStockProduct({ id: product.id, name: product.name, current_stock: product.current_stock ?? 0 });
     setAdjustQty(0);
     setAdjustType("in");
+    setAdjustNotes("");
     setStockDialogOpen(true);
   };
 
@@ -129,7 +108,7 @@ export default function Products() {
       return;
     }
     try {
-      await adjustStock.mutateAsync({ product_id: stockProduct.id, qty: adjustQty, type: adjustType });
+      await adjustStock.mutateAsync({ product_id: stockProduct.id, qty: adjustQty, type: adjustType, notes: adjustNotes || undefined });
       toast({ title: `Stok berhasil ${adjustType === "in" ? "ditambah" : "dikurangi"} sebesar ${adjustQty}` });
       setStockDialogOpen(false);
     } catch (error: any) {
@@ -280,9 +259,11 @@ export default function Products() {
                           />
                         </TableCell>
                         <TableCell className="pr-6">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(product)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.id}`)}>
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -328,6 +309,16 @@ export default function Products() {
                 placeholder="0"
               />
             </div>
+            <div className="space-y-2">
+              <Label>Catatan <span className="text-muted-foreground font-normal">(opsional)</span></Label>
+              <Textarea
+                value={adjustNotes}
+                onChange={(e) => setAdjustNotes(e.target.value)}
+                placeholder="Contoh: Stok opname, retur dari pelanggan..."
+                rows={2}
+                className="resize-none"
+              />
+            </div>
             {stockProduct && adjustQty > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
                 <span className="text-sm text-muted-foreground">Stok setelah</span>
@@ -353,7 +344,7 @@ export default function Products() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editId ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
+            <DialogTitle>Tambah Produk</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
