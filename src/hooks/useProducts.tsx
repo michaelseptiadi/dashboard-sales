@@ -1,59 +1,56 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
-export type Product = Tables<"products"> & {
-  categories?: { name: string } | null;
-  units?: { name: string } | null;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface Product {
+  id: string;
+  name: string;
+  product_code: string;
+  store_id: string | null;
+  category_id: string | null;
+  unit_id: string | null;
+  price: number;
+  minimum_stock: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  category?: { name: string } | null;
+  unit?: { name: string } | null;
   current_stock?: number;
-};
+}
+
+export type ProductInsert = Omit<Product, "id" | "created_at" | "updated_at" | "category" | "unit" | "current_stock">;
+export type ProductUpdate = Partial<ProductInsert>;
+
+export interface InventoryMovement {
+  id: string;
+  product_id: string;
+  movement_type: string;
+  reference_id: string | null;
+  qty_in: number;
+  qty_out: number;
+  notes: string | null;
+  store_id: string | null;
+  created_at: string;
+  invoiceNumber?: string | null;
+  stockAfter: number;
+}
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export function useProducts(search?: string, categoryId?: string) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
-  return useQuery({
+  return useQuery<Product[]>({
     queryKey: ["products", storeId, search, categoryId],
-    queryFn: async () => {
-      let query = supabase
-        .from("products")
-        .select("*, categories(name), units(name)")
-        .order("name");
-
-      if (storeId) {
-        query = query.eq("store_id", storeId);
-      }
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,product_code.ilike.%${search}%`);
-      }
-      if (categoryId) {
-        query = query.eq("category_id", categoryId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Fetch stock for all products
-      let stockQuery = supabase
-        .from("inventory_movements")
-        .select("product_id, qty_in, qty_out");
-      if (storeId) {
-        stockQuery = stockQuery.eq("store_id", storeId);
-      }
-      const { data: stockData, error: stockError } = await stockQuery;
-      if (stockError) throw stockError;
-
-      const stockMap: Record<string, number> = {};
-      stockData?.forEach((m) => {
-        if (!stockMap[m.product_id]) stockMap[m.product_id] = 0;
-        stockMap[m.product_id] += (m.qty_in || 0) - (m.qty_out || 0);
-      });
-
-      return (data || []).map((p) => ({
-        ...p,
-        current_stock: stockMap[p.id] || 0,
-      })) as Product[];
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (storeId) p.set("store_id", storeId);
+      if (search) p.set("search", search);
+      if (categoryId) p.set("category_id", categoryId);
+      return apiClient.get<Product[]>(`/products?${p.toString()}`);
     },
   });
 }
@@ -61,25 +58,14 @@ export function useProducts(search?: string, categoryId?: string) {
 export function useActiveProducts(search?: string) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
-  return useQuery({
+  return useQuery<Product[]>({
     queryKey: ["active-products", storeId, search],
-    queryFn: async () => {
-      let query = supabase
-        .from("products")
-        .select("*, categories(name), units(name)")
-        .eq("is_active", true)
-        .order("name");
-
-      if (storeId) {
-        query = query.eq("store_id", storeId);
-      }
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,product_code.ilike.%${search}%`);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Product[];
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (storeId) p.set("store_id", storeId);
+      p.set("is_active", "true");
+      if (search) p.set("search", search);
+      return apiClient.get<Product[]>(`/products?${p.toString()}`);
     },
   });
 }
@@ -87,36 +73,23 @@ export function useActiveProducts(search?: string) {
 export function useLowStockProducts() {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
-  return useQuery({
+  return useQuery<Product[]>({
     queryKey: ["low-stock-products", storeId],
-    queryFn: async () => {
-      let query = supabase
-        .from("products")
-        .select("id, name, product_code, minimum_stock")
-        .eq("is_active", true)
-        .gt("minimum_stock", 0);
-      if (storeId) query = query.eq("store_id", storeId);
-      const { data, error } = await query;
-      if (error) throw error;
-
-      let stockQuery = supabase
-        .from("inventory_movements")
-        .select("product_id, qty_in, qty_out");
-      if (storeId) stockQuery = stockQuery.eq("store_id", storeId);
-      const { data: stockData, error: stockError } = await stockQuery;
-      if (stockError) throw stockError;
-
-      const stockMap: Record<string, number> = {};
-      stockData?.forEach((m) => {
-        if (!stockMap[m.product_id]) stockMap[m.product_id] = 0;
-        stockMap[m.product_id] += (m.qty_in || 0) - (m.qty_out || 0);
-      });
-
-      return (data || [])
-        .map((p) => ({ ...p, current_stock: stockMap[p.id] ?? 0 }))
-        .filter((p) => p.current_stock < p.minimum_stock);
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (storeId) p.set("store_id", storeId);
+      p.set("low_stock", "true");
+      return apiClient.get<Product[]>(`/products?${p.toString()}`);
     },
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useProductById(productId: string | null) {
+  return useQuery<Product>({
+    queryKey: ["product", productId],
+    enabled: !!productId,
+    queryFn: () => apiClient.get<Product>(`/products/${productId}`),
   });
 }
 
@@ -124,15 +97,12 @@ export function useCreateProduct() {
   const queryClient = useQueryClient();
   const { selectedStore } = useAuth();
   return useMutation({
-    mutationFn: async (product: TablesInsert<"products">) => {
+    mutationFn: (product: ProductInsert) => {
       if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
-      const { data, error } = await supabase
-        .from("products")
-        .insert({ ...product, store_id: selectedStore.id })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      return apiClient.post<Product>("/products", {
+        ...product,
+        store_id: selectedStore.id,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -143,11 +113,8 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: TablesUpdate<"products"> & { id: string }) => {
-      const { data, error } = await supabase.from("products").update(updates).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, ...updates }: ProductUpdate & { id: string }) =>
+      apiClient.put<Product>(`/products/${id}`, updates),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["product", variables.id] });
@@ -158,54 +125,34 @@ export function useUpdateProduct() {
 export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("categories").select("*").order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      apiClient.get<{ id: string; name: string }[]>("/master-data/categories"),
   });
 }
 
 export function useUnits() {
   return useQuery({
     queryKey: ["units"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("units").select("*").order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      apiClient.get<{ id: string; name: string }[]>("/master-data/units"),
   });
 }
 
+// TODO: useAdjustStock and useInventoryMovements require inventory endpoints
+// that are not yet implemented in the backend (POST/GET /products/:id/stock).
+
 export function useAdjustStock() {
   const queryClient = useQueryClient();
-  const { selectedStore } = useAuth();
   return useMutation({
-    mutationFn: async ({
-      product_id,
-      qty,
-      type,
-      notes,
-    }: {
+    mutationFn: async (_params: {
       product_id: string;
       qty: number;
       type: "in" | "out";
       notes?: string;
     }) => {
-      const { data, error } = await supabase
-        .from("inventory_movements")
-        .insert({
-          product_id,
-          movement_type: "adjustment",
-          qty_in: type === "in" ? qty : 0,
-          qty_out: type === "out" ? qty : 0,
-          notes: notes || null,
-          store_id: selectedStore?.id || null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+      throw new Error(
+        "Stock adjustment endpoint not yet implemented in the backend API",
+      );
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -215,88 +162,15 @@ export function useAdjustStock() {
   });
 }
 
-export function useProductById(productId: string | null) {
-  return useQuery({
-    queryKey: ["product", productId],
-    enabled: !!productId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*, categories(name), units(name)")
-        .eq("id", productId!)
-        .single();
-      if (error) throw error;
-      return data as Product;
-    },
+export function useInventoryMovements(_productId: string | null) {
+  return useQuery<InventoryMovement[]>({
+    queryKey: ["inventory-movements", _productId],
+    enabled: false, // TODO: implement once backend exposes GET /products/:id/inventory
+    queryFn: () => Promise.resolve([]),
   });
 }
 
-export type InventoryMovement = Tables<"inventory_movements"> & {
-  invoiceNumber?: string | null;
-  stockAfter: number;
-};
-
-export function useInventoryMovements(productId: string | null) {
-  const { selectedStore } = useAuth();
-  const storeId = selectedStore?.id;
-  return useQuery({
-    queryKey: ["inventory-movements", productId, storeId],
-    enabled: !!productId,
-    queryFn: async () => {
-      let query = supabase
-        .from("inventory_movements")
-        .select("id, product_id, movement_type, reference_id, qty_in, qty_out, notes, store_id, created_at")
-        .eq("product_id", productId!)
-        .order("created_at", { ascending: true });
-      if (storeId) query = query.eq("store_id", storeId);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      const movements = data || [];
-
-      // Resolve invoice numbers for sale movements
-      const saleRefIds = movements
-        .filter((m) => m.movement_type === "sale" && m.reference_id)
-        .map((m) => m.reference_id as string);
-      let invoiceMap: Record<string, string> = {};
-      if (saleRefIds.length > 0) {
-        const { data: orders } = await supabase
-          .from("sales_orders")
-          .select("id, invoice_number")
-          .in("id", saleRefIds);
-        orders?.forEach((o) => { invoiceMap[o.id] = o.invoice_number; });
-      }
-
-      // Compute running stock balance (ascending), then reverse for display
-      let running = 0;
-      const withBalance = movements.map((m) => {
-        running += (m.qty_in || 0) - (m.qty_out || 0);
-        return {
-          ...m,
-          invoiceNumber: m.reference_id ? (invoiceMap[m.reference_id] ?? null) : null,
-          stockAfter: running,
-        } as InventoryMovement;
-      });
-      return withBalance.reverse(); // newest first
-    },
-  });
-}
-
+/** No-op — Supabase realtime is removed. Re-queries happen via React Query invalidation. */
 export function useRealtimeStock() {
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    const channel = supabase
-      .channel("inventory-movements-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "inventory_movements" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["products"] });
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+  return;
 }

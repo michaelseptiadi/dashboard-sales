@@ -1,25 +1,60 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
 // useDashboardStats has been moved to useDashboard.ts — re-exported here for backward compatibility.
 export { useDashboardStats } from "@/hooks/useDashboard";
 
-/** Resolve matching customer IDs for the name query, then build an OR filter string. */
-async function buildCustomerOrFilter(nameQuery: string): Promise<string> {
-  const { data } = await supabase
-    .from("customers")
-    .select("id")
-    .or(`name.ilike.%${nameQuery}%,address.ilike.%${nameQuery}%`);
-  const parts = [
-    `customer_name.ilike.%${nameQuery}%`,
-    `customer_address.ilike.%${nameQuery}%`,
-  ];
-  if (data && data.length > 0) {
-    parts.push(`customer_id.in.(${data.map((c) => c.id).join(",")})`);
-  }
-  return parts.join(",");
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface SalesOrder {
+  id: string;
+  invoice_number: string;
+  sales_date: string;
+  store_id: string | null;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_address: string | null;
+  customer_phone: string | null;
+  payment_method_id: string | null;
+  delivery_types: string | null;
+  driver_id: string | null;
+  delivery_fee: number;
+  notes: string | null;
+  total_amount: number;
+  total_discount: number;
+  grand_total: number;
+  unpaid_transaction: number;
+  transaction_status: string;
+  created_at: string;
+  updated_at: string;
+  payment_method?: { name: string } | null;
+  customer?: { name: string; address: string | null } | null;
 }
+
+export interface SalesItem {
+  id: string;
+  sales_order_id: string;
+  product_id: string;
+  qty: number;
+  price: number;
+  discount: number;
+  subtotal: number;
+  delivery_status: string;
+  product?: { name: string; product_code: string } | null;
+}
+
+export interface PaymentLog {
+  id: string;
+  sales_order_id: string;
+  store_id: string | null;
+  amount: number;
+  notes: string | null;
+  paid_at: string;
+  created_by: string | null;
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
 
 interface SalesOrderFilters {
   dateFrom?: string;
@@ -34,6 +69,8 @@ interface SalesOrderFilters {
   pageSize?: number;
 }
 
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
 export function useSalesOrders(filters: SalesOrderFilters = {}) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
@@ -41,39 +78,32 @@ export function useSalesOrders(filters: SalesOrderFilters = {}) {
     dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId,
     transactionStatus, page = 1, pageSize = 10,
   } = filters;
+
   return useQuery({
     queryKey: ["sales-orders", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId, transactionStatus, page, pageSize],
-    queryFn: async () => {
-      const from = (page - 1) * pageSize;
-      const to   = from + pageSize - 1;
-
-      let query = supabase
-        .from("sales_orders")
-        .select("*, payment_methods(name), customers(name, address)")
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (storeId) query = query.eq("store_id", storeId);
-      if (dateFrom) query = query.gte("sales_date", dateFrom);
-      if (dateTo) query = query.lte("sales_date", dateTo);
-      if (search) query = query.ilike("invoice_number", `%${search}%`);
-      if (customerName) query = query.or(await buildCustomerOrFilter(customerName));
-      if (paymentMethodId) query = query.eq("payment_method_id", paymentMethodId);
-      if (deliveryType) query = query.eq("delivery_types", deliveryType);
-      if (driverId) query = query.eq("driver_id", driverId);
-      if (transactionStatus === "paid") query = query.eq("transaction_status", "paid");
-      if (transactionStatus === "unpaid") query = query.neq("transaction_status", "paid");
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data ?? [];
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (storeId) p.set("store_id", storeId);
+      if (dateFrom) p.set("start_date", dateFrom);
+      if (dateTo) p.set("end_date", dateTo);
+      if (search) p.set("search", search);
+      if (customerName) p.set("customer_name", customerName);
+      if (paymentMethodId) p.set("payment_method_id", paymentMethodId);
+      if (deliveryType) p.set("delivery_type", deliveryType);
+      if (driverId) p.set("driver_id", driverId);
+      if (transactionStatus) p.set("transaction_status", transactionStatus);
+      p.set("page", String(page));
+      p.set("page_size", String(pageSize));
+      return apiClient.get<{ data: SalesOrder[]; total: number; page: number; pageSize: number }>(
+        `/sales?${p.toString()}`,
+      );
     },
   });
 }
 
 type BaseFilters = Omit<SalesOrderFilters, "transactionStatus" | "page" | "pageSize">;
 
-/** Two HEAD-only count queries (no data transferred) — used for tab badges. */
+/** Fetch paid + unpaid counts in parallel — used for tab badges. */
 export function useSalesOrderStatusCounts(filters: BaseFilters = {}) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
@@ -82,26 +112,31 @@ export function useSalesOrderStatusCounts(filters: BaseFilters = {}) {
   return useQuery({
     queryKey: ["sales-order-counts", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId],
     queryFn: async () => {
-      const customerOrFilter = customerName ? await buildCustomerOrFilter(customerName) : null;
-      const applyBase = (q: ReturnType<typeof supabase.from>) => {
-        if (storeId) q = (q as any).eq("store_id", storeId);
-        if (dateFrom) q = (q as any).gte("sales_date", dateFrom);
-        if (dateTo) q = (q as any).lte("sales_date", dateTo);
-        if (search) q = (q as any).ilike("invoice_number", `%${search}%`);
-        if (customerOrFilter) q = (q as any).or(customerOrFilter);
-        if (paymentMethodId) q = (q as any).eq("payment_method_id", paymentMethodId);
-        if (deliveryType) q = (q as any).eq("delivery_types", deliveryType);
-        if (driverId) q = (q as any).eq("driver_id", driverId);
-        return q;
-      };
+      const base = new URLSearchParams();
+      if (storeId) base.set("store_id", storeId);
+      if (dateFrom) base.set("start_date", dateFrom);
+      if (dateTo) base.set("end_date", dateTo);
+      if (search) base.set("search", search);
+      if (customerName) base.set("customer_name", customerName);
+      if (paymentMethodId) base.set("payment_method_id", paymentMethodId);
+      if (deliveryType) base.set("delivery_type", deliveryType);
+      if (driverId) base.set("driver_id", driverId);
+      base.set("page_size", "1");
+
+      const paidParams = new URLSearchParams(base);
+      paidParams.set("transaction_status", "paid");
+
+      const unpaidParams = new URLSearchParams(base);
+      unpaidParams.set("transaction_status", "unpaid");
+
       const [paidRes, unpaidRes] = await Promise.all([
-        applyBase(supabase.from("sales_orders").select("*", { count: "exact", head: true })).eq("transaction_status", "paid"),
-        applyBase(supabase.from("sales_orders").select("*", { count: "exact", head: true })).neq("transaction_status", "paid"),
+        apiClient.get<{ total: number }>(`/sales?${paidParams.toString()}`),
+        apiClient.get<{ total: number }>(`/sales?${unpaidParams.toString()}`),
       ]);
       return {
-        allCount:    (paidRes.count ?? 0) + (unpaidRes.count ?? 0),
-        paidCount:   paidRes.count ?? 0,
-        unpaidCount: unpaidRes.count ?? 0,
+        allCount:    (paidRes.total ?? 0) + (unpaidRes.total ?? 0),
+        paidCount:   paidRes.total ?? 0,
+        unpaidCount: unpaidRes.total ?? 0,
       };
     },
   });
@@ -111,33 +146,18 @@ export function useSalesDetail(orderId: string | null) {
   return useQuery({
     queryKey: ["sales-detail", orderId],
     enabled: !!orderId,
-    queryFn: async () => {
-      const { data: order, error: orderError } = await supabase
-        .from("sales_orders")
-        .select("*, payment_methods(name), customers(name, address)")
-        .eq("id", orderId!)
-        .maybeSingle();
-      if (orderError) throw orderError;
-
-      const { data: items, error: itemsError } = await supabase
-        .from("sales_items")
-        .select("*, products(name, product_code), delivery_status")
-        .eq("sales_order_id", orderId!);
-      if (itemsError) throw itemsError;
-
-      return { order, items };
-    },
+    queryFn: () =>
+      apiClient.get<SalesOrder & { items: SalesItem[]; payment_logs: PaymentLog[] }>(
+        `/sales/${orderId}`,
+      ),
   });
 }
 
 export function usePaymentMethods() {
   return useQuery({
     queryKey: ["payment-methods"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("payment_methods").select("*").order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      apiClient.get<{ id: string; name: string }[]>("/payments/methods"),
   });
 }
 
@@ -145,7 +165,7 @@ export function useCreateSalesTransaction() {
   const { selectedStore } = useAuth();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: {
+    mutationFn: (params: {
       p_invoice_number: string;
       p_sales_date: string;
       p_customer_id?: string;
@@ -157,21 +177,23 @@ export function useCreateSalesTransaction() {
       p_driver_id?: string;
       p_notes?: string;
       p_delivery_fee?: number;
-      p_items: Array<{
-        product_id: string;
-        qty: number;
-        price: number;
-        discount: number;
-      }>;
-    }) => {
-      const { data, error } = await supabase.rpc("create_sales_transaction", {
-        ...params,
-        p_store_id: selectedStore?.id,
-        p_items: JSON.parse(JSON.stringify(params.p_items)),
-      });
-      if (error) throw error;
-      return data;
-    },
+      p_items: Array<{ product_id: string; qty: number; price: number; discount: number }>;
+    }) =>
+      apiClient.post<SalesOrder>("/sales", {
+        invoice_number:    params.p_invoice_number,
+        sales_date:        params.p_sales_date,
+        store_id:          selectedStore?.id,
+        customer_id:       params.p_customer_id,
+        customer_name:     params.p_customer_name,
+        customer_phone:    params.p_customer_phone,
+        customer_address:  params.p_customer_address,
+        payment_method_id: params.p_payment_method_id,
+        delivery_types:    params.p_delivery_types,
+        driver_id:         params.p_driver_id,
+        notes:             params.p_notes,
+        delivery_fee:      params.p_delivery_fee ?? 0,
+        items:             params.p_items,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -180,36 +202,20 @@ export function useCreateSalesTransaction() {
   });
 }
 
-/**
-/**
- * Fetch all payment log entries for a given sales order.
- */
 export function usePaymentLogs(orderId: string | null) {
-  return useQuery({
+  return useQuery<PaymentLog[]>({
     queryKey: ["payment-logs", orderId],
     enabled: !!orderId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payment_logs")
-        .select("*")
-        .eq("sales_order_id", orderId!)
-        .order("paid_at", { ascending: true });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      apiClient.get<PaymentLog[]>(`/payments/logs?sales_order_id=${orderId}`),
   });
 }
 
-/**
- * Record a payment for a sales order.
- * Inserts a row into payment_logs; the DB trigger automatically
- * recalculates unpaid_transaction and transaction_status on sales_orders.
- */
 export function useAddPaymentLog() {
   const queryClient = useQueryClient();
   const { selectedStore } = useAuth();
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       orderId,
       amount,
       notes,
@@ -217,22 +223,13 @@ export function useAddPaymentLog() {
       orderId: string;
       amount: number;
       notes?: string;
-    }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
-        .from("payment_logs")
-        .insert({
-          sales_order_id: orderId,
-          store_id: selectedStore?.id ?? null,
-          amount,
-          notes: notes || null,
-          created_by: user?.id ?? null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    }) =>
+      apiClient.post<PaymentLog>("/payments/logs", {
+        sales_order_id: orderId,
+        store_id:       selectedStore?.id ?? null,
+        amount,
+        notes:          notes ?? null,
+      }),
     onSuccess: (_data, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: ["payment-logs", orderId] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
@@ -242,17 +239,14 @@ export function useAddPaymentLog() {
   });
 }
 
+// TODO: useMarkSelfPickupItems and useUpdateItemDeliveryStatus require a
+// PATCH /sales/:id/items/:itemId endpoint on the backend (not yet implemented).
 export function useMarkSelfPickupItems() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderId, productIds }: { orderId: string; productIds: string[] }) => {
-      if (productIds.length === 0) return;
-      const { error } = await supabase
-        .from("sales_items")
-        .update({ delivery_status: "self_pickup" })
-        .eq("sales_order_id", orderId)
-        .in("product_id", productIds);
-      if (error) throw error;
+    mutationFn: async (_params: { orderId: string; productIds: string[] }) => {
+      // TODO: implement once backend exposes PATCH /sales/:id/items
+      throw new Error("Not yet implemented in the backend API");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders-for-delivery"] });
@@ -263,12 +257,9 @@ export function useMarkSelfPickupItems() {
 export function useUpdateItemDeliveryStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ itemId, status }: { itemId: string; status: "pending" | "self_pickup" }) => {
-      const { error } = await supabase
-        .from("sales_items")
-        .update({ delivery_status: status })
-        .eq("id", itemId);
-      if (error) throw error;
+    mutationFn: async (_params: { itemId: string; status: "pending" | "self_pickup" }) => {
+      // TODO: implement once backend exposes PATCH /sales/items/:id
+      throw new Error("Not yet implemented in the backend API");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-detail"] });
@@ -277,23 +268,12 @@ export function useUpdateItemDeliveryStatus() {
   });
 }
 
-/**
- * @deprecated Use useAddPaymentLog instead.
- * Kept for backward compatibility — delegates to a direct update.
- */
+/** @deprecated Use useAddPaymentLog instead. */
 export function useUpdatePayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderId, unpaidAmount }: { orderId: string; unpaidAmount: number }) => {
-      const { data, error } = await supabase
-        .from("sales_orders")
-        .update({ unpaid_transaction: Math.max(0, unpaidAmount) })
-        .eq("id", orderId)
-        .select("id, unpaid_transaction, transaction_status")
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: async ({ orderId, unpaidAmount }: { orderId: string; unpaidAmount: number }) =>
+      apiClient.put<SalesOrder>(`/sales/${orderId}`, { unpaid_transaction: Math.max(0, unpaidAmount) }),
     onSuccess: (_data, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-detail", orderId] });

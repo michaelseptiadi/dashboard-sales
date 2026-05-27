@@ -1,10 +1,24 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
-import type { Database } from "@/integrations/supabase/types";
+import apiClient, { getToken, setToken, removeToken } from "@/lib/apiClient";
 
-type Store = Database["public"]["Tables"]["stores"]["Row"];
+// ── Shared types ──────────────────────────────────────────────────────────────
+
+export interface ApiUser {
+  id: string;
+  email: string;
+  role: string;
+}
+
+export interface Store {
+  id: string;
+  store_name: string;
+  address: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Role = "admin" | "cashier";
 
 const STORE_STORAGE_KEY = "selected_store";
@@ -18,9 +32,10 @@ function loadStoredStore(): Store | null {
   }
 }
 
+// ── Context ───────────────────────────────────────────────────────────────────
+
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: ApiUser | null;
   loading: boolean;
   selectedStore: Store | null;
   setSelectedStore: (store: Store | null) => void;
@@ -38,8 +53,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedStore, setSelectedStoreState] = useState<Store | null>(loadStoredStore);
   const [storeModalOpen, setStoreModalOpen] = useState(false);
@@ -54,71 +68,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Rehydrate user from stored token on mount.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const token = getToken();
+    if (!token) {
       setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+      return;
+    }
+    apiClient
+      .get<{ id: string; email: string; user_roles?: { role: string }[] }>("/users/me")
+      .then((me) => {
+        setUser({
+          id: me.id,
+          email: me.email,
+          role: me.user_roles?.[0]?.role ?? "staff",
+        });
+      })
+      .catch(() => {
+        // Token invalid or expired – clear it
+        removeToken();
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  // Store-level role for the currently selected store
-  const { data: currentRole = null, isLoading: roleLoading } = useQuery({
-    queryKey: ["user_role", user?.id, selectedStore?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_store_roles")
-        .select("role")
-        .eq("user_id", user!.id)
-        .eq("store_id", selectedStore!.id)
-        .single();
-      if (error) return null;
-      return (data?.role as Role) ?? null;
-    },
-    enabled: !!user && !!selectedStore,
-  });
-
-  // App-level superadmin flag
-  const { data: isSuperAdmin = false, isLoading: superAdminLoading } = useQuery({
-    queryKey: ["is_superadmin", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", user!.id)
-        .eq("role", "superadmin")
-        .single();
-      return !!data;
-    },
+  // Store-level role for the currently selected store.
+  // TODO: Replace with a proper per-store role query once the backend exposes
+  //       GET /users/me/store-roles with the current store filtered.
+  const { data: storeRoles = [], isLoading: roleLoading } = useQuery({
+    queryKey: ["my-store-roles", user?.id],
+    queryFn: () =>
+      apiClient.get<{ role: string; store: { id: string } }[]>("/users/me/store-roles"),
     enabled: !!user,
   });
 
+  const currentRole: Role | null = (() => {
+    if (!selectedStore) return null;
+    const match = storeRoles.find((r) => r.store.id === selectedStore.id);
+    if (match) return match.role as Role;
+    // Fall back to global role when no explicit store assignment exists.
+    if (user?.role === "admin" || user?.role === "superadmin") return "admin";
+    if (user?.role === "cashier") return "cashier";
+    return null;
+  })();
+
+  const isSuperAdmin = user?.role === "superadmin";
+  const superAdminLoading = loading;
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      const result = await apiClient.post<{ access_token: string; user: ApiUser }>(
+        "/auth/login",
+        { email, password },
+      );
+      setToken(result.access_token);
+      setUser(result.user);
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error as Error | null };
+    try {
+      const result = await apiClient.post<{ access_token: string; user: ApiUser }>(
+        "/auth/register",
+        { email, password },
+      );
+      setToken(result.access_token);
+      setUser(result.user);
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    removeToken();
+    setUser(null);
     setSelectedStoreState(null);
     localStorage.removeItem(STORE_STORAGE_KEY);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, selectedStore, setSelectedStore, storeModalOpen, setStoreModalOpen, currentRole, roleLoading, isSuperAdmin, superAdminLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        selectedStore,
+        setSelectedStore,
+        storeModalOpen,
+        setStoreModalOpen,
+        currentRole,
+        roleLoading,
+        isSuperAdmin,
+        superAdminLoading,
+        signIn,
+        signUp,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -133,29 +181,11 @@ export function useAuth() {
 }
 
 export function useStoresList() {
-  const { user, isSuperAdmin, superAdminLoading } = useAuth();
-  return useQuery({
-    queryKey: ["stores", user?.id, isSuperAdmin],
-    queryFn: async () => {
-      if (isSuperAdmin) {
-        const { data, error } = await supabase
-          .from("stores")
-          .select("*")
-          .eq("is_active", true)
-          .order("store_name");
-        if (error) throw error;
-        return data ?? [];
-      }
-      const { data, error } = await supabase
-        .from("user_store_roles")
-        .select("store:stores(*)")
-        .eq("user_id", user!.id);
-      if (error) throw error;
-      return (data ?? [])
-        .map((r) => r.store as Store | null)
-        .filter((s): s is Store => s !== null && s.is_active);
-    },
-    enabled: !!user && !superAdminLoading,
+  const { user } = useAuth();
+  return useQuery<Store[]>({
+    queryKey: ["stores", user?.id],
+    queryFn: () => apiClient.get<Store[]>("/stores"),
+    enabled: !!user,
   });
 }
 

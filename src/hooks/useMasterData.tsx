@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/apiClient";
 
 export interface SimpleRow {
   id: string;
@@ -8,6 +8,12 @@ export interface SimpleRow {
 }
 
 export type MasterTableName = "categories" | "units";
+
+// Map MasterTableName to the backend route segment
+const TABLE_PATH: Record<MasterTableName, string> = {
+  categories: "categories",
+  units: "units",
+};
 
 export interface Driver {
   id: string;
@@ -26,22 +32,16 @@ export interface DriverInput {
 export function useSimpleTable(table: MasterTableName) {
   return useQuery<SimpleRow[]>({
     queryKey: [table],
-    queryFn: async () => {
-      const { data, error } = await supabase.from(table).select("*").order("name");
-      if (error) throw error;
-      return data as SimpleRow[];
-    },
+    queryFn: () =>
+      apiClient.get<SimpleRow[]>(`/master-data/${TABLE_PATH[table]}`),
   });
 }
 
 export function useCreateRow(table: MasterTableName) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => {
-      const { data, error } = await supabase.from(table).insert({ name }).select().single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: (name: string) =>
+      apiClient.post<SimpleRow>(`/master-data/${TABLE_PATH[table]}`, { name }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [table] }),
   });
 }
@@ -49,11 +49,8 @@ export function useCreateRow(table: MasterTableName) {
 export function useUpdateRow(table: MasterTableName) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { data, error } = await supabase.from(table).update({ name }).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      apiClient.put<SimpleRow>(`/master-data/${TABLE_PATH[table]}/${id}`, { name }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [table] }),
   });
 }
@@ -61,10 +58,8 @@ export function useUpdateRow(table: MasterTableName) {
 export function useDeleteRow(table: MasterTableName) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from(table).delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) =>
+      apiClient.delete(`/master-data/${TABLE_PATH[table]}/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [table] }),
   });
 }
@@ -74,25 +69,15 @@ export function useDeleteRow(table: MasterTableName) {
 export function useDrivers() {
   return useQuery<Driver[]>({
     queryKey: ["drivers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("drivers")
-        .select("*")
-        .order("driver_name");
-      if (error) throw error;
-      return data as Driver[];
-    },
+    queryFn: () => apiClient.get<Driver[]>("/drivers"),
   });
 }
 
 export function useCreateDriver() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: DriverInput) => {
-      const { data, error } = await supabase.from("drivers").insert(input).select().single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: (input: DriverInput) =>
+      apiClient.post<Driver>("/drivers", input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["drivers"] }),
   });
 }
@@ -100,11 +85,8 @@ export function useCreateDriver() {
 export function useUpdateDriver() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...input }: DriverInput & { id: string }) => {
-      const { data, error } = await supabase.from("drivers").update(input).eq("id", id).select().single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, ...input }: DriverInput & { id: string }) =>
+      apiClient.put<Driver>(`/drivers/${id}`, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["drivers"] }),
   });
 }
@@ -112,10 +94,7 @@ export function useUpdateDriver() {
 export function useDeleteDriver() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("drivers").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => apiClient.delete(`/drivers/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["drivers"] }),
   });
 }
