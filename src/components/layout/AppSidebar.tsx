@@ -14,7 +14,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLowStockProducts } from "@/hooks/useProducts";
-import type { Role } from "@/hooks/useAuth";
+import type { Role } from "@/types/Auth";
 import {
   Sidebar,
   SidebarContent,
