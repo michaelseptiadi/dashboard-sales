@@ -91,16 +91,20 @@ export default function ProductDetail() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.category_id || !form.unit_id || !form.selling_price || !form.capital_price) {
+    if (!form.selling_price || !form.capital_price) {
       toast({ title: "Semua field wajib diisi", variant: "destructive" });
       return;
     }
     try {
+      if (!product?.store_product_id) {
+        throw new Error("Store product tidak ditemukan");
+      }
+
       await updateProduct.mutateAsync({
-        id: id!,
-        ...form,
-        category_id: form.category_id || null,
-        unit_id: form.unit_id || null,
+        id: product.store_product_id,
+        selling_price: form.selling_price,
+        capital_price: form.capital_price,
+        minimum_stock: form.minimum_stock,
       });
       toast({ title: "Produk berhasil diperbarui" });
       setEditOpen(false);

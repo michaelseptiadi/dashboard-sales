@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,8 @@ export default function Products() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
@@ -53,7 +55,7 @@ export default function Products() {
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
-  const { data: products, isLoading } = useProducts(search, categoryFilter || undefined);
+  const { data: productsResponse, isLoading } = useProducts(search, categoryFilter || undefined, page, limit);
   const { data: lowStockItems } = useLowStockProducts();
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
@@ -61,6 +63,13 @@ export default function Products() {
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
   useRealtimeStock();
+
+  const products = productsResponse?.data ?? [];
+  const productsMeta = productsResponse?.meta;
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, limit]);
 
   const nextProductCode = () => {
     const existing = (products ?? [])
@@ -118,7 +127,8 @@ export default function Products() {
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
-      await updateProduct.mutateAsync({ id, is_active: !currentActive });
+      // Store-products API doesn't expose is_active toggling; keep current behavior by blocking this action.
+      throw new Error("Ubah status aktif produk belum tersedia di endpoint store-products");
     } catch (error: any) {
       toast({ title: "Gagal mengubah status", description: error.message, variant: "destructive" });
     }
@@ -173,9 +183,9 @@ export default function Products() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2.5">
               <CardTitle className="text-base">Daftar Produk</CardTitle>
-              {products && (
+              {productsMeta && (
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  {products.length}
+                  {productsMeta.total}
                 </span>
               )}
             </div>
@@ -201,6 +211,17 @@ export default function Products() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
+              <SelectTrigger className="w-[110px]">
+                <SelectValue placeholder="Limit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="30">30</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -222,7 +243,7 @@ export default function Products() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products?.length === 0 ? (
+                {products.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="py-16 text-center text-muted-foreground">
                       <PackagePlus className="mx-auto mb-2 h-8 w-8 opacity-25" />
@@ -230,7 +251,7 @@ export default function Products() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  products?.map((product) => {
+                  products.map((product) => {
                     const isLowStock = product.current_stock !== undefined && product.current_stock <= product.minimum_stock;
                     return (
                       <TableRow key={product.id} className="group">
@@ -253,10 +274,7 @@ export default function Products() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Switch
-                            checked={product.is_active}
-                            onCheckedChange={() => handleToggleActive(product.id, product.is_active)}
-                          />
+                          <Switch checked={product.is_active} disabled />
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
@@ -271,6 +289,35 @@ export default function Products() {
                 )}
               </TableBody>
             </Table>
+          )}
+          {productsMeta && productsMeta.totalPages > 1 && (
+            <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Menampilkan {(productsMeta.page - 1) * productsMeta.limit + (products.length > 0 ? 1 : 0)}-
+                {(productsMeta.page - 1) * productsMeta.limit + products.length} dari {productsMeta.total} produk
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={productsMeta.page <= 1}
+                >
+                  Sebelumnya
+                </Button>
+                <div className="min-w-24 text-center text-sm text-muted-foreground">
+                  Halaman {productsMeta.page} / {productsMeta.totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.min(productsMeta.totalPages, current + 1))}
+                  disabled={productsMeta.page >= productsMeta.totalPages}
+                >
+                  Berikutnya
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
