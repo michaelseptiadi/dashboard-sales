@@ -1,27 +1,31 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import apiClient, { getToken, setToken, removeToken } from "@/lib/apiClient";
-
-// ── Shared types ──────────────────────────────────────────────────────────────
-
-export interface ApiUser {
-  id: string;
-  email: string;
-  role: string;
-}
-
-export interface Store {
-  id: string;
-  store_name: string;
-  address: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export type Role = "admin" | "cashier";
+import { AuthContextType, ApiUser, Role, Store } from "@/types/Auth";
 
 const STORE_STORAGE_KEY = "selected_store";
+
+function decodeJwtPayload(token: string): any | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+
+    const payload = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
+
+    const json = atob(payload);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function userFromToken(token: string): any | null {
+  const claims = decodeJwtPayload(token);
+  return claims
+}
 
 function loadStoredStore(): Store | null {
   try {
@@ -32,23 +36,6 @@ function loadStoredStore(): Store | null {
   }
 }
 
-// ── Context ───────────────────────────────────────────────────────────────────
-
-interface AuthContextType {
-  user: ApiUser | null;
-  loading: boolean;
-  selectedStore: Store | null;
-  setSelectedStore: (store: Store | null) => void;
-  storeModalOpen: boolean;
-  setStoreModalOpen: (open: boolean) => void;
-  currentRole: Role | null;
-  roleLoading: boolean;
-  isSuperAdmin: boolean;
-  superAdminLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -75,67 +62,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    apiClient
-      .get<{ id: string; email: string; user_roles?: { role: string }[] }>("/users/me")
-      .then((me) => {
-        setUser({
-          id: me.id,
-          email: me.email,
-          role: me.user_roles?.[0]?.role ?? "staff",
-        });
-      })
-      .catch(() => {
-        // Token invalid or expired – clear it
-        removeToken();
-      })
-      .finally(() => setLoading(false));
+
+    const tokenUser = userFromToken(token);
+    if (tokenUser) {
+      setUser(tokenUser);
+      setLoading(false);
+      return;
+    }
   }, []);
 
-  // Store-level role for the currently selected store.
-  // TODO: Replace with a proper per-store role query once the backend exposes
-  //       GET /users/me/store-roles with the current store filtered.
-  const { data: storeRoles = [], isLoading: roleLoading } = useQuery({
-    queryKey: ["my-store-roles", user?.id],
-    queryFn: () =>
-      apiClient.get<{ role: string; store: { id: string } }[]>("/users/me/store-roles"),
-    enabled: !!user,
-  });
-
   const currentRole: Role | null = (() => {
-    if (!selectedStore) return null;
-    const match = storeRoles.find((r) => r.store.id === selectedStore.id);
-    if (match) return match.role as Role;
-    // Fall back to global role when no explicit store assignment exists.
-    if (user?.role === "admin" || user?.role === "superadmin") return "admin";
-    if (user?.role === "cashier") return "cashier";
+    if (user?.roles.some((r) => r.role === "manager" || r.role === "superadmin")) return "admin";
+    if (user?.roles.some((r) => r.role === "staff")) return "cashier";
     return null;
   })();
 
-  const isSuperAdmin = user?.role === "superadmin";
+  const roleLoading = loading;
+
+  const isSuperAdmin = user?.roles.some((r) => r.role === "superadmin") ?? false;
   const superAdminLoading = loading;
 
   const signIn = async (email: string, password: string) => {
     try {
-      const result = await apiClient.post<{ access_token: string; user: ApiUser }>(
+      const result = await apiClient.post<{ access_token: string; user?: ApiUser }>(
         "/auth/login",
         { email, password },
       );
       setToken(result.access_token);
-      setUser(result.user);
-      return { error: null };
-    } catch (err) {
-      return { error: err as Error };
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      const result = await apiClient.post<{ access_token: string; user: ApiUser }>(
-        "/auth/register",
-        { email, password },
-      );
-      setToken(result.access_token);
-      setUser(result.user);
+      setUser(userFromToken(result.access_token));
       return { error: null };
     } catch (err) {
       return { error: err as Error };
@@ -163,7 +117,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSuperAdmin,
         superAdminLoading,
         signIn,
-        signUp,
         signOut,
       }}
     >
@@ -182,10 +135,12 @@ export function useAuth() {
 
 export function useStoresList() {
   const { user } = useAuth();
+  const isSuperAdmin = user?.roles.some((r) => r.role === "superadmin") ?? false;
+
   return useQuery<Store[]>({
-    queryKey: ["stores", user?.id],
+    queryKey: ["stores", user?.id, isSuperAdmin],
     queryFn: () => apiClient.get<Store[]>("/stores"),
-    enabled: !!user,
+    enabled: !!user && isSuperAdmin,
   });
 }
 

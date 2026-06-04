@@ -5,8 +5,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, useStoresList } from "@/hooks/useAuth";
 
 export function StoreSelectModal() {
-  const { user, selectedStore, setSelectedStore, storeModalOpen, setStoreModalOpen } = useAuth();
-  const { data: stores, isLoading } = useStoresList();
+  const { user, selectedStore, setSelectedStore, storeModalOpen, setStoreModalOpen, isSuperAdmin } = useAuth();
+  const { data: apiStores, isLoading } = useStoresList();
+
+  const roleBasedStores = Array.from(
+    new Map(
+      (user?.roles ?? []).map((role) => [
+        role.storeId,
+        {
+          id: role.storeId,
+          store_name: role.storeName,
+          address: null,
+          is_active: true,
+          created_at: "",
+          updated_at: "",
+        },
+      ]),
+    ).values(),
+  );
+
+  const stores = isSuperAdmin
+    ? (apiStores ?? []).filter((store) => store.is_active)
+    : roleBasedStores;
 
   const open = (!!user && !selectedStore) || storeModalOpen;
 
@@ -29,14 +49,12 @@ export function StoreSelectModal() {
         </DialogHeader>
 
         <div className="mt-2 flex flex-col gap-2">
-          {isLoading ? (
+          {isSuperAdmin && isLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full" />
             ))
-          ) : stores && stores.filter((s) => s.is_active).length > 0 ? (
-            stores
-              .filter((s) => s.is_active)
-              .map((store) => (
+          ) : stores.length > 0 ? (
+            stores.map((store) => (
                 <Button
                   key={store.id}
                   variant="outline"
@@ -46,7 +64,7 @@ export function StoreSelectModal() {
                   <Building2 className="h-5 w-5 shrink-0 text-primary" />
                   <div className="flex flex-col items-start">
                     <span className="font-medium">{store.store_name}</span>
-                    <span className="text-xs text-muted-foreground">{store.address}</span>
+                    <span className="text-xs text-muted-foreground">{store.address ?? roleLabel(user?.roles ?? [], store.id)}</span>
                   </div>
                 </Button>
               ))
@@ -59,4 +77,13 @@ export function StoreSelectModal() {
       </DialogContent>
     </Dialog>
   );
+}
+
+function roleLabel(
+  roles: { storeId: string; role: string }[],
+  storeId: string,
+) {
+  const role = roles.find((item) => item.storeId === storeId)?.role;
+  if (!role) return "";
+  return role.charAt(0).toUpperCase() + role.slice(1);
 }
