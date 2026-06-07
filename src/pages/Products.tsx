@@ -50,8 +50,8 @@ export default function Products() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
-  const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number } | null>(null);
-  const [adjustQty, setAdjustQty] = useState<number>(0);
+  const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number; store_product_id?: string } | null>(null);
+  const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
@@ -98,30 +98,37 @@ export default function Products() {
       });
       toast({ title: "Produk berhasil ditambahkan" });
       setDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyimpan produk", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Gagal menyimpan produk", description: (error as Error).message, variant: "destructive" });
     }
   };
 
-  const openStockDialog = (product: any) => {
-    setStockProduct({ id: product.id, name: product.name, current_stock: product.current_stock ?? 0 });
-    setAdjustQty(0);
+  const openStockDialog = (product: import("@/hooks/useProducts").Product) => {
+    setStockProduct({ id: product.id, name: product.name, current_stock: product.current_stock ?? 0, store_product_id: product.store_product_id });
+    setAdjustQty("");
     setAdjustType("in");
     setAdjustNotes("");
     setStockDialogOpen(true);
   };
 
   const handleAdjustStock = async () => {
-    if (!stockProduct || adjustQty <= 0) {
+    const qty = Number(adjustQty);
+    if (!stockProduct || isNaN(qty) || qty <= 0) {
       toast({ title: "Jumlah penyesuaian harus lebih dari 0", variant: "destructive" });
       return;
     }
     try {
-      await adjustStock.mutateAsync({ product_id: stockProduct.id, qty: adjustQty, type: adjustType, notes: adjustNotes || undefined });
-      toast({ title: `Stok berhasil ${adjustType === "in" ? "ditambah" : "dikurangi"} sebesar ${adjustQty}` });
+      await adjustStock.mutateAsync({
+        product_id: stockProduct.id,
+        qty: qty,
+        type: adjustType,
+        notes: adjustNotes || undefined,
+        storeProductId: stockProduct.store_product_id,
+      });
+      toast({ title: `Stok berhasil ${adjustType === "in" ? "ditambah" : "dikurangi"} sebesar ${qty}` });
       setStockDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyesuaikan stok", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Gagal menyesuaikan stok", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -129,8 +136,8 @@ export default function Products() {
     try {
       // Store-products API doesn't expose is_active toggling; keep current behavior by blocking this action.
       throw new Error("Ubah status aktif produk belum tersedia di endpoint store-products");
-    } catch (error: any) {
-      toast({ title: "Gagal mengubah status", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Gagal mengubah status", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -278,7 +285,7 @@ export default function Products() {
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.id}`)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.store_product_id}`)}>
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -352,7 +359,7 @@ export default function Products() {
                 type="number"
                 min={1}
                 value={adjustQty}
-                onChange={(e) => setAdjustQty(Number(e.target.value))}
+                onChange={(e) => setAdjustQty(e.target.value === "" ? "" : Number(e.target.value))}
                 placeholder="0"
               />
             </div>
@@ -366,7 +373,7 @@ export default function Products() {
                 className="resize-none"
               />
             </div>
-            {stockProduct && adjustQty > 0 && (
+            {stockProduct && typeof adjustQty === "number" && adjustQty > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
                 <span className="text-sm text-muted-foreground">Stok setelah</span>
                 <span className={`text-2xl font-bold tabular-nums ${

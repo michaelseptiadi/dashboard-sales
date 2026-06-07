@@ -66,7 +66,7 @@ export default function ProductDetail() {
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
 
-  const currentStock = movements?.[0]?.stockAfter ?? 0;
+  const currentStock = product?.current_stock ?? 0;
   const isLowStock = product ? currentStock <= (product.minimum_stock ?? 0) : false;
 
   // Edit dialog
@@ -108,40 +108,43 @@ export default function ProductDetail() {
       });
       toast({ title: "Produk berhasil diperbarui" });
       setEditOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyimpan produk", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Gagal menyimpan produk", description: (error as Error).message, variant: "destructive" });
     }
   };
 
   // Stock adjust dialog
   const [stockOpen, setStockOpen] = useState(false);
-  const [adjustQty, setAdjustQty] = useState(0);
+  const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
   const openStock = () => {
-    setAdjustQty(0);
+    setAdjustQty("");
     setAdjustType("in");
     setAdjustNotes("");
     setStockOpen(true);
   };
 
   const handleAdjustStock = async () => {
-    if (adjustQty <= 0) {
+    const qty = Number(adjustQty);
+    if (isNaN(qty) || qty <= 0) {
       toast({ title: "Jumlah penyesuaian harus lebih dari 0", variant: "destructive" });
       return;
     }
     try {
+      if (!product) return;
       await adjustStock.mutateAsync({
-        product_id: id!,
-        qty: adjustQty,
+        product_id: product.id,
+        qty: qty,
         type: adjustType,
         notes: adjustNotes || undefined,
+        storeProductId: id,
       });
-      toast({ title: `Stok berhasil ${adjustType === "in" ? "ditambah" : "dikurangi"} sebesar ${adjustQty}` });
+      toast({ title: `Stok berhasil ${adjustType === "in" ? "ditambah" : "dikurangi"} sebesar ${qty}` });
       setStockOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyesuaikan stok", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Gagal menyesuaikan stok", description: (error as Error).message, variant: "destructive" });
     }
   };
 
@@ -423,7 +426,7 @@ export default function ProductDetail() {
                 type="number"
                 min={1}
                 value={adjustQty}
-                onChange={(e) => setAdjustQty(Number(e.target.value))}
+                onChange={(e) => setAdjustQty(e.target.value === "" ? "" : Number(e.target.value))}
                 placeholder="0"
               />
             </div>
@@ -437,7 +440,7 @@ export default function ProductDetail() {
                 className="resize-none"
               />
             </div>
-            {adjustQty > 0 && (
+            {typeof adjustQty === "number" && adjustQty > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
                 <span className="text-sm text-muted-foreground">Stok setelah</span>
                 <span className={`text-2xl font-bold tabular-nums ${adjustType === "in" ? "text-green-600" : "text-red-600"}`}>

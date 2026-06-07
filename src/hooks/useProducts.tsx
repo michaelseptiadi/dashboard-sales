@@ -72,6 +72,41 @@ export interface PaginatedProducts {
   };
 }
 
+export interface BackendMovement {
+  id: string;
+  product_id: string;
+  store_id: string | null;
+  movement_type: string;
+  qty_in: number;
+  qty_out: number;
+  reference_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface StoreProductDetailResponse {
+  id: string;
+  product_id: string;
+  store_id: string;
+  selling_price: string | number;
+  capital_price: string | number;
+  minimum_stock: number;
+  stock: number;
+  created_at: string;
+  updated_at: string;
+  productDetail: {
+    id: string;
+    product_code: string;
+    name: string;
+    is_active: boolean;
+    category: { id: string; name: string } | null;
+    unit: { id: string; name: string } | null;
+    category_id?: string | null;
+    unit_id?: string | null;
+  };
+  InventoryMovement: BackendMovement[];
+}
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 type StoreProductApi = {
@@ -124,6 +159,30 @@ function mapStoreProduct(item: StoreProductApi): Product {
     units: item.product.unit,
     category: item.product.category,
     unit: item.product.unit,
+  };
+}
+
+function responseDetailToProduct(res: StoreProductDetailResponse): Product {
+  const pDetail = res.productDetail;
+  return {
+    id: pDetail.id,
+    store_product_id: res.id,
+    name: pDetail.name,
+    product_code: pDetail.product_code,
+    store_id: res.store_id,
+    category_id: pDetail.category?.id ?? pDetail.category_id ?? null,
+    unit_id: pDetail.unit?.id ?? pDetail.unit_id ?? null,
+    selling_price: Number(res.selling_price),
+    capital_price: Number(res.capital_price),
+    minimum_stock: res.minimum_stock,
+    current_stock: res.stock,
+    is_active: pDetail.is_active,
+    created_at: res.created_at,
+    updated_at: res.updated_at,
+    categories: pDetail.category,
+    units: pDetail.unit,
+    category: pDetail.category,
+    unit: pDetail.unit,
   };
 }
 
@@ -180,39 +239,21 @@ export function useLowStockProducts() {
   return useQuery<Product[]>({
     queryKey: ["low-stock-products", storeId],
     queryFn: async () => {
-      const p = new URLSearchParams();
-      if (storeId) p.set("storeId", storeId);
-      p.set("page", "1");
-      p.set("limit", "100");
-
-      const response = await apiClient.get<StoreProductsApiResponse>(`/store-products?${p.toString()}`);
-      return (response.data ?? [])
-        .map(mapStoreProduct)
-        .filter((item) => item.current_stock <= item.minimum_stock);
+      const response = await apiClient.get<StoreProductApi[]>(`/store-products/low-stock?storeId=${storeId}`);
+      return (response ?? []).map(mapStoreProduct);
     },
     enabled: !!storeId,
     staleTime: 1000 * 60 * 5,
   });
 }
 
-export function useProductById(productId: string | null) {
-  const { selectedStore } = useAuth();
-  const storeId = selectedStore?.id;
-
+export function useProductById(storeProductId: string | null) {
   return useQuery<Product>({
-    queryKey: ["product", storeId, productId],
-    enabled: !!productId && !!storeId,
+    queryKey: ["product", storeProductId],
+    enabled: !!storeProductId,
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("storeId", storeId!);
-      params.set("page", "1");
-      params.set("limit", "100");
-
-      const response = await apiClient.get<StoreProductsApiResponse>(`/store-products?${params.toString()}`);
-      const mapped = (response.data ?? []).map(mapStoreProduct);
-      const found = mapped.find((item) => item.id === productId);
-      if (!found) throw new Error("Produk tidak ditemukan");
-      return found;
+      const response = await apiClient.get<StoreProductDetailResponse>(`/store-products/${storeProductId}`);
+      return responseDetailToProduct(response);
     },
   });
 }
@@ -293,6 +334,7 @@ export function useAdjustStock() {
       qty: number;
       type: "in" | "out";
       notes?: string;
+      storeProductId?: string;
     }) => {
       if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
 
@@ -309,17 +351,56 @@ export function useAdjustStock() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product", variables.product_id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-movements", variables.product_id] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
+      if (variables.storeProductId) {
+        queryClient.invalidateQueries({ queryKey: ["product", variables.storeProductId] });
+        queryClient.invalidateQueries({ queryKey: ["inventory-movements", variables.storeProductId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["product"] });
+        queryClient.invalidateQueries({ queryKey: ["inventory-movements"] });
+      }
     },
   });
 }
 
-export function useInventoryMovements(_productId: string | null) {
+export function useInventoryMovements(storeProductId: string | null) {
   return useQuery<InventoryMovement[]>({
-    queryKey: ["inventory-movements", _productId],
-    enabled: false, // TODO: implement once backend exposes GET /products/:id/inventory
-    queryFn: () => Promise.resolve([]),
+    queryKey: ["inventory-movements", storeProductId],
+    enabled: !!storeProductId,
+    queryFn: async () => {
+      const response = await apiClient.get<StoreProductDetailResponse>(`/store-products/${storeProductId}`);
+      const currentStock = response.stock ?? 0;
+      const movements = response.InventoryMovement ?? [];
+
+      let currentStockAccumulator = currentStock;
+      const mapped = movements.map((m: BackendMovement) => {
+        const stockAfter = currentStockAccumulator;
+        currentStockAccumulator = currentStockAccumulator - (m.qty_in ?? 0) + (m.qty_out ?? 0);
+
+        let movementType = "adjustment";
+        const typeUpper = (m.movement_type || "").toUpperCase();
+        if (typeUpper === "SALE" || typeUpper === "PURCHASE" || typeUpper === "OUT") {
+          movementType = "sale";
+        }
+
+        return {
+          id: m.id,
+          product_id: m.product_id,
+          movement_type: movementType,
+          reference_id: m.reference_id,
+          qty_in: m.qty_in ?? 0,
+          qty_out: m.qty_out ?? 0,
+          notes: m.notes,
+          store_id: m.store_id,
+          created_at: m.created_at,
+          stockAfter,
+          invoiceNumber: m.reference_id && m.reference_id.startsWith("INV") ? m.reference_id : null,
+        };
+      });
+
+      return mapped;
+    },
   });
 }
 
