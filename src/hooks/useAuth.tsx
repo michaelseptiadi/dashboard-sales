@@ -24,7 +24,11 @@ function decodeJwtPayload(token: string): any | null {
 
 function userFromToken(token: string): any | null {
   const claims = decodeJwtPayload(token);
-  return claims
+  if (!claims) return null;
+  return {
+    ...claims,
+    id: claims.sub,
+  };
 }
 
 function loadStoredStore(): Store | null {
