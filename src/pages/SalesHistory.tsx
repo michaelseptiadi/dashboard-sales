@@ -75,17 +75,17 @@ export default function SalesHistory() {
   };
 
   // ordersData is { data: SalesOrder[], total, page, pageSize }
-  const orders    = ordersData?.data ?? [];
-  const paidCount   = statusCounts?.paidCount ?? 0;
+  const orders = ordersData?.data ?? [];
+  const paidCount = statusCounts?.paidCount ?? 0;
   const unpaidCount = statusCounts?.unpaidCount ?? 0;
-  const totalCount  =
-    statusTab === "paid"   ? paidCount :
-    statusTab === "unpaid" ? unpaidCount :
-    statusCounts?.allCount ?? (ordersData?.total ?? 0);
+  const totalCount =
+    statusTab === "paid" ? paidCount :
+      statusTab === "unpaid" ? unpaidCount :
+        statusCounts?.allCount ?? (ordersData?.total ?? 0);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endIndex   = Math.min(currentPage * pageSize, totalCount);
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
 
   const getPageButtons = (): (number | "...")[] => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -166,183 +166,183 @@ export default function SalesHistory() {
 
         {/* Table */}
         <Tabs value={statusTab} onValueChange={(v) => { setStatusTab(v as typeof statusTab); setCurrentPage(1); }}>
-        <Card>
-          <CardHeader className="pb-0">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-              <TabsList className="h-9">
-                <TabsTrigger value="all" className="text-xs gap-1.5">
-                  Semua
-                  {statusCounts && <span className="rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-[10px] font-medium">{statusCounts.allCount}</span>}
-                </TabsTrigger>
-                <TabsTrigger value="paid" className="text-xs gap-1.5">
-                  Lunas
-                  {paidCount > 0 && <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">{paidCount}</span>}
-                </TabsTrigger>
-                <TabsTrigger value="unpaid" className="text-xs gap-1.5">
-                  Belum Lunas
-                  {unpaidCount > 0 && <span className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-medium">{unpaidCount}</span>}
-                </TabsTrigger>
-              </TabsList>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <span>Tampilkan</span>
-                  <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-                    <SelectTrigger className="h-7 w-[70px] text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[10, 30, 50, 100].map((n) => (
-                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span>data</span>
-                </div>
-                {ordersData && (
-                  <span className="text-sm text-muted-foreground">
-                    {totalCount === 0 ? "0 transaksi" : `${startIndex}–${endIndex} dari ${totalCount} transaksi`}
-                  </span>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="space-y-px px-6 pb-4">
-                <TableSkeleton rows={6} rowClassName="h-14 w-full rounded-lg" />
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="pl-6">Invoice</TableHead>
-                    <TableHead>Tanggal Pesanan</TableHead>
-                    <TableHead>Pelanggan</TableHead>
-                    <TableHead>Pembayaran</TableHead>
-                    <TableHead>Pengiriman</TableHead>
-                    <TableHead className="text-right pr-4">Grand Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-10 pr-6" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="py-16 text-center">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <Receipt className="h-10 w-10 opacity-20" />
-                          <p className="text-sm font-medium">Tidak ada transaksi</p>
-                          <p className="text-xs">Coba ubah filter pencarian</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    orders.map((order) => {
-                      const statusCls =
-                        order.transaction_status === "paid"
-                          ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
-                          : order.transaction_status === "unpaid"
-                          ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
-                          : order.transaction_status === "half_payment"
-                          ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
-                          : "";
-                      return (
-                        <TableRow
-                          key={order.id}
-                          className={`cursor-pointer group ${statusCls}`}
-                          onClick={() => setSelectedOrderId(order.id)}
-                        >
-                          <TableCell className="pl-6">
-                            <span className="font-mono text-sm font-medium">{order.invoice_number}</span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-start gap-1.5">
-                              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                              <div>
-                                <p className="text-sm">
-                                  {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(order.sales_date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {/* Backend returns customer (nested relation) or flat customer_name */}
-                            <p className="text-sm">{order.customer?.name || order.customer_name || "-"}</p>
-                            {(order.customer?.address || order.customer_address) && (
-                              <p className="text-xs text-muted-foreground leading-snug">
-                                {order.customer?.address || order.customer_address}
-                              </p>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {/* Backend returns payment_method (nested relation) */}
-                            <span className="text-sm">{order.payment_method?.name || "-"}</span>
-                          </TableCell>
-                          <TableCell>
-                            <DeliveryBadge type={order.delivery_types} driverName={getDriverName(order.driver_id)} />
-                          </TableCell>
-                          <TableCell className="text-right pr-4 font-semibold">
-                            {formatCurrency(order.grand_total)}
-                          </TableCell>
-                          <TableCell>
-                            <TransactionStatusBadge status={order.transaction_status} />
-                          </TableCell>
-                          <TableCell className="pr-6">
-                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+          <Card>
+            <CardHeader className="pb-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+                <TabsList className="h-9">
+                  <TabsTrigger value="all" className="text-xs gap-1.5">
+                    Semua
+                    {statusCounts && <span className="rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-[10px] font-medium">{statusCounts.allCount}</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="paid" className="text-xs gap-1.5">
+                    Lunas
+                    {paidCount > 0 && <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">{paidCount}</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="unpaid" className="text-xs gap-1.5">
+                    Belum Lunas
+                    {unpaidCount > 0 && <span className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-medium">{unpaidCount}</span>}
+                  </TabsTrigger>
+                </TabsList>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <span>Tampilkan</span>
+                    <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                      <SelectTrigger className="h-7 w-[70px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 30, 50, 100].map((n) => (
+                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span>data</span>
+                  </div>
+                  {ordersData && (
+                    <span className="text-sm text-muted-foreground">
+                      {totalCount === 0 ? "0 transaksi" : `${startIndex}–${endIndex} dari ${totalCount} transaksi`}
+                    </span>
                   )}
-                </TableBody>
-              </Table>
-            )}
-            {/* Pagination */}
-            {!isLoading && totalCount > 0 && (
-              <div className="flex items-center justify-between border-t px-6 py-3">
-                <p className="text-xs text-muted-foreground">
-                  Halaman {currentPage} dari {totalPages}
-                </p>
-                <Pagination className="w-auto mx-0 justify-end">
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        className={currentPage === 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                    {getPageButtons().map((page, idx) =>
-                      page === "..." ? (
-                        <PaginationItem key={`ellipsis-${idx}`}>
-                          <PaginationEllipsis />
-                        </PaginationItem>
-                      ) : (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            isActive={page === currentPage}
-                            onClick={() => setCurrentPage(page as number)}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    )}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="space-y-px px-6 pb-4">
+                  <TableSkeleton rows={6} rowClassName="h-14 w-full rounded-lg" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="pl-6">Invoice</TableHead>
+                      <TableHead>Tanggal Pesanan</TableHead>
+                      <TableHead>Pelanggan</TableHead>
+                      <TableHead>Pembayaran</TableHead>
+                      <TableHead>Pengiriman</TableHead>
+                      <TableHead className="text-right pr-4">Grand Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-10 pr-6" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-16 text-center">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <Receipt className="h-10 w-10 opacity-20" />
+                            <p className="text-sm font-medium">Tidak ada transaksi</p>
+                            <p className="text-xs">Coba ubah filter pencarian</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      orders.map((order) => {
+                        const statusCls =
+                          order.transaction_status === "paid"
+                            ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
+                            : order.transaction_status === "unpaid"
+                              ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                              : order.transaction_status === "half_payment"
+                                ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+                                : "";
+                        return (
+                          <TableRow
+                            key={order.id}
+                            className={`cursor-pointer group ${statusCls}`}
+                            onClick={() => setSelectedOrderId(order.id)}
+                          >
+                            <TableCell className="pl-6">
+                              <span className="font-mono text-sm font-medium">{order.invoice_number}</span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-start gap-1.5">
+                                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="text-sm">
+                                    {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(order.sales_date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {/* Backend returns customer (nested relation) or flat customer_name */}
+                              <p className="text-sm">{order.customer?.name || order.customer_name || "-"}</p>
+                              {(order.customer?.address || order.customer_address) && (
+                                <p className="text-xs text-muted-foreground leading-snug">
+                                  {order.customer?.address || order.customer_address}
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {/* Backend returns payment_method (nested relation) */}
+                              <span className="text-sm">{order.payment_method?.name || "-"}</span>
+                            </TableCell>
+                            <TableCell>
+                              <DeliveryBadge type={order.delivery_types} driverName={getDriverName(order.driver_id)} />
+                            </TableCell>
+                            <TableCell className="text-right pr-4 font-semibold">
+                              {formatCurrency(order.grand_total)}
+                            </TableCell>
+                            <TableCell>
+                              <TransactionStatusBadge status={order.transaction_status} />
+                            </TableCell>
+                            <TableCell className="pr-6">
+                              <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+              {/* Pagination */}
+              {!isLoading && totalCount > 0 && (
+                <div className="flex items-center justify-between border-t px-6 py-3">
+                  <p className="text-xs text-muted-foreground">
+                    Halaman {currentPage} dari {totalPages}
+                  </p>
+                  <Pagination className="w-auto mx-0 justify-end">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          className={currentPage === 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {getPageButtons().map((page, idx) =>
+                        page === "..." ? (
+                          <PaginationItem key={`ellipsis-${idx}`}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        ) : (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={page === currentPage}
+                              onClick={() => setCurrentPage(page as number)}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      )}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          className={currentPage === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </Tabs>
       </div>
 
@@ -424,7 +424,7 @@ export default function SalesHistory() {
                               onValueChange={(v) =>
                                 updateItemStatus({ itemId: item.id, status: v as any })
                               }
-                              disabled={itemStatusPending}
+                              disabled={itemStatusPending || item.delivery_status !== "pending"}
                             >
                               <SelectTrigger className="h-8 w-[150px] border border-input rounded-md px-2 py-1 bg-background hover:bg-accent text-xs gap-1.5 focus:ring-1 focus:ring-ring text-left font-normal shadow-sm">
                                 <div className="flex items-center gap-2">
@@ -537,11 +537,10 @@ export default function SalesHistory() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Sisa Tagihan</span>
-                      <span className={`text-sm font-semibold ${
-                        detail.unpaid_transaction <= 0
+                      <span className={`text-sm font-semibold ${detail.unpaid_transaction <= 0
                           ? "text-emerald-600"
                           : "text-destructive"
-                      }`}>
+                        }`}>
                         {formatCurrency(Math.max(0, detail.unpaid_transaction))}
                       </span>
                     </div>

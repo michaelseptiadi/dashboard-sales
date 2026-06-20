@@ -265,14 +265,14 @@ export default function Products() {
                         <TableCell className="text-right text-sm font-medium">{formatCurrency(product.selling_price)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
+                              <PackagePlus className="h-3.5 w-3.5" />
+                            </Button>
                             <Badge
                               className={isLowStock ? "bg-red-100 text-red-700 border-red-300 hover:bg-red-100" : "bg-green-100 text-green-700 border-green-300 hover:bg-green-100"}
                             >
                               {product.current_stock ?? 0}
                             </Badge>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
-                              <PackagePlus className="h-3.5 w-3.5" />
-                            </Button>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -371,9 +371,8 @@ export default function Products() {
             {stockProduct && adjustQty > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
                 <span className="text-sm text-muted-foreground">Stok setelah</span>
-                <span className={`text-2xl font-bold tabular-nums ${
-                  adjustType === "in" ? "text-green-600" : "text-red-600"
-                }`}>
+                <span className={`text-2xl font-bold tabular-nums ${adjustType === "in" ? "text-green-600" : "text-red-600"
+                  }`}>
                   {adjustType === "in"
                     ? stockProduct.current_stock + adjustQty
                     : Math.max(0, stockProduct.current_stock - adjustQty)}
@@ -399,7 +398,7 @@ export default function Products() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Kode Produk</Label>
-                <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" disabled/>
+                <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" disabled />
               </div>
               <div className="space-y-2">
                 <Label>Nama Produk <span className="text-destructive">*</span></Label>
