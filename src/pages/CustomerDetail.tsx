@@ -86,9 +86,9 @@ export default function CustomerDetail() {
 
   // ── Derived stats ────────────────────────────────────────────────────────
   const totalTransactions = transactions?.length ?? 0;
-  const totalSpend = transactions?.reduce((sum, t) => sum + (t.grand_total ?? 0), 0) ?? 0;
-  const totalPayment = transactions?.reduce((sum, t) => sum + (t.grand_total - t.unpaid_transaction), 0) ?? 0;
-  const totalDebt = transactions?.reduce((sum, t) => sum + (t.unpaid_transaction ?? 0), 0) ?? 0;
+  const totalSpend = transactions?.reduce((sum, t) => sum + Number(t.grand_total ?? 0), 0) ?? 0;
+  const totalPayment = transactions?.reduce((sum, t) => sum + (Number(t.grand_total ?? 0) - Number(t.unpaid_transaction ?? 0)), 0) ?? 0;
+  const totalDebt = transactions?.reduce((sum, t) => sum + Number(t.unpaid_transaction ?? 0), 0) ?? 0;
 
   const stats = [
     { label: "Total Transaksi", value: `${totalTransactions}x`, icon: ShoppingBag, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
