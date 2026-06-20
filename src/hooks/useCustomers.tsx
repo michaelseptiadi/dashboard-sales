@@ -8,7 +8,9 @@ export interface Customer {
   id: string;
   name: string;
   phone: string | null;
+  email: string | null;
   address: string | null;
+  is_active: boolean;
   store_id: string | null;
   created_at: string;
   updated_at: string;
@@ -35,9 +37,14 @@ export function useCustomers(search?: string) {
 
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
+  const { selectedStore } = useAuth();
   return useMutation({
-    mutationFn: (customer: CustomerInsert) =>
-      apiClient.post<Customer>("/customers", customer),
+    mutationFn: (customer: Omit<CustomerInsert, "store_id" | "is_active"> & { store_id?: string | null; is_active?: boolean }) =>
+      apiClient.post<Customer>("/customers", {
+        ...customer,
+        store_id: customer.store_id !== undefined ? customer.store_id : (selectedStore?.id || null),
+        is_active: customer.is_active !== undefined ? customer.is_active : true,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
@@ -69,6 +76,7 @@ export function useCustomerTransactions(customerId: string | null) {
     queryKey: ["customer-transactions", customerId],
     enabled: !!customerId,
     queryFn: () =>
-      apiClient.get<unknown[]>(`/sales?customer_id=${customerId}`),
+      apiClient.get<{ data: any[] }>(`/sales?customer_id=${customerId}&pageSize=1000`)
+        .then((res) => res.data),
   });
 }
