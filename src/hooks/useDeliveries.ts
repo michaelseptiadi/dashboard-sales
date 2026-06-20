@@ -19,7 +19,7 @@ export interface Delivery {
   created_at: string;
   updated_at: string;
   driver?: { driver_name: string; phone_number: string | null } | null;
-  items?: { id: string; sales_order_id: string; sales_item_id: string }[];
+  items?: DeliveryItemDetail[];
 }
 
 export interface DeliveryItemDetail {
@@ -214,76 +214,3 @@ export function useDeleteDelivery() {
   });
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export type DeliveryStatus = "pending" | "in_progress" | "delivered" | "failed";
-
-export interface Delivery {
-  id: string;
-  delivery_number: string;
-  delivery_date: string;
-  delivery_status: DeliveryStatus;
-  driver_id: string | null;
-  ritase_fee: number;
-  notes: string | null;
-  store_id: string | null;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  drivers?: { driver_name: string; phone_number: string | null } | null;
-  delivery_items?: { id: string; sales_order_id: string; sales_item_id: string }[];
-}
-
-export interface DeliveryItemDetail {
-  id: string;
-  delivery_id: string;
-  sales_order_id: string;
-  sales_item_id: string;
-  created_at: string;
-  sales_orders: {
-    invoice_number: string;
-    customer_name: string | null;
-    customer_address: string | null;
-    sales_date: string;
-  } | null;
-  sales_items: {
-    id: string;
-    qty: number;
-    price: number;
-    subtotal: number;
-    delivery_status: string;
-    products: { name: string; product_code: string } | null;
-  } | null;
-}
-
-export interface DeliveryDetail extends Omit<Delivery, "delivery_items"> {
-  drivers: { driver_name: string; phone_number: string | null } | null;
-  delivery_items: DeliveryItemDetail[];
-}
-
-export interface SalesOrderForDelivery {
-  id: string;
-  invoice_number: string;
-  customer_name: string | null;
-  customer_address: string | null;
-  sales_date: string;
-  delivery_status: string;
-  sales_items: {
-    id: string;
-    qty: number;
-    price: number;
-    subtotal: number;
-    delivery_status: string;
-    products: { name: string; product_code: string } | null;
-  }[];
-}
-
-// ── Filters ───────────────────────────────────────────────────────────────────
-
-export interface DeliveryFilters {
-  dateFrom?: string;
-  dateTo?: string;
-  driverId?: string;
-  status?: string;
-  customerSearch?: string;
-}

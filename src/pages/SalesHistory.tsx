@@ -419,29 +419,68 @@ export default function SalesHistory() {
                             {item.discount > 0 ? `- ${formatCurrency(item.discount)}` : "-"}
                           </TableCell>
                           <TableCell className="py-2.5">
-                            {(() => {
-                              const st: string = item.delivery_status ?? "pending";
-                              if (st === "in_delivery" || st === "delivered") {
-                                return <ItemDeliveryStatusBadge status={st} />;
+                            <Select
+                              value={item.delivery_status ?? "pending"}
+                              onValueChange={(v) =>
+                                updateItemStatus({ itemId: item.id, status: v as any })
                               }
-                              return (
-                                <Select
-                                  value={st}
-                                  onValueChange={(v) =>
-                                    updateItemStatus({ itemId: item.id, status: v as "pending" | "self_pickup" })
-                                  }
-                                  disabled={itemStatusPending}
-                                >
-                                  <SelectTrigger className="h-7 w-fit border-0 p-0 shadow-none focus:ring-0 [&>svg]:ml-1 gap-0">
-                                    <ItemDeliveryStatusBadge status={st} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="self_pickup">Ambil Sendiri</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              );
-                            })()}
+                              disabled={itemStatusPending}
+                            >
+                              <SelectTrigger className="h-8 w-[150px] border border-input rounded-md px-2 py-1 bg-background hover:bg-accent text-xs gap-1.5 focus:ring-1 focus:ring-ring text-left font-normal shadow-sm">
+                                <div className="flex items-center gap-2">
+                                  {item.delivery_status === "delivered" && (
+                                    <>
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                      <span className="text-emerald-700 dark:text-emerald-400 font-medium">Terkirim</span>
+                                    </>
+                                  )}
+                                  {item.delivery_status === "in_delivery" && (
+                                    <>
+                                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                                      <span className="text-amber-700 dark:text-amber-400 font-medium">Dalam Pengiriman</span>
+                                    </>
+                                  )}
+                                  {item.delivery_status === "self_pickup" && (
+                                    <>
+                                      <span className="h-1.5 w-1.5 rounded-full bg-purple-500 shrink-0" />
+                                      <span className="text-purple-700 dark:text-purple-400 font-medium">Ambil Sendiri</span>
+                                    </>
+                                  )}
+                                  {(!item.delivery_status || item.delivery_status === "pending") && (
+                                    <>
+                                      <span className="h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+                                      <span className="text-slate-600 dark:text-slate-400 font-medium">Pending</span>
+                                    </>
+                                  )}
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                    Pending
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="self_pickup">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                                    Ambil Sendiri
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="in_delivery">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                    Dalam Pengiriman
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="delivered">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                    Terkirim
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell className="text-right pr-4 text-sm font-medium py-2.5">{formatCurrency(item.subtotal)}</TableCell>
                         </TableRow>

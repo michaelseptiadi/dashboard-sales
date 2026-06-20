@@ -259,12 +259,11 @@ export function useMarkSelfPickupItems() {
 export function useUpdateItemDeliveryStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (_params: { itemId: string; status: "pending" | "self_pickup" }) => {
-      // TODO: implement once backend exposes PATCH /sales/items/:id
-      throw new Error("Not yet implemented in the backend API");
-    },
+    mutationFn: async ({ itemId, status }: { itemId: string; status: "pending" | "self_pickup" | "in_delivery" | "delivered" }) =>
+      apiClient.put<void>(`/sales/items/${itemId}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders-for-delivery"] });
     },
   });

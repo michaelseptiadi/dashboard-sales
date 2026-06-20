@@ -188,10 +188,10 @@ export default function Pengiriman() {
                   <TableBody>
                     {deliveries.map((delivery) => {
                       const uniqueOrders = new Set(
-                        (delivery.delivery_items ?? []).map((di) => di.sales_order_id)
+                        (delivery.items ?? []).map((di) => di.sales_order_id)
                       ).size;
-                      const itemCount = (delivery.delivery_items ?? []).length;
-                      const driverName = delivery.drivers?.driver_name
+                      const itemCount = (delivery.items ?? []).length;
+                      const driverName = delivery.driver?.driver_name
                         ?? drivers.find((d) => d.id === delivery.driver_id)?.driver_name
                         ?? "—";
 

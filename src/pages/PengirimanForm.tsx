@@ -74,27 +74,27 @@ function buildFormOrders(
 ): FormOrderEntry[] {
   if (!detail) return [];
   const orderMap = new Map<string, FormOrderEntry>();
-  for (const di of detail.delivery_items) {
+  for (const di of detail.items ?? []) {
     const orderId = di.sales_order_id;
     if (!orderMap.has(orderId)) {
-      if (!di.sales_orders) continue;
+      if (!di.sales_order) continue;
       orderMap.set(orderId, {
         order: {
           id: orderId,
-          invoice_number: di.sales_orders.invoice_number,
-          customer_name: di.sales_orders.customer_name,
-          customer_address: di.sales_orders.customer_address,
-          sales_date: di.sales_orders.sales_date,
+          invoice_number: di.sales_order.invoice_number,
+          customer_name: di.sales_order.customer_name,
+          customer_address: di.sales_order.customer_address,
+          sales_date: di.sales_order.sales_date,
           delivery_status: "",
-          sales_items: [],
+          items: [],
         },
         selectedItemIds: new Set(),
       });
     }
     const entry = orderMap.get(orderId)!;
-    if (di.sales_items) {
-      if (!entry.order.sales_items.find((s) => s.id === di.sales_items!.id)) {
-        entry.order.sales_items.push(di.sales_items);
+    if (di.sales_item) {
+      if (!entry.order.items.find((s) => s.id === di.sales_item!.id)) {
+        entry.order.items.push(di.sales_item);
       }
       entry.selectedItemIds.add(di.sales_item_id);
     }
@@ -115,7 +115,7 @@ function TransactionPicker({ open, onClose, onAdd, alreadySelectedIds }: Transac
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const { data: rawOrders = [], isLoading } = useSalesOrdersForDelivery(debouncedSearch);
-  const orders = rawOrders.filter((o) => o.sales_items.some((i) => i.delivery_status === "pending"));
+  const orders = rawOrders.filter((o) => (o.items ?? []).some((i) => i.delivery_status === "pending"));
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -139,7 +139,7 @@ function TransactionPicker({ open, onClose, onAdd, alreadySelectedIds }: Transac
             <p className="text-sm text-muted-foreground text-center py-6">Tidak ada transaksi ditemukan</p>
           ) : (
             orders.map((order) => {
-              const pendingCount = order.sales_items.filter((i) => i.delivery_status === "pending").length;
+              const pendingCount = (order.items ?? []).filter((i) => i.delivery_status === "pending").length;
               const isAdded = alreadySelectedIds.has(order.id);
               return (
                 <div
@@ -159,7 +159,7 @@ function TransactionPicker({ open, onClose, onAdd, alreadySelectedIds }: Transac
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs text-muted-foreground">
-                        {order.sales_items.length} item{order.sales_items.length !== 1 && "s"}
+                        {(order.items ?? []).length} item{(order.items ?? []).length !== 1 && "s"}
                       </p>
                       <p className="text-xs font-medium text-amber-600">{pendingCount} belum kirim</p>
                       {isAdded && <Badge variant="secondary" className="text-xs mt-1">Sudah dipilih</Badge>}
@@ -216,7 +216,7 @@ export default function PengirimanForm() {
   const addOrder = (order: SalesOrderForDelivery) => {
     if (alreadySelectedOrderIds.has(order.id)) return;
     const pendingIds = new Set(
-      order.sales_items.filter((i) => i.delivery_status === "pending").map((i) => i.id)
+      (order.items ?? []).filter((i) => i.delivery_status === "pending").map((i) => i.id)
     );
     setFormOrders((prev) => [...prev, { order, selectedItemIds: pendingIds }]);
   };
@@ -426,7 +426,7 @@ export default function PengirimanForm() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
-                              {entry.selectedItemIds.size}/{entry.order.sales_items.length} item
+                              {entry.selectedItemIds.size}/{(entry.order.items ?? []).length} item
                             </Badge>
                             <Button
                               variant="ghost"
@@ -440,7 +440,7 @@ export default function PengirimanForm() {
                         </div>
                         {/* Items */}
                         <div className="divide-y">
-                          {entry.order.sales_items.map((item) => {
+                          {(entry.order.items ?? []).map((item) => {
                             const isChecked  = entry.selectedItemIds.has(item.id);
                             const isDisabled = item.delivery_status !== "pending";
                             return (
@@ -456,8 +456,8 @@ export default function PengirimanForm() {
                                   disabled={isDisabled}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm truncate">{item.products?.name ?? "—"}</p>
-                                  <p className="text-xs text-muted-foreground">{item.products?.product_code}</p>
+                                  <p className="text-sm truncate">{item.product?.name ?? "—"}</p>
+                                  <p className="text-xs text-muted-foreground">{item.product?.product_code}</p>
                                 </div>
                                 <div className="text-right shrink-0">
                                   <p className="text-xs font-medium">Qty: {item.qty}</p>

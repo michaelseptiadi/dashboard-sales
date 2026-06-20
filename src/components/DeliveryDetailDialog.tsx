@@ -25,17 +25,17 @@ export function DeliveryDetailDialog({ deliveryId, onClose }: DeliveryDetailDial
         invoiceNumber: string;
         customerName: string;
         customerAddress: string | null;
-        items: typeof detail.delivery_items;
+        items: typeof detail.items;
       }
     >();
-    for (const di of detail.delivery_items) {
-      if (!di.sales_orders) continue;
+    for (const di of detail.items ?? []) {
+      if (!di.sales_order) continue;
       const oid = di.sales_order_id;
       if (!map.has(oid)) {
         map.set(oid, {
-          invoiceNumber: di.sales_orders.invoice_number,
-          customerName: di.sales_orders.customer_name ?? "—",
-          customerAddress: di.sales_orders.customer_address ?? null,
+          invoiceNumber: di.sales_order.invoice_number,
+          customerName: di.sales_order.customer_name ?? "—",
+          customerAddress: di.sales_order.customer_address ?? null,
           items: [],
         });
       }
@@ -69,7 +69,7 @@ export function DeliveryDetailDialog({ deliveryId, onClose }: DeliveryDetailDial
               </div>
               <div>
                 <span className="text-muted-foreground">Driver</span>
-                <p className="font-medium">{detail.drivers?.driver_name ?? "—"}</p>
+                <p className="font-medium">{detail.driver?.driver_name ?? "—"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Ritase</span>
@@ -108,18 +108,18 @@ export function DeliveryDetailDialog({ deliveryId, onClose }: DeliveryDetailDial
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {group.items.map((di) => (
+                        {group.items?.map((di) => (
                           <TableRow key={di.id}>
                             <TableCell className="text-xs py-1.5">
-                              <p>{di.sales_items?.products?.name ?? "—"}</p>
-                              <p className="text-muted-foreground">{di.sales_items?.products?.product_code ?? ""}</p>
+                              <p>{di.sales_item?.product?.name ?? "—"}</p>
+                              <p className="text-muted-foreground">{di.sales_item?.product?.product_code ?? ""}</p>
                             </TableCell>
-                            <TableCell className="text-xs py-1.5 text-right">{di.sales_items?.qty ?? "—"}</TableCell>
+                            <TableCell className="text-xs py-1.5 text-right">{di.sales_item?.qty ?? "—"}</TableCell>
                             <TableCell className="text-xs py-1.5 text-right">
-                              {di.sales_items ? formatCurrency(di.sales_items.subtotal) : "—"}
+                              {di.sales_item ? formatCurrency(di.sales_item.subtotal) : "—"}
                             </TableCell>
                             <TableCell className="text-xs py-1.5">
-                              <ItemDeliveryStatusBadge status={di.sales_items?.delivery_status ?? "pending"} />
+                              <ItemDeliveryStatusBadge status={di.sales_item?.delivery_status ?? "pending"} />
                             </TableCell>
                           </TableRow>
                         ))}
