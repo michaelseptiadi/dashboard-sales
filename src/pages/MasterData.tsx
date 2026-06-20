@@ -1,20 +1,140 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TablePagination } from "@/components/TablePagination";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
-import { useSimpleTable, useCreateRow, useUpdateRow, useDeleteRow, useDrivers, useCreateDriver, useUpdateDriver, useDeleteDriver, type SimpleRow, type MasterTableName, type Driver } from "@/hooks/useMasterData";
-import { Plus, Pencil, Trash2, Tag, Ruler, Truck, Phone, MapPin } from "lucide-react";
+import {
+  useSimpleTable,
+  useCreateRow,
+  useUpdateRow,
+  useDeleteRow,
+  useDrivers,
+  useCreateDriver,
+  useUpdateDriver,
+  useDeleteDriver,
+  type SimpleRow,
+  type MasterTableName,
+  type Driver,
+} from "@/hooks/useMasterData";
+import { Plus, Pencil, Trash2, Tag, Ruler, Truck, Phone } from "lucide-react";
 
-// ── Sub-component ─────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function SectionHeader({
+  icon,
+  iconBg,
+  title,
+  count,
+  isLoading,
+  description,
+  onAdd,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  count?: number;
+  isLoading: boolean;
+  description: string;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 pb-1">
+      <div className="flex items-center gap-3 min-w-0">
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconBg} ring-1 ring-black/5`}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-foreground leading-tight">
+              {title}
+            </span>
+            {!isLoading && (
+              <Badge
+                variant="secondary"
+                className="rounded-full px-2 py-0 text-[10px] font-semibold tabular-nums bg-muted text-muted-foreground"
+              >
+                {count ?? 0}
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">
+            {description}
+          </p>
+        </div>
+      </div>
+      <Button
+        size="sm"
+        onClick={onAdd}
+        className="shrink-0 h-8 gap-1.5 rounded-lg text-xs font-medium shadow-sm"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        <span className="hidden xs:inline sm:inline">Tambah</span>
+        <span className="xs:hidden sm:hidden">+</span>
+      </Button>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  iconBg,
+  label,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/70 py-10 text-center">
+      <div
+        className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${iconBg} opacity-50`}
+      >
+        {icon}
+      </div>
+      <p className="text-sm font-medium text-muted-foreground">
+        Belum ada {label.toLowerCase()}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground/60">
+        Klik &quot;Tambah&quot; untuk menambah data baru
+      </p>
+    </div>
+  );
+}
+
+// ── MasterTable ───────────────────────────────────────────────────────────────
 
 interface MasterTableProps {
   title: string;
@@ -22,11 +142,18 @@ interface MasterTableProps {
   table: MasterTableName;
   singularLabel: string;
   icon: React.ReactNode;
-  accentClass: string;
+  accentClass?: string;
   iconBgClass: string;
 }
 
-function MasterTable({ title, description, table, singularLabel, icon, accentClass, iconBgClass }: MasterTableProps) {
+function MasterTable({
+  title,
+  description,
+  table,
+  singularLabel,
+  icon,
+  iconBgClass,
+}: MasterTableProps) {
   const { toast } = useToast();
   const { data: rows, isLoading } = useSimpleTable(table);
   const createRow = useCreateRow(table);
@@ -37,6 +164,28 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SimpleRow | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [rows?.length]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const totalCount = rows?.length ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return rows?.slice(start, start + pageSize) ?? [];
+  }, [rows, currentPage, pageSize]);
+
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
 
   const openCreate = () => {
     setEditId(null);
@@ -65,7 +214,11 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
       }
       setDialogOpen(false);
     } catch (error: any) {
-      toast({ title: `Gagal menyimpan ${singularLabel}`, description: error.message, variant: "destructive" });
+      toast({
+        title: `Gagal menyimpan ${singularLabel}`,
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -75,7 +228,11 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
       await deleteRow.mutateAsync(deleteTarget.id);
       toast({ title: `${singularLabel} berhasil dihapus` });
     } catch (error: any) {
-      toast({ title: `Gagal menghapus ${singularLabel}`, description: error.message, variant: "destructive" });
+      toast({
+        title: `Gagal menghapus ${singularLabel}`,
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setDeleteTarget(null);
     }
@@ -83,71 +240,67 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
 
   return (
     <>
-      <Card className="shadow-sm border-0 ring-1 ring-border/60 flex flex-col">
-        {/* Card header */}
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBgClass}`}>
-                {icon}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-semibold">{title}</CardTitle>
-                  {!isLoading && (
-                    <Badge variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium">
-                      {rows?.length ?? 0}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-              </div>
-            </div>
-            <Button size="sm" onClick={openCreate} className={`shrink-0 ${accentClass}`}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah
-            </Button>
-          </div>
+      <Card className="flex flex-col overflow-hidden border border-border/60 shadow-sm bg-white">
+        <CardHeader className="px-4 pt-4 pb-3 sm:px-5">
+          <SectionHeader
+            icon={icon}
+            iconBg={iconBgClass}
+            title={title}
+            count={rows?.length}
+            isLoading={isLoading}
+            description={description}
+            onAdd={openCreate}
+          />
         </CardHeader>
 
-        <CardContent className="pt-0 flex-1">
+        <CardContent className="flex-1 px-0 pt-0 pb-0">
           {isLoading ? (
-            <TableSkeleton rows={5} rowClassName="h-10 w-full rounded-lg" />
+            <div className="px-4 pb-4 sm:px-5">
+              <TableSkeleton rows={5} rowClassName="h-10 w-full rounded-lg" />
+            </div>
           ) : rows?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-              <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-xl ${iconBgClass} opacity-60`}>
-                {icon}
-              </div>
-              <p className="text-sm font-medium text-muted-foreground">Belum ada {singularLabel.toLowerCase()}</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Klik "Tambah" untuk menambah data baru</p>
+            <div className="px-4 pb-4 sm:px-5">
+              <EmptyState icon={icon} iconBg={iconBgClass} label={singularLabel} />
             </div>
           ) : (
-            <div className="rounded-xl border border-border/60 overflow-hidden">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama</TableHead>
-                    <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action</TableHead>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-y border-border/50">
+                    <TableHead className="px-4 sm:px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Nama
+                    </TableHead>
+                    <TableHead className="w-20 px-4 sm:px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Aksi
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows?.map((row, idx) => (
-                    <TableRow key={row.id} className={idx % 2 === 0 ? "bg-white hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"}>
-                      <TableCell className="font-medium text-sm py-2.5">{row.name}</TableCell>
-                      <TableCell className="text-right py-2.5">
-                        <div className="flex justify-end gap-0.5">
+                  {paginatedRows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className="group border-b border-border/30 transition-colors hover:bg-muted/30"
+                    >
+                      <TableCell className="px-4 sm:px-5 py-3 text-sm font-medium text-foreground">
+                        {row.name}
+                      </TableCell>
+                      <TableCell className="px-4 sm:px-5 py-3 text-right">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-blue-50 hover:text-blue-600"
                             onClick={() => openEdit(row)}
+                            title={`Edit ${singularLabel}`}
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-500"
                             onClick={() => setDeleteTarget(row)}
+                            title={`Hapus ${singularLabel}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -160,20 +313,40 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
             </div>
           )}
         </CardContent>
+
+        {!isLoading && rows && rows.length > 0 && (
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        )}
       </Card>
 
       {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editId ? `Edit ${singularLabel}` : `Tambah ${singularLabel}`}</DialogTitle>
+            <DialogTitle>
+              {editId ? `Edit ${singularLabel}` : `Tambah ${singularLabel}`}
+            </DialogTitle>
             <DialogDescription>
-              {editId ? `Ubah nama ${singularLabel.toLowerCase()} yang sudah ada.` : `Masukkan nama ${singularLabel.toLowerCase()} baru.`}
+              {editId
+                ? `Ubah nama ${singularLabel.toLowerCase()} yang sudah ada.`
+                : `Masukkan nama ${singularLabel.toLowerCase()} baru.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-2">
-              <Label>Nama {singularLabel} <span className="text-destructive">*</span></Label>
+              <Label>
+                Nama {singularLabel}{" "}
+                <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -192,13 +365,17 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
       </Dialog>
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus {singularLabel}?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong className="text-foreground">{deleteTarget?.name}</strong> akan dihapus secara permanen.{" "}
-              Pastikan tidak ada produk yang masih menggunakan data ini.
+              <strong className="text-foreground">{deleteTarget?.name}</strong>{" "}
+              akan dihapus secara permanen. Pastikan tidak ada produk yang masih
+              menggunakan data ini.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -217,7 +394,7 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
   );
 }
 
-// ── Driver Table ──────────────────────────────────────────────────────────────
+// ── DriverTable ───────────────────────────────────────────────────────────────
 
 const emptyDriverForm = { driver_name: "", phone_number: "" };
 
@@ -232,6 +409,28 @@ function DriverTable() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyDriverForm);
   const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [drivers?.length]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const totalCount = drivers?.length ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const paginatedDrivers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return drivers?.slice(start, start + pageSize) ?? [];
+  }, [drivers, currentPage, pageSize]);
+
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
 
   const openCreate = () => {
     setEditId(null);
@@ -264,10 +463,13 @@ function DriverTable() {
       }
       setDialogOpen(false);
     } catch (error: any) {
-      toast({ title: "Gagal menyimpan supir", description: error.message, variant: "destructive" });
+      toast({
+        title: "Gagal menyimpan supir",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
-
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -275,7 +477,11 @@ function DriverTable() {
       await deleteDriver.mutateAsync(deleteTarget.id);
       toast({ title: "Supir berhasil dihapus" });
     } catch (error: any) {
-      toast({ title: "Gagal menghapus supir", description: error.message, variant: "destructive" });
+      toast({
+        title: "Gagal menghapus supir",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setDeleteTarget(null);
     }
@@ -283,73 +489,85 @@ function DriverTable() {
 
   return (
     <>
-      <Card className="shadow-sm border-0 ring-1 ring-border/60">
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
-                <Truck className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-semibold">Supir</CardTitle>
-                  {!isLoading && (
-                    <Badge variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium">
-                      {drivers?.length ?? 0}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Daftar supir pengiriman barang</p>
-              </div>
-            </div>
-            <Button size="sm" onClick={openCreate} className="shrink-0">
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah
-            </Button>
-          </div>
+      <Card className="overflow-hidden border border-border/60 shadow-sm bg-white">
+        <CardHeader className="px-4 pt-4 pb-3 sm:px-5">
+          <SectionHeader
+            icon={<Truck className="h-4.5 w-4.5 text-emerald-600" />}
+            iconBg="bg-emerald-50"
+            title="Supir"
+            count={drivers?.length}
+            isLoading={isLoading}
+            description="Daftar supir pengiriman barang"
+            onAdd={openCreate}
+          />
         </CardHeader>
 
-        <CardContent className="pt-0">
+        <CardContent className="px-0 pt-0 pb-0">
           {isLoading ? (
-            <TableSkeleton rows={4} rowClassName="h-10 w-full rounded-lg" />
+            <div className="px-4 pb-4 sm:px-5">
+              <TableSkeleton rows={4} rowClassName="h-10 w-full rounded-lg" />
+            </div>
           ) : drivers?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 opacity-60">
-                <Truck className="h-6 w-6 text-emerald-600" />
-              </div>
-              <p className="text-sm font-medium text-muted-foreground">Belum ada supir</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Klik "Tambah" untuk menambah supir baru</p>
+            <div className="px-4 pb-4 sm:px-5">
+              <EmptyState
+                icon={<Truck className="h-5 w-5 text-emerald-600" />}
+                iconBg="bg-emerald-50"
+                label="Supir"
+              />
             </div>
           ) : (
-            <div className="rounded-xl border border-border/60 overflow-hidden">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama Supir</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">No. Telepon</TableHead>
-                    <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aksi</TableHead>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40 border-y border-border/50">
+                    <TableHead className="px-4 sm:px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Nama Supir
+                    </TableHead>
+                    <TableHead className="px-4 sm:px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      No. Telepon
+                    </TableHead>
+                    <TableHead className="w-20 px-4 sm:px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      Aksi
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {drivers?.map((driver, idx) => (
-                    <TableRow key={driver.id} className={idx % 2 === 0 ? "bg-white hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"}>
-                      <TableCell className="font-medium text-sm py-2.5">{driver.driver_name}</TableCell>
-                      <TableCell className="text-sm py-2.5">
+                  {paginatedDrivers.map((driver) => (
+                    <TableRow
+                      key={driver.id}
+                      className="group border-b border-border/30 transition-colors hover:bg-muted/30"
+                    >
+                      <TableCell className="px-4 sm:px-5 py-3 text-sm font-medium text-foreground">
+                        {driver.driver_name}
+                      </TableCell>
+                      <TableCell className="px-4 sm:px-5 py-3 text-sm">
                         {driver.phone_number ? (
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                             {driver.phone_number}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground/40">—</span>
+                          <span className="text-muted-foreground/30">—</span>
                         )}
                       </TableCell>
-
-                      <TableCell className="text-right py-2.5">
-                        <div className="flex justify-end gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(driver)}>
+                      <TableCell className="px-4 sm:px-5 py-3 text-right">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-blue-50 hover:text-blue-600"
+                            onClick={() => openEdit(driver)}
+                            title="Edit Supir"
+                          >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(driver)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-500"
+                            onClick={() => setDeleteTarget(driver)}
+                            title="Hapus Supir"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -361,6 +579,19 @@ function DriverTable() {
             </div>
           )}
         </CardContent>
+
+        {!isLoading && drivers && drivers.length > 0 && (
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        )}
       </Card>
 
       {/* Create / Edit dialog */}
@@ -369,12 +600,16 @@ function DriverTable() {
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Supir" : "Tambah Supir"}</DialogTitle>
             <DialogDescription>
-              {editId ? "Ubah data supir yang sudah ada." : "Isi data supir pengiriman baru."}
+              {editId
+                ? "Ubah data supir yang sudah ada."
+                : "Isi data supir pengiriman baru."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-2">
-              <Label>Nama Supir <span className="text-destructive">*</span></Label>
+              <Label>
+                Nama Supir <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={form.driver_name}
                 onChange={(e) => setForm({ ...form, driver_name: e.target.value })}
@@ -391,7 +626,6 @@ function DriverTable() {
                 type="tel"
               />
             </div>
-
             <DialogFormActions
               onCancel={() => setDialogOpen(false)}
               onSave={handleSave}
@@ -402,12 +636,18 @@ function DriverTable() {
       </Dialog>
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Supir?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong className="text-foreground">{deleteTarget?.driver_name}</strong> akan dihapus secara permanen.
+              <strong className="text-foreground">
+                {deleteTarget?.driver_name}
+              </strong>{" "}
+              akan dihapus secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -426,25 +666,30 @@ function DriverTable() {
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MasterData() {
   return (
     <DashboardLayout title="Master Data">
+      {/* Page header */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold tracking-tight">Kelola Data Referensi</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Kelola kategori, satuan, dan supir yang digunakan dalam operasional toko.
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          Kelola Data Referensi
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Kelola kategori, satuan, dan supir yang digunakan dalam operasional
+          toko.
         </p>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 mb-6">
+
+      {/* Top 2-column grid — stacks on mobile */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 mb-5">
         <MasterTable
           title="Kategori Produk"
           description="Pengelompokan jenis produk yang dijual"
           table="categories"
           singularLabel="Kategori"
-          icon={<Tag className="h-5 w-5 text-blue-600" />}
-          accentClass=""
+          icon={<Tag className="h-4.5 w-4.5 text-blue-600" />}
           iconBgClass="bg-blue-50"
         />
         <MasterTable
@@ -452,11 +697,12 @@ export default function MasterData() {
           description="Satuan ukuran produk (kg, pcs, liter, dll.)"
           table="units"
           singularLabel="Satuan"
-          icon={<Ruler className="h-5 w-5 text-violet-600" />}
-          accentClass=""
+          icon={<Ruler className="h-4.5 w-4.5 text-violet-600" />}
           iconBgClass="bg-violet-50"
         />
       </div>
+
+      {/* Drivers — full width */}
       <DriverTable />
     </DashboardLayout>
   );
