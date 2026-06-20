@@ -21,7 +21,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { FilterBar } from "@/components/FilterBar";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Search, Truck, Receipt, Package, CalendarDays, ChevronRight, Wallet, CheckCircle2, History } from "lucide-react";
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { TablePagination } from "@/components/TablePagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SalesHistory() {
@@ -86,16 +86,6 @@ export default function SalesHistory() {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const endIndex = Math.min(currentPage * pageSize, totalCount);
-
-  const getPageButtons = (): (number | "...")[] => {
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const pages: (number | "...")[] = [1];
-    if (currentPage > 3) pages.push("...");
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
-    if (currentPage < totalPages - 2) pages.push("...");
-    pages.push(totalPages);
-    return pages;
-  };
 
   return (
     <DashboardLayout title="Riwayat Penjualan">
@@ -183,27 +173,6 @@ export default function SalesHistory() {
                     {unpaidCount > 0 && <span className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-medium">{unpaidCount}</span>}
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <span>Tampilkan</span>
-                    <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-                      <SelectTrigger className="h-7 w-[70px] text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[10, 30, 50, 100].map((n) => (
-                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span>data</span>
-                  </div>
-                  {ordersData && (
-                    <span className="text-sm text-muted-foreground">
-                      {totalCount === 0 ? "0 transaksi" : `${startIndex}–${endIndex} dari ${totalCount} transaksi`}
-                    </span>
-                  )}
-                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -300,46 +269,17 @@ export default function SalesHistory() {
                   </TableBody>
                 </Table>
               )}
-              {/* Pagination */}
               {!isLoading && totalCount > 0 && (
-                <div className="flex items-center justify-between border-t px-6 py-3">
-                  <p className="text-xs text-muted-foreground">
-                    Halaman {currentPage} dari {totalPages}
-                  </p>
-                  <Pagination className="w-auto mx-0 justify-end">
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                          className={currentPage === 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
-                        />
-                      </PaginationItem>
-                      {getPageButtons().map((page, idx) =>
-                        page === "..." ? (
-                          <PaginationItem key={`ellipsis-${idx}`}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        ) : (
-                          <PaginationItem key={page}>
-                            <PaginationLink
-                              isActive={page === currentPage}
-                              onClick={() => setCurrentPage(page as number)}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
-                          </PaginationItem>
-                        )
-                      )}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                          className={currentPage === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
+                <TablePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                  onPageSizeChange={setPageSize}
+                />
               )}
             </CardContent>
           </Card>

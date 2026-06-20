@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { SalesOrderDetailDialog } from "@/components/SalesOrderDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateWIB } from "@/lib/format";
 import { useCustomerById, useCustomerTransactions, useUpdateCustomer } from "@/hooks/useCustomers";
+import { TablePagination } from "@/components/TablePagination";
 import {
   ArrowLeft, Pencil, User, Phone, MapPin, Mail,
   ShoppingBag, CreditCard, Wallet, TrendingDown, ExternalLink,
@@ -38,6 +39,23 @@ export default function CustomerDetail() {
   const { data: customer, isLoading: loadingCustomer } = useCustomerById(id ?? null);
   const { data: transactions, isLoading: loadingTx } = useCustomerTransactions(id ?? null);
   const updateCustomer = useUpdateCustomer();
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalCount = transactions?.length ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return transactions?.slice(start, start + pageSize) ?? [];
+  }, [transactions, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [id, transactions?.length]);
 
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<CustomerFormData>({ name: "", phone: "", address: "", email: "" });
@@ -182,69 +200,86 @@ export default function CustomerDetail() {
 
           {/* ── Transaction Log ─────────────────────────────────────── */}
           <Card>
-            <CardHeader>
+            <CardHeader className="px-6 pb-4 pt-5">
               <CardTitle className="text-base">Riwayat Transaksi</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-0 pb-0">
               {loadingTx ? (
-                <div className="space-y-2">
+                <div className="space-y-2 px-6 pb-6">
                   {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Bayar</TableHead>
-                      <TableHead className="text-right">Hutang</TableHead>
-                      <TableHead className="w-10"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions?.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                          Belum ada transaksi
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-t bg-muted/30">
+                        <TableHead className="pl-6">Tanggal</TableHead>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Bayar</TableHead>
+                        <TableHead className="text-right">Hutang</TableHead>
+                        <TableHead className="w-10 pr-6"></TableHead>
                       </TableRow>
-                    ) : (
-                      transactions?.map((tx) => (
-                        <TableRow
-                          key={tx.id}
-                          className={tx.unpaid_transaction > 0 ? "bg-red-50/50 dark:bg-red-950/10" : ""}
-                        >
-                          <TableCell className="text-sm">
-                            {formatDateWIB(tx.sales_date)}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
-                          <TableCell>
-                            <TransactionStatusBadge status={tx.transaction_status} />
-                          </TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(tx.grand_total)}</TableCell>
-                          <TableCell className="text-right text-green-600 font-medium">
-                            {formatCurrency(tx.grand_total - tx.unpaid_transaction)}
-                          </TableCell>
-                          <TableCell className={`text-right font-medium ${tx.unpaid_transaction > 0 ? "text-red-600" : "text-muted-foreground"}`}>
-                            {tx.unpaid_transaction > 0 ? formatCurrency(tx.unpaid_transaction) : "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => setSelectedOrderId(tx.id)}
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedTransactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-8 text-center text-muted-foreground pl-6 pr-6">
+                            Belum ada transaksi
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        paginatedTransactions.map((tx) => (
+                          <TableRow
+                            key={tx.id}
+                            className={tx.unpaid_transaction > 0 ? "bg-red-50/50 dark:bg-red-950/10" : ""}
+                          >
+                            <TableCell className="pl-6 text-sm">
+                              {formatDateWIB(tx.sales_date)}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
+                            <TableCell>
+                              <TransactionStatusBadge status={tx.transaction_status} />
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(tx.grand_total)}</TableCell>
+                            <TableCell className="text-right text-green-600 font-medium">
+                              {formatCurrency(tx.grand_total - tx.unpaid_transaction)}
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${tx.unpaid_transaction > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                              {tx.unpaid_transaction > 0 ? formatCurrency(tx.unpaid_transaction) : "—"}
+                            </TableCell>
+                            <TableCell className="pr-6">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => setSelectedOrderId(tx.id)}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {!loadingTx && totalCount > 0 && (
+                <TablePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                  }}
+                />
               )}
             </CardContent>
           </Card>

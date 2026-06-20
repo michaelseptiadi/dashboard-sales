@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { DeliveryDetailDialog } from "@/components/DeliveryDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useDrivers } from "@/hooks/useMasterData";
 import { useDebounce } from "@/hooks/useDebounce";
+import { TablePagination } from "@/components/TablePagination";
 import {
   useDeliveries,
   useUpdateDeliveryStatus,
@@ -48,6 +49,23 @@ export default function Pengiriman() {
     status: filterStatus || undefined,
     customerSearch: debouncedCustomer || undefined,
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalCount = deliveries.length;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+
+  const paginatedDeliveries = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return deliveries.slice(start, start + pageSize);
+  }, [deliveries, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterDateFrom, filterDateTo, filterDriver, filterStatus, debouncedCustomer]);
 
   const activeFilterCount = [filterDateFrom, filterDateTo, filterDriver, filterStatus, filterCustomer].filter(Boolean).length;
 
@@ -186,7 +204,7 @@ export default function Pengiriman() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {deliveries.map((delivery) => {
+                    {paginatedDeliveries.map((delivery) => {
                       const uniqueOrders = new Set(
                         (delivery.items ?? []).map((di) => di.sales_order_id)
                       ).size;
@@ -277,6 +295,21 @@ export default function Pengiriman() {
                   </TableBody>
                 </Table>
               </div>
+            )}
+            {!isLoading && totalCount > 0 && (
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                startIndex={startIndex}
+                endIndex={endIndex}
+                totalCount={totalCount}
+                pageSize={pageSize}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+              />
             )}
           </CardContent>
         </Card>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import { UserPlus, Pencil, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useStoresList } from "@/hooks/useAuth";
 import { UserDialog } from "@/components/users/UserDialog";
+import { TablePagination } from "@/components/TablePagination";
 import { ManageAccessDialog } from "@/components/users/ManageAccessDialog";
 import { getStoreRoleLabel, useDeleteUser, useUserApiAccess, useUsers } from "@/hooks/useUserStoreRoles";
 import type { BackendRoleName, StoreOption, UserRecord } from "@/types/users";
@@ -40,6 +41,23 @@ export default function Users() {
 
   const { data: users = [], isLoading: usersLoading } = useUsers();
   const { data: allStores = [] } = useStoresList();
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalCount = users.length;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return users.slice(start, start + pageSize);
+  }, [users, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [users.length]);
   const { selectedStore } = useAuth();
   const { canAccessUsers } = useUserApiAccess();
   const { toast } = useToast();
@@ -93,14 +111,14 @@ export default function Users() {
           </Button>
         </div>
 
-        <div className="rounded-lg border bg-card">
+        <div className="rounded-lg border bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
+              <TableRow className="bg-muted/30 border-t">
+                <TableHead className="pl-6">Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Akses Toko</TableHead>
-                <TableHead className="w-56 text-right">Aksi</TableHead>
+                <TableHead className="w-56 text-right pr-6">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -117,9 +135,9 @@ export default function Users() {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user: UserRecord) => (
+                paginatedUsers.map((user: UserRecord) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.email}</TableCell>
+                    <TableCell className="font-medium pl-6">{user.email}</TableCell>
                     <TableCell>{user.phone_number ?? "-"}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
@@ -140,7 +158,7 @@ export default function Users() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right pr-6">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="outline"
@@ -166,6 +184,21 @@ export default function Users() {
               )}
             </TableBody>
           </Table>
+          {!usersLoading && totalCount > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+            />
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import {
   useCategories,
   useUnits,
 } from "@/hooks/useProducts";
+import { TablePagination } from "@/components/TablePagination";
 import {
   ArrowLeft, ArrowDownToLine, ArrowUpFromLine, PackagePlus,
   Pencil, ExternalLink, Tag, Boxes, TrendingUp, Package2,
@@ -69,6 +70,23 @@ export default function ProductDetail() {
   const currentStock = detail?.stock ?? 0;
   const isLowStock = detail ? currentStock <= (detail.minimum_stock ?? 0) : false;
   const movements = detail?.InventoryMovement ?? [];
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalCount = movements.length;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+
+  const paginatedMovements = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return movements.slice(start, start + pageSize);
+  }, [movements, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [id, movements.length]);
 
   // ── Edit dialog ──────────────────────────────────────────────────────────
   const [editOpen, setEditOpen] = useState(false);
@@ -320,7 +338,7 @@ export default function ProductDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {movements.map((m) => (
+                    {paginatedMovements.map((m) => (
                       <TableRow
                         key={m.id}
                         className={m.qty_in > 0 ? "bg-green-50/40 dark:bg-green-950/10" : "bg-red-50/40 dark:bg-red-950/10"}
@@ -376,6 +394,21 @@ export default function ProductDetail() {
                   </TableBody>
                 </Table>
               </div>
+            )}
+            {!isLoading && totalCount > 0 && (
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                startIndex={startIndex}
+                endIndex={endIndex}
+                totalCount={totalCount}
+                pageSize={pageSize}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+              />
             )}
           </CardContent>
         </Card>
