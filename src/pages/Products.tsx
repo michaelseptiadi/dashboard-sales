@@ -18,6 +18,7 @@ import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
 import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
 
 interface ProductFormData {
@@ -44,6 +45,7 @@ export default function Products() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -55,7 +57,7 @@ export default function Products() {
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
-  const { data: productsResponse, isLoading } = useProducts(search, categoryFilter || undefined, page, limit);
+  const { data: productsResponse, isLoading } = useProducts(debouncedSearch, categoryFilter || undefined, page, limit);
   const { data: lowStockItems } = useLowStockProducts();
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
@@ -69,7 +71,7 @@ export default function Products() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, limit]);
+  }, [debouncedSearch, categoryFilter, limit]);
 
   const nextProductCode = () => {
     const existing = (products ?? [])

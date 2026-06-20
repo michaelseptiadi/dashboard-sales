@@ -16,6 +16,7 @@ import { ItemDeliveryStatusBadge } from "@/components/ItemDeliveryStatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts, useUpdateItemDeliveryStatus } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
+import { useDebounce } from "@/hooks/useDebounce";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { FilterBar } from "@/components/FilterBar";
 import { DateRangePicker } from "@/components/DateRangePicker";
@@ -25,9 +26,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SalesHistory() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const debouncedCustomerName = useDebounce(customerName, 500);
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [deliveryType, setDeliveryType] = useState("");
   const [driverId, setDriverId] = useState("");
@@ -39,12 +42,12 @@ export default function SalesHistory() {
   const [statusTab, setStatusTab] = useState<"all" | "paid" | "unpaid">("all");
 
   const { data: ordersData, isLoading } = useSalesOrders({
-    dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId,
+    dateFrom, dateTo, search: debouncedSearch, customerName: debouncedCustomerName, paymentMethodId, deliveryType, driverId,
     transactionStatus: statusTab === "all" ? undefined : statusTab,
     page: currentPage,
     pageSize,
   });
-  const { data: statusCounts } = useSalesOrderStatusCounts({ dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId });
+  const { data: statusCounts } = useSalesOrderStatusCounts({ dateFrom, dateTo, search: debouncedSearch, customerName: debouncedCustomerName, paymentMethodId, deliveryType, driverId });
   const { data: detail, isLoading: detailLoading } = useSalesDetail(selectedOrderId);
   const { data: paymentLogs, isLoading: logsLoading } = usePaymentLogs(selectedOrderId);
   const { data: drivers } = useDrivers();
@@ -53,7 +56,7 @@ export default function SalesHistory() {
   const { mutate: updateItemStatus, isPending: itemStatusPending } = useUpdateItemDeliveryStatus();
 
   // Reset to first page when filters, pageSize, or tab change
-  useEffect(() => { setCurrentPage(1); }, [search, dateFrom, dateTo, customerName, paymentMethodId, deliveryType, driverId, pageSize, statusTab]);
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, dateFrom, dateTo, debouncedCustomerName, paymentMethodId, deliveryType, driverId, pageSize, statusTab]);
 
   // Reset payment input whenever a different order is opened
   useEffect(() => { setPaymentAmount(0); setPaymentNotes(""); }, [selectedOrderId]);

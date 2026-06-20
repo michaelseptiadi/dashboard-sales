@@ -5,6 +5,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useActiveProducts } from "@/hooks/useProducts";
 import { usePaymentMethods, useCreateSalesTransaction, useAddPaymentLog, useMarkSelfPickupItems } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
+import { useDebounce } from "@/hooks/useDebounce";
 import { TransactionInfoCard } from "@/features/sales/components/TransactionInfoCard";
 import { CustomerSelector } from "@/features/sales/components/CustomerSelector";
 import { DeliverySelector } from "@/features/sales/components/DeliverySelector";
@@ -45,7 +46,8 @@ export default function Sales() {
   const submittedDataRef = useRef<{ invoice: string; total: number } | null>(null);
 
   const [productSearch, setProductSearch] = useState("");
-  const { data: searchProducts } = useActiveProducts(productSearch);
+  const debouncedProductSearch = useDebounce(productSearch, 500);
+  const { data: searchProducts } = useActiveProducts(debouncedProductSearch);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
 
   // ── prevent auto-save from firing when we're loading a different cart ──────

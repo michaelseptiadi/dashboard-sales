@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import { useDrivers } from "@/hooks/useMasterData";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   useDeliveryDetail,
   useSalesOrdersForDelivery,
@@ -112,7 +113,8 @@ interface TransactionPickerProps {
 
 function TransactionPicker({ open, onClose, onAdd, alreadySelectedIds }: TransactionPickerProps) {
   const [search, setSearch] = useState("");
-  const { data: rawOrders = [], isLoading } = useSalesOrdersForDelivery(search);
+  const debouncedSearch = useDebounce(search, 500);
+  const { data: rawOrders = [], isLoading } = useSalesOrdersForDelivery(debouncedSearch);
   const orders = rawOrders.filter((o) => o.sales_items.some((i) => i.delivery_status === "pending"));
 
   return (

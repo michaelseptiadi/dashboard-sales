@@ -16,6 +16,7 @@ import { DeliveryStatusBadge, DELIVERY_STATUS_CONFIG } from "@/components/Delive
 import { DeliveryDetailDialog } from "@/components/DeliveryDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useDrivers } from "@/hooks/useMasterData";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   useDeliveries,
   useUpdateDeliveryStatus,
@@ -38,13 +39,14 @@ export default function Pengiriman() {
   const [filterDriver, setFilterDriver] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
+  const debouncedCustomer = useDebounce(filterCustomer, 500);
 
   const { data: deliveries = [], isLoading } = useDeliveries({
     dateFrom: filterDateFrom,
     dateTo: filterDateTo,
     driverId: filterDriver || undefined,
     status: filterStatus || undefined,
-    customerSearch: filterCustomer || undefined,
+    customerSearch: debouncedCustomer || undefined,
   });
 
   const activeFilterCount = [filterDateFrom, filterDateTo, filterDriver, filterStatus, filterCustomer].filter(Boolean).length;

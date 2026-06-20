@@ -13,6 +13,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Plus, Eye, Users } from "lucide-react";
 
 interface CustomerFormData {
@@ -28,10 +29,11 @@ export default function Customers() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CustomerFormData>(emptyForm);
 
-  const { data: customers, isLoading } = useCustomers(search);
+  const { data: customers, isLoading } = useCustomers(debouncedSearch);
   const createCustomer = useCreateCustomer();
 
   const openCreate = () => {
