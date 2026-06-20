@@ -19,6 +19,12 @@ export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export function onUnauthorized(callback: () => void) {
+  onUnauthorizedCallback = callback;
+}
+
 // Custom error that carries the HTTP status so callers can inspect it.
 export class ApiError extends Error {
   constructor(
@@ -58,6 +64,10 @@ async function request<T>(
       message = json?.message ?? response.statusText;
     } catch {
       message = response.statusText;
+    }
+    if (response.status === 401) {
+      removeToken();
+      onUnauthorizedCallback?.();
     }
     throw new ApiError(response.status, message);
   }

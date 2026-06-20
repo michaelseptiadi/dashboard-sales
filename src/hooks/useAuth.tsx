@@ -1,6 +1,6 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import apiClient, { getToken, setToken, removeToken } from "@/lib/apiClient";
+import apiClient, { getToken, setToken, removeToken, onUnauthorized } from "@/lib/apiClient";
 import { AuthContextType, ApiUser, Role, Store } from "@/types/Auth";
 
 const STORE_STORAGE_KEY = "selected_store";
@@ -55,21 +55,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Rehydrate user from stored token on mount.
+  const signOut = useCallback(async () => {
+    removeToken();
+    setUser(null);
+    setSelectedStoreState(null);
+    localStorage.removeItem(STORE_STORAGE_KEY);
+  }, []);
+
+  // Rehydrate user from stored token on mount and register unauthorized handler.
   useEffect(() => {
     const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
+    if (token) {
+      const tokenUser = userFromToken(token);
+      if (tokenUser) {
+        setUser(tokenUser);
+      }
     }
+    setLoading(false);
 
-    const tokenUser = userFromToken(token);
-    if (tokenUser) {
-      setUser(tokenUser);
-      setLoading(false);
-      return;
-    }
-  }, []);
+    onUnauthorized(() => {
+      signOut();
+    });
+
+    return () => {
+      onUnauthorized(() => { });
+    };
+  }, [signOut]);
 
   const currentRole: Role | null = (() => {
     if (user?.roles.some((r) => r.role === "manager" || r.role === "superadmin")) return "admin";
@@ -94,13 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return { error: err as Error };
     }
-  };
-
-  const signOut = async () => {
-    removeToken();
-    setUser(null);
-    setSelectedStoreState(null);
-    localStorage.removeItem(STORE_STORAGE_KEY);
   };
 
   return (
