@@ -48,6 +48,8 @@ export default function SalesHistory() {
     pageSize,
   });
   const { data: statusCounts } = useSalesOrderStatusCounts({ dateFrom, dateTo, search: debouncedSearch, customerName: debouncedCustomerName, paymentMethodId, deliveryType, driverId });
+
+  // useSalesDetail returns SalesOrder & { items: SalesItem[]; payment_logs: PaymentLog[] } directly
   const { data: detail, isLoading: detailLoading } = useSalesDetail(selectedOrderId);
   const { data: paymentLogs, isLoading: logsLoading } = usePaymentLogs(selectedOrderId);
   const { data: drivers } = useDrivers();
@@ -72,17 +74,18 @@ export default function SalesHistory() {
     setCurrentPage(1);
   };
 
-  const orders       = ordersData ?? [];
-  const paidCount    = statusCounts?.paidCount ?? 0;
-  const unpaidCount  = statusCounts?.unpaidCount ?? 0;
-  const totalCount   =
+  // ordersData is { data: SalesOrder[], total, page, pageSize }
+  const orders    = ordersData?.data ?? [];
+  const paidCount   = statusCounts?.paidCount ?? 0;
+  const unpaidCount = statusCounts?.unpaidCount ?? 0;
+  const totalCount  =
     statusTab === "paid"   ? paidCount :
     statusTab === "unpaid" ? unpaidCount :
-    statusCounts?.allCount ?? 0;
+    statusCounts?.allCount ?? (ordersData?.total ?? 0);
 
-  const totalPages       = Math.max(1, Math.ceil(totalCount / pageSize));
-  const startIndex       = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endIndex         = Math.min(currentPage * pageSize, totalCount);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex   = Math.min(currentPage * pageSize, totalCount);
 
   const getPageButtons = (): (number | "...")[] => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -169,15 +172,15 @@ export default function SalesHistory() {
               <TabsList className="h-9">
                 <TabsTrigger value="all" className="text-xs gap-1.5">
                   Semua
-                  {orders && <span className="rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-[10px] font-medium">{orders.length}</span>}
+                  {statusCounts && <span className="rounded-full bg-muted-foreground/20 px-1.5 py-0.5 text-[10px] font-medium">{statusCounts.allCount}</span>}
                 </TabsTrigger>
                 <TabsTrigger value="paid" className="text-xs gap-1.5">
                   Lunas
-                  {orders && paidCount > 0 && <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">{paidCount}</span>}
+                  {paidCount > 0 && <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">{paidCount}</span>}
                 </TabsTrigger>
                 <TabsTrigger value="unpaid" className="text-xs gap-1.5">
                   Belum Lunas
-                  {orders && unpaidCount > 0 && <span className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-medium">{unpaidCount}</span>}
+                  {unpaidCount > 0 && <span className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-medium">{unpaidCount}</span>}
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-3">
@@ -195,7 +198,7 @@ export default function SalesHistory() {
                   </Select>
                   <span>data</span>
                 </div>
-                {orders && (
+                {ordersData && (
                   <span className="text-sm text-muted-foreground">
                     {totalCount === 0 ? "0 transaksi" : `${startIndex}–${endIndex} dari ${totalCount} transaksi`}
                   </span>
@@ -223,7 +226,7 @@ export default function SalesHistory() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!orders || orders.length === 0) ? (
+                  {orders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="py-16 text-center">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -234,63 +237,65 @@ export default function SalesHistory() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (orders ?? []).map((order) => {
-                        const statusCls =
-                          (order as any).transaction_status === "paid"
-                            ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
-                            : (order as any).transaction_status === "unpaid"
-                            ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
-                            : (order as any).transaction_status === "half_payment"
-                            ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
-                            : "";
-                        return (
-                      <TableRow
-                        key={order.id}
-                        className={`cursor-pointer group ${statusCls}`}
-                        onClick={() => setSelectedOrderId(order.id)}
-                      >
-                        <TableCell className="pl-6">
-                          <span className="font-mono text-sm font-medium">{order.invoice_number}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-start gap-1.5">
-                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                            <div>
-                              <p className="text-sm">
-                                {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(order.sales_date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                              </p>
+                    orders.map((order) => {
+                      const statusCls =
+                        order.transaction_status === "paid"
+                          ? "bg-emerald-50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30"
+                          : order.transaction_status === "unpaid"
+                          ? "bg-red-50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30"
+                          : order.transaction_status === "half_payment"
+                          ? "bg-amber-50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30"
+                          : "";
+                      return (
+                        <TableRow
+                          key={order.id}
+                          className={`cursor-pointer group ${statusCls}`}
+                          onClick={() => setSelectedOrderId(order.id)}
+                        >
+                          <TableCell className="pl-6">
+                            <span className="font-mono text-sm font-medium">{order.invoice_number}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-start gap-1.5">
+                              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-sm">
+                                  {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(order.sales_date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm">{(order as any).customers?.name || order.customer_name || "-"}</p>
-                          {((order as any).customers?.address || order.customer_address) && (
-                            <p className="text-xs text-muted-foreground leading-snug">
-                              {(order as any).customers?.address || order.customer_address}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{(order.payment_methods as any)?.name || "-"}</span>
-                        </TableCell>
-                        <TableCell>
-                          <DeliveryBadge type={order.delivery_types} driverName={getDriverName(order.driver_id)} />
-                        </TableCell>
-                        <TableCell className="text-right pr-4 font-semibold">
-                          {formatCurrency(order.grand_total)}
-                        </TableCell>
-                        <TableCell>
-                          <TransactionStatusBadge status={(order as any).transaction_status} />
-                        </TableCell>
-                        <TableCell className="pr-6">
-                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </TableCell>
-                      </TableRow>
-                        );
-                      })
+                          </TableCell>
+                          <TableCell>
+                            {/* Backend returns customer (nested relation) or flat customer_name */}
+                            <p className="text-sm">{order.customer?.name || order.customer_name || "-"}</p>
+                            {(order.customer?.address || order.customer_address) && (
+                              <p className="text-xs text-muted-foreground leading-snug">
+                                {order.customer?.address || order.customer_address}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {/* Backend returns payment_method (nested relation) */}
+                            <span className="text-sm">{order.payment_method?.name || "-"}</span>
+                          </TableCell>
+                          <TableCell>
+                            <DeliveryBadge type={order.delivery_types} driverName={getDriverName(order.driver_id)} />
+                          </TableCell>
+                          <TableCell className="text-right pr-4 font-semibold">
+                            {formatCurrency(order.grand_total)}
+                          </TableCell>
+                          <TableCell>
+                            <TransactionStatusBadge status={order.transaction_status} />
+                          </TableCell>
+                          <TableCell className="pr-6">
+                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -354,20 +359,20 @@ export default function SalesHistory() {
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
             </div>
-          ) : detail?.order ? (
+          ) : detail ? (
             <div className="overflow-y-auto max-h-[75vh]">
               {/* Order meta */}
               <div className="grid grid-cols-2 gap-px bg-border">
                 {[
-                  { label: "No. Invoice", value: <span className="font-mono font-semibold">{detail.order.invoice_number}</span> },
-                  { label: "Tanggal", value: new Date(detail.order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) },
-                  { label: "Pelanggan", value: (detail.order as any).customers?.name || detail.order.customer_name || "-" },
-                  { label: "Metode Bayar", value: (detail.order.payment_methods as any)?.name || "-" },
+                  { label: "No. Invoice", value: <span className="font-mono font-semibold">{detail.invoice_number}</span> },
+                  { label: "Tanggal", value: new Date(detail.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) },
+                  { label: "Pelanggan", value: detail.customer?.name || detail.customer_name || "-" },
+                  { label: "Metode Bayar", value: detail.payment_method?.name || "-" },
                   {
                     label: "Pengiriman",
-                    value: <DeliveryBadge type={detail.order.delivery_types} driverName={getDriverName(detail.order.driver_id)} />
+                    value: <DeliveryBadge type={detail.delivery_types} driverName={getDriverName(detail.driver_id)} />,
                   },
-                  { label: "Telepon", value: detail.order.customer_phone || "-" },
+                  { label: "Telepon", value: detail.customer_phone || "-" },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-card px-5 py-3">
                     <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
@@ -376,14 +381,14 @@ export default function SalesHistory() {
                 ))}
               </div>
 
-              {((detail.order as any).customers?.address || detail.order.customer_address) && (
+              {(detail.customer?.address || detail.customer_address) && (
                 <div className="px-5 py-3 border-b bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-0.5">Alamat</p>
-                  <p className="text-sm">{(detail.order as any).customers?.address || detail.order.customer_address}</p>
+                  <p className="text-sm">{detail.customer?.address || detail.customer_address}</p>
                 </div>
               )}
 
-              {/* Items */}
+              {/* Items — backend now returns items[].product = { name, product_code, store_product_id } */}
               <div className="px-5 py-4">
                 <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                   <Package className="h-3.5 w-3.5" /> Produk
@@ -404,8 +409,9 @@ export default function SalesHistory() {
                       {detail.items?.map((item) => (
                         <TableRow key={item.id} className="hover:bg-muted/20">
                           <TableCell className="pl-4 py-2.5">
-                            <p className="text-sm font-medium">{(item.products as any)?.name}</p>
-                            <p className="text-xs text-muted-foreground">{(item.products as any)?.product_code}</p>
+                            {/* item.product is mapped by mapSalesOrder to { name, product_code, store_product_id } */}
+                            <p className="text-sm font-medium">{item.product?.name ?? "-"}</p>
+                            <p className="text-xs text-muted-foreground">{item.product?.product_code ?? ""}</p>
                           </TableCell>
                           <TableCell className="text-right text-sm py-2.5">{formatCurrency(item.price)}</TableCell>
                           <TableCell className="text-right text-sm py-2.5">{item.qty}</TableCell>
@@ -414,7 +420,7 @@ export default function SalesHistory() {
                           </TableCell>
                           <TableCell className="py-2.5">
                             {(() => {
-                              const st: string = (item as any).delivery_status ?? "pending";
+                              const st: string = item.delivery_status ?? "pending";
                               if (st === "in_delivery" || st === "delivered") {
                                 return <ItemDeliveryStatusBadge status={st} />;
                               }
@@ -450,29 +456,29 @@ export default function SalesHistory() {
                 <div className="ml-auto w-64 space-y-1.5 text-sm">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Total Harga</span>
-                    <span className="text-foreground">{formatCurrency(detail.order.total_amount)}</span>
+                    <span className="text-foreground">{formatCurrency(detail.total_amount)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Total Diskon</span>
-                    <span className="text-destructive">− {formatCurrency(detail.order.total_discount)}</span>
+                    <span className="text-destructive">− {formatCurrency(detail.total_discount)}</span>
                   </div>
-                  {(detail.order as any).delivery_fee > 0 && (
+                  {detail.delivery_fee > 0 && (
                     <div className="flex justify-between text-muted-foreground">
                       <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Biaya Kirim</span>
-                      <span className="text-foreground">+ {formatCurrency((detail.order as any).delivery_fee)}</span>
+                      <span className="text-foreground">+ {formatCurrency(detail.delivery_fee)}</span>
                     </div>
                   )}
                   <div className="flex justify-between rounded-xl bg-primary/5 px-4 py-2.5 font-bold text-primary">
                     <span>Grand Total</span>
-                    <span>{formatCurrency(detail.order.grand_total)}</span>
+                    <span>{formatCurrency(detail.grand_total)}</span>
                   </div>
                 </div>
-                {detail.order.notes && (
+                {detail.notes && (
                   <div className="mt-3 flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 dark:border-amber-800 dark:bg-amber-950/40">
                     <span className="mt-0.5 text-amber-500 shrink-0">📝</span>
                     <div>
                       <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Catatan</p>
-                      <p className="text-xs text-amber-800 dark:text-amber-300">{detail.order.notes}</p>
+                      <p className="text-xs text-amber-800 dark:text-amber-300">{detail.notes}</p>
                     </div>
                   </div>
                 )}
@@ -488,72 +494,71 @@ export default function SalesHistory() {
                   <div className="flex-1 min-w-[180px] space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Status</span>
-                      <TransactionStatusBadge status={detail.order.transaction_status} />
+                      <TransactionStatusBadge status={detail.transaction_status} />
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Sisa Tagihan</span>
                       <span className={`text-sm font-semibold ${
-                        detail.order.unpaid_transaction <= 0
+                        detail.unpaid_transaction <= 0
                           ? "text-emerald-600"
                           : "text-destructive"
                       }`}>
-                        {formatCurrency(Math.max(0, detail.order.unpaid_transaction))}
+                        {formatCurrency(Math.max(0, detail.unpaid_transaction))}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Sudah Dibayar</span>
                       <span className="text-sm font-medium">
-                        {formatCurrency(Math.max(0, detail.order.grand_total - detail.order.unpaid_transaction))}
+                        {formatCurrency(Math.max(0, detail.grand_total - detail.unpaid_transaction))}
                       </span>
                     </div>
                   </div>
 
                   {/* Payment input — only shown when there's still something owed */}
-                  {detail.order.unpaid_transaction > 0 ? (() => {
-                    const maxPayable = detail.order.unpaid_transaction;
+                  {detail.unpaid_transaction > 0 ? (() => {
+                    const maxPayable = detail.unpaid_transaction;
                     const isOverMax = paymentAmount > 0 && paymentAmount > maxPayable;
                     const isInvalid = paymentAmount <= 0 || isOverMax;
                     return (
-                    <div className="flex-1 min-w-[180px] space-y-2">
-                      <Label className="text-xs">Catat Pembayaran</Label>
-                      <div className="flex gap-2">
-                        <CurrencyInput
-                          placeholder={`Maks. ${formatCurrency(maxPayable)}`}
-                          value={paymentAmount}
-                          onChange={setPaymentAmount}
-                          className={`h-9 text-sm ${isOverMax ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      <div className="flex-1 min-w-[180px] space-y-2">
+                        <Label className="text-xs">Catat Pembayaran</Label>
+                        <div className="flex gap-2">
+                          <CurrencyInput
+                            placeholder={`Maks. ${formatCurrency(maxPayable)}`}
+                            value={paymentAmount}
+                            onChange={setPaymentAmount}
+                            className={`h-9 text-sm ${isOverMax ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          />
+                          <Button
+                            size="sm"
+                            disabled={isInvalid || paymentPending}
+                            onClick={() => {
+                              if (isInvalid || !selectedOrderId) return;
+                              addPaymentLog(
+                                { orderId: selectedOrderId, amount: paymentAmount, notes: paymentNotes || undefined },
+                                { onSuccess: () => { setPaymentAmount(0); setPaymentNotes(""); } }
+                              );
+                            }}
+                          >
+                            {paymentPending ? "Menyimpan..." : "Bayar"}
+                          </Button>
+                        </div>
+                        <Input
+                          placeholder="Catatan (opsional)"
+                          value={paymentNotes}
+                          onChange={(e) => setPaymentNotes(e.target.value)}
+                          className="h-8 text-xs"
                         />
-                        <Button
-                          size="sm"
-                          disabled={isInvalid || paymentPending}
-                          onClick={() => {
-                            if (isInvalid || !selectedOrderId) return;
-                            addPaymentLog(
-                              { orderId: selectedOrderId, amount: paymentAmount, notes: paymentNotes || undefined },
-                              { onSuccess: () => { setPaymentAmount(0); setPaymentNotes(""); } }
-                            );
-                          }}
-                        >
-                          {paymentPending ? "Menyimpan..." : "Bayar"}
-                        </Button>
+                        {isOverMax ? (
+                          <p className="text-xs text-destructive">
+                            Jumlah melebihi sisa tagihan ({formatCurrency(maxPayable)}).
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Masukkan jumlah yang diterima dari pelanggan.
+                          </p>
+                        )}
                       </div>
-                      <Input
-                        placeholder="Catatan (opsional)"
-                        value={paymentNotes}
-                        onChange={(e) => setPaymentNotes(e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                      {isOverMax ? (
-                        <p className="text-xs text-destructive">
-                          Jumlah melebihi sisa tagihan ({formatCurrency(maxPayable)}).
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Masukkan jumlah yang diterima dari pelanggan.
-                        </p>
-                      )}
-
-                    </div>
                     );
                   })() : (
                     <div className="flex flex-1 min-w-[180px] items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-4 py-3">

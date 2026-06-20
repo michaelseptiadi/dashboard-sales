@@ -28,6 +28,7 @@ export interface SalesOrder {
   transaction_status: string;
   created_at: string;
   updated_at: string;
+  // Nested relations returned by mapSalesOrder
   payment_method?: { name: string } | null;
   customer?: { name: string; address: string | null } | null;
 }
