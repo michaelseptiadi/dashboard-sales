@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Plus, Trash2, Search, Package, Truck, User, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,16 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
+import { useCategories } from "@/hooks/useProducts";
 import type { Product } from "@/hooks/useProducts";
 
 interface ItemsTableProps {
   items: SalesItem[];
   addItem: (product: Product) => void;
+  decrementItem?: (productId: string) => void;
   updateItem: (index: number, field: keyof SalesItem, value: number) => void;
   toggleItemSelfPickup: (index: number) => void;
   removeItem: (index: number) => void;
@@ -25,6 +30,8 @@ interface ItemsTableProps {
   searchProducts?: Product[];
   productSearchOpen: boolean;
   setProductSearchOpen: (v: boolean) => void;
+  selectedCategory: string;
+  setSelectedCategory: (v: string) => void;
   totalAmount: number;
   totalDiscount: number;
   deliveryFee: number;
@@ -39,6 +46,7 @@ interface ItemsTableProps {
 export function ItemsTable({
   items,
   addItem,
+  decrementItem,
   updateItem,
   toggleItemSelfPickup,
   removeItem,
@@ -47,6 +55,8 @@ export function ItemsTable({
   searchProducts,
   productSearchOpen,
   setProductSearchOpen,
+  selectedCategory,
+  setSelectedCategory,
   totalAmount,
   totalDiscount,
   deliveryFee,
@@ -57,7 +67,11 @@ export function ItemsTable({
   onSubmit,
   isPending,
 }: ItemsTableProps) {
+  const { data: categories } = useCategories();
   const kembalian = paymentAmount > grandTotal ? paymentAmount - grandTotal : 0;
+
+  const filteredProducts = searchProducts ?? [];
+
   return (
     <Card className="min-h-[500px]">
       <CardHeader>
@@ -66,48 +80,142 @@ export function ItemsTable({
             <Package className="h-4 w-4 text-primary" /> Daftar Produk
             <span className="text-destructive">*</span>
           </CardTitle>
-          <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" /> Tambah Produk
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-2" align="end">
-              <div className="relative mb-2">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Button size="sm" onClick={() => setProductSearchOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" /> Tambah Produk
+          </Button>
+
+          <Dialog open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+            <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-6">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" /> Pilih Produk
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="relative my-3">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Cari produk..."
+                  placeholder="Cari nama atau kode produk..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="pl-8"
+                  className="pl-9 h-9"
                   autoFocus
                 />
               </div>
-              <div className="max-h-60 overflow-auto">
-                {searchProducts?.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">
-                    Produk tidak ditemukan
-                  </p>
-                ) : (
-                  searchProducts?.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => addItem(p)}
-                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-accent"
-                    >
-                      <div className="text-left">
-                        <div className="font-medium">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">{p.product_code}</div>
-                      </div>
-                      <span className="text-muted-foreground">
-                        {formatCurrency(p.selling_price)}
-                      </span>
-                    </button>
-                  ))
-                )}
+
+              {/* Category tabs */}
+              <div className="mb-4">
+                <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
+                  <TabsList className="w-full justify-start overflow-x-auto h-9 bg-muted/50 p-0.5">
+                    <TabsTrigger value="all" className="text-xs px-3 py-1">Semua</TabsTrigger>
+                    {categories?.map((c) => (
+                      <TabsTrigger key={c.id} value={c.id} className="text-xs px-3 py-1">
+                        {c.name}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
               </div>
-            </PopoverContent>
-          </Popover>
+
+              <div className="flex-1 max-h-[55vh] pr-1 overflow-scroll">
+                <div className="space-y-2">
+                  {filteredProducts.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      Produk tidak ditemukan
+                    </p>
+                  ) : (
+                    filteredProducts.map((p) => {
+                      const stock = p.current_stock ?? 0;
+                      const isLow = stock <= p.minimum_stock;
+                      const cartItem = items.find((item) => item.product_id === p.store_product_id);
+                      const qtyInCart = cartItem?.qty ?? 0;
+                      const isOutOfStock = stock <= 0;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between rounded-xl border border-border/80 px-4 py-3 hover:bg-muted/10 transition-colors"
+                        >
+                          <div className="space-y-1 pr-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-sm">{p.name}</span>
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal text-muted-foreground bg-muted/20">
+                                {p.categories?.name || p.category?.name || "Kategori"}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal text-muted-foreground bg-muted/20">
+                                {p.units?.name || p.unit?.name || "Satuan"}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span className="font-mono">{p.product_code}</span>
+                              <span>•</span>
+                              <span>Harga: <span className="font-medium text-foreground">{formatCurrency(p.selling_price)}</span></span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            {/* Stock status badge */}
+                            {stock <= 0 ? (
+                              <Badge variant="destructive" className="bg-red-50 text-red-700 border-red-200 hover:bg-red-50 text-[10px] font-medium rounded-full px-2 py-0.5">Habis</Badge>
+                            ) : isLow ? (
+                              <Badge className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50 text-[10px] font-medium rounded-full px-2 py-0.5">Menipis ({stock})</Badge>
+                            ) : (
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50 text-[10px] font-medium rounded-full px-2 py-0.5">Stok: {stock}</Badge>
+                            )}
+
+                            {/* Qty controller */}
+                            {qtyInCart === 0 ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addItem(p)}
+                                disabled={isOutOfStock}
+                                className="h-8 w-20 px-0 gap-1"
+                              >
+                                <Plus className="h-3.5 w-3.5" /> Tambah
+                              </Button>
+                            ) : (
+                              <div className="flex items-center gap-1.5 bg-muted/60 rounded-lg p-0.5 border border-border">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => decrementItem?.(p.store_product_id)}
+                                  className="h-7 w-7 rounded-md p-0"
+                                >
+                                  <span className="text-base font-semibold leading-none">-</span>
+                                </Button>
+                                <span className="w-6 text-center text-xs font-bold font-mono">
+                                  {qtyInCart}
+                                </span>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => addItem(p)}
+                                  disabled={qtyInCart >= stock}
+                                  className="h-7 w-7 rounded-md p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 border-t pt-4 flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">
+                  {items.length} produk di keranjang ({items.reduce((acc, curr) => acc + curr.qty, 0)} item)
+                </span>
+                <Button size="sm" onClick={() => setProductSearchOpen(false)}>
+                  Selesai
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardHeader>
       <CardContent>

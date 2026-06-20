@@ -47,11 +47,23 @@ export default function Sales() {
 
   const [productSearch, setProductSearch] = useState("");
   const debouncedProductSearch = useDebounce(productSearch, 500);
-  const { data: searchProducts } = useActiveProducts(debouncedProductSearch);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const { data: searchProducts } = useActiveProducts(debouncedProductSearch, selectedCategory);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
 
   // ── prevent auto-save from firing when we're loading a different cart ──────
   const loadingCartRef = useRef(false);
+
+  // Sanitize customerId: clear if it exists but is not found in the loaded customers list
+  useEffect(() => {
+    if (customers && customerId && customerMode === "existing") {
+      const exists = customers.some((c) => c.id === customerId);
+      if (!exists) {
+        setCustomerId("");
+        setCustomerName("");
+      }
+    }
+  }, [customers, customerId, customerMode]);
 
   // ── auto-save current form to active cart (debounced) ─────────────────────
   useEffect(() => {
@@ -175,34 +187,56 @@ export default function Sales() {
 
   const addItem = useCallback(
     (product: Product) => {
-      if (items.find((i) => i.product_id === product.id)) {
-        toast({ title: "Produk sudah ditambahkan", variant: "destructive" });
-        return;
-      }
-      setItems((prev) => [
-        ...prev,
-        {
-          product_id: product.id,
-          product_name: product.name,
-          product_code: product.product_code,
-          qty: 1,
-          price: product.selling_price,
-          discount: 0,
-          subtotal: product.selling_price,
-        },
-      ]);
-      setProductSearch("");
-      setProductSearchOpen(false);
+      setItems((prev) => {
+        const existing = prev.find((i) => i.product_id === product.store_product_id);
+        if (existing) {
+          return prev.map((i) =>
+            i.product_id === product.store_product_id
+              ? { ...i, qty: i.qty + 1, subtotal: (i.qty + 1) * i.price - i.discount }
+              : i
+          );
+        }
+        return [
+          ...prev,
+          {
+            product_id: product.store_product_id,
+            product_name: product.name,
+            product_code: product.product_code,
+            qty: 1,
+            price: product.selling_price,
+            discount: 0,
+            subtotal: product.selling_price,
+          },
+        ];
+      });
     },
-    [items, toast],
+    [setItems],
+  );
+
+  const decrementItem = useCallback(
+    (productId: string) => {
+      setItems((prev) => {
+        const existing = prev.find((i) => i.product_id === productId);
+        if (!existing) return prev;
+        if (existing.qty <= 1) {
+          return prev.filter((i) => i.product_id !== productId);
+        }
+        return prev.map((i) =>
+          i.product_id === productId
+            ? { ...i, qty: i.qty - 1, subtotal: (i.qty - 1) * i.price - i.discount }
+            : i
+        );
+      });
+    },
+    [setItems],
   );
 
   const updateItem = (index: number, field: keyof SalesItem, value: number) => {
     setItems((prev) => {
       const updated = [...prev];
-      (updated[index] as any)[field] = value;
+      (updated[index] as any)[field] = Number(value);
       updated[index].subtotal =
-        updated[index].qty * updated[index].price - updated[index].discount;
+        Number(updated[index].qty) * Number(updated[index].price) - Number(updated[index].discount);
       return updated;
     });
   };
@@ -236,9 +270,9 @@ export default function Sales() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
-  const totalAmount = items.reduce((sum, i) => sum + i.qty * i.price, 0);
-  const totalDiscount = items.reduce((sum, i) => sum + i.discount, 0);
-  const grandTotal = items.reduce((sum, i) => sum + i.subtotal, 0) + deliveryFee;
+  const totalAmount = items.reduce((sum, i) => sum + Number(i.qty) * Number(i.price), 0);
+  const totalDiscount = items.reduce((sum, i) => sum + Number(i.discount), 0);
+  const grandTotal = items.reduce((sum, i) => sum + Number(i.subtotal), 0) + Number(deliveryFee);
 
   const handleSubmit = async () => {
     if (!paymentMethodId) {
@@ -397,6 +431,7 @@ export default function Sales() {
         <ItemsTable
           items={items}
           addItem={addItem}
+          decrementItem={decrementItem}
           updateItem={updateItem}
           toggleItemSelfPickup={toggleItemSelfPickup}
           removeItem={removeItem}
@@ -405,6 +440,8 @@ export default function Sales() {
           searchProducts={searchProducts}
           productSearchOpen={productSearchOpen}
           setProductSearchOpen={setProductSearchOpen}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
           totalAmount={totalAmount}
           totalDiscount={totalDiscount}
           deliveryFee={deliveryFee}

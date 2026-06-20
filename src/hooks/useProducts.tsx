@@ -151,12 +151,12 @@ export function useProducts(search?: string, categoryId?: string, page = 1, limi
   });
 }
 
-export function useActiveProducts(search?: string) {
+export function useActiveProducts(search?: string, categoryId?: string) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
 
   return useQuery<Product[]>({
-    queryKey: ["active-products", storeId, search],
+    queryKey: ["active-products", storeId, search, categoryId],
     enabled: !!storeId,
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -164,6 +164,7 @@ export function useActiveProducts(search?: string) {
       params.set("page", "1");
       params.set("limit", "100");
       if (search) params.set("search", search);
+      if (categoryId && categoryId !== "all") params.set("categoryId", categoryId);
 
       // Delegate to the same source and filter by active flag client-side.
       return apiClient
