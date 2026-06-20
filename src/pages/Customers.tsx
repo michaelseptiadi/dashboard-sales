@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SearchInput } from "@/components/SearchInput";
 import { TableSkeleton } from "@/components/TableSkeleton";
+import { TablePagination } from "@/components/TablePagination";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
-import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
+import { useCustomers, useCreateCustomer, useCustomerStats } from "@/hooks/useCustomers";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Plus, Eye, Users } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
+import { Plus, Eye, Users, Wallet, ShoppingBag, TrendingDown } from "lucide-react";
 
 interface CustomerFormData {
   name: string;
@@ -25,6 +28,61 @@ interface CustomerFormData {
 
 const emptyForm: CustomerFormData = { name: "", phone: "", address: "", email: "" };
 
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+
+interface StatCardProps {
+  icon: React.ReactNode;
+  colorClass: string;          // e.g. "text-violet-600"
+  bgClass: string;             // e.g. "bg-violet-50"
+  ringClass: string;           // e.g. "ring-violet-200"
+  label: string;
+  name: string;
+  value: string;
+  isLoading: boolean;
+  onClick?: () => void;
+}
+
+function StatCard({ icon, colorClass, bgClass, ringClass, label, name, value, isLoading, onClick }: StatCardProps) {
+  return (
+    <Card
+      className={`overflow-hidden border border-border/60 bg-white shadow-sm transition-all duration-150 ${onClick ? "cursor-pointer hover:shadow-md hover:border-border" : ""}`}
+      onClick={onClick}
+    >
+      <CardContent className="p-5">
+        {/* Top row: label + icon */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {label}
+          </p>
+          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${bgClass} ring-1 ${ringClass}`}>
+            <span className={colorClass}>{icon}</span>
+          </div>
+        </div>
+
+        {/* Big value */}
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ) : (
+          <>
+            <p className={`text-2xl font-bold leading-none tracking-tight ${colorClass} mb-1.5`}>
+              {value}
+            </p>
+            <p className="text-sm text-muted-foreground font-medium truncate">
+              {name}
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function Customers() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -33,8 +91,36 @@ export default function Customers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CustomerFormData>(emptyForm);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const { data: customers, isLoading } = useCustomers(debouncedSearch);
+  const { data: statsData, isLoading: statsLoading } = useCustomerStats();
   const createCustomer = useCreateCustomer();
+
+  // ── Derived stat highlights — read directly from the API response ────────
+  const topSpend = statsData?.totalSpend ?? null;
+  const topFrequency = statsData?.orderCount ?? null;
+  const topDebt = statsData?.totalDebt ?? null;
+
+
+  // ── Pagination ───────────────────────────────────────────────────────────
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const totalCount = customers?.length ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const paginatedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return customers?.slice(start, start + pageSize) ?? [];
+  }, [customers, currentPage, pageSize]);
+
+  const startIndex = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -62,6 +148,45 @@ export default function Customers() {
 
   return (
     <DashboardLayout title="Manajemen Pelanggan">
+
+      {/* ── Stat highlight cards ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
+        <StatCard
+          icon={<Wallet className="h-4 w-4" />}
+          bgClass="bg-violet-50"
+          colorClass="text-violet-600"
+          ringClass="ring-violet-200"
+          label="Most Spend Customer"
+          name={topSpend?.customer?.name ?? topSpend?.customerName ?? "—"}
+          value={topSpend ? formatCurrency(topSpend.value) : "—"}
+          isLoading={statsLoading}
+          onClick={topSpend ? () => navigate(`/pelanggan/${topDebt.customer.id}`) : undefined}
+        />
+        <StatCard
+          icon={<ShoppingBag className="h-4 w-4" />}
+          bgClass="bg-blue-50"
+          colorClass="text-blue-600"
+          ringClass="ring-blue-200"
+          label="Most Frequent Buyer"
+          name={topFrequency?.customer?.name ?? topFrequency?.customerName ?? "—"}
+          value={topFrequency ? `${topFrequency.value}x order` : "—"}
+          isLoading={statsLoading}
+          onClick={topFrequency ? () => navigate(`/pelanggan/${topDebt.customer.id}`) : undefined}
+        />
+        <StatCard
+          icon={<TrendingDown className="h-4 w-4" />}
+          bgClass="bg-red-50"
+          colorClass="text-red-500"
+          ringClass="ring-red-200"
+          label="Highest Outstanding Debt"
+          name={topDebt?.customer?.name ?? topDebt?.customerName ?? "Tidak ada hutang"}
+          value={topDebt ? formatCurrency(topDebt.value) : "—"}
+          isLoading={statsLoading}
+          onClick={topDebt ? () => navigate(`/pelanggan/${topDebt.customer.id}`) : undefined}
+        />
+      </div>
+
+      {/* ── Customers table card ────────────────────────────────────────────── */}
       <Card>
         <CardHeader className="px-6 pb-4 pt-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -81,7 +206,10 @@ export default function Customers() {
             <SearchInput
               placeholder="Cari nama atau telepon..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </CardHeader>
@@ -89,62 +217,80 @@ export default function Customers() {
           {isLoading ? (
             <div className="px-6 pb-6"><TableSkeleton /></div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-t bg-muted/30">
-                  <TableHead className="pl-6 text-xs">Nama</TableHead>
-                  <TableHead className="text-xs">Telepon</TableHead>
-                  <TableHead className="text-xs">Alamat</TableHead>
-                  <TableHead className="text-xs">Email</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="w-10 pr-6"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
-                      <Users className="mx-auto mb-2 h-8 w-8 opacity-25" />
-                      <p className="text-sm">Tidak ada pelanggan ditemukan</p>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-t bg-muted/30">
+                    <TableHead className="pl-6 text-xs">Nama</TableHead>
+                    <TableHead className="text-xs">Telepon</TableHead>
+                    <TableHead className="text-xs">Alamat</TableHead>
+                    <TableHead className="text-xs">Email</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="w-10 pr-6"></TableHead>
                   </TableRow>
-                ) : (
-                  customers?.map((customer) => (
-                    <TableRow key={customer.id} className="group">
-                      <TableCell className="pl-6 font-medium">{customer.name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{customer.phone || "—"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{customer.address || "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{customer.email || "—"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={customer.is_active
-                            ? "text-xs text-green-700 bg-green-50 border-green-200 dark:bg-green-950/30 dark:text-green-400"
-                            : "text-xs text-slate-500 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400"}
-                        >
-                          {customer.is_active ? "Aktif" : "Nonaktif"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="pr-6">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => navigate(`/pelanggan/${customer.id}`)}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {paginatedCustomers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
+                        <Users className="mx-auto mb-2 h-8 w-8 opacity-25" />
+                        <p className="text-sm">
+                          {totalCount === 0
+                            ? "Tidak ada pelanggan ditemukan"
+                            : "Tidak ada data pada halaman ini"}
+                        </p>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    paginatedCustomers.map((customer) => (
+                      <TableRow key={customer.id} className="group">
+                        <TableCell className="pl-6 font-medium">{customer.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{customer.phone || "—"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{customer.address || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{customer.email || "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={customer.is_active
+                              ? "text-xs text-green-700 bg-green-50 border-green-200 dark:bg-green-950/30 dark:text-green-400"
+                              : "text-xs text-slate-500 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400"}
+                          >
+                            {customer.is_active ? "Aktif" : "Nonaktif"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="pr-6">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/pelanggan/${customer.id}`)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {!isLoading && totalCount > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+            />
           )}
         </CardContent>
       </Card>
 
-      {/* Add Dialog */}
+      {/* ── Add Dialog ──────────────────────────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>

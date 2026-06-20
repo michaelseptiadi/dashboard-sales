@@ -80,3 +80,33 @@ export function useCustomerTransactions(customerId: string | null) {
         .then((res) => res.data),
   });
 }
+
+/** Shape of one top-customer entry returned by /customers/stats */
+export interface CustomerStatEntry {
+  value: number;
+  customerId: string;
+  customerName: string;
+  customer: Customer | null;
+}
+
+/** Shape of the full /customers/stats response */
+export interface CustomerStats {
+  totalSpend: CustomerStatEntry | null;
+  orderCount: CustomerStatEntry | null;
+  totalDebt: CustomerStatEntry | null;
+}
+
+/** Calls GET /customers/stats — returns the top customer per metric. */
+export function useCustomerStats() {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
+  return useQuery<CustomerStats>({
+    queryKey: ['customer-stats', storeId],
+    staleTime: 1000 * 60 * 5, // 5 min cache
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (storeId) params.set('store_id', storeId);
+      return apiClient.get<CustomerStats>(`/customers/stats?${params.toString()}`);
+    },
+  });
+}

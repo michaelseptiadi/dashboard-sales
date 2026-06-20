@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TablePagination } from "@/components/TablePagination";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -213,17 +214,7 @@ export default function Products() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
-              <SelectTrigger className="w-[110px]">
-                <SelectValue placeholder="Limit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="30">30</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
+
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -292,34 +283,17 @@ export default function Products() {
               </TableBody>
             </Table>
           )}
-          {productsMeta && productsMeta.totalPages > 1 && (
-            <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Menampilkan {(productsMeta.page - 1) * productsMeta.limit + (products.length > 0 ? 1 : 0)}-
-                {(productsMeta.page - 1) * productsMeta.limit + products.length} dari {productsMeta.total} produk
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={productsMeta.page <= 1}
-                >
-                  Sebelumnya
-                </Button>
-                <div className="min-w-24 text-center text-sm text-muted-foreground">
-                  Halaman {productsMeta.page} / {productsMeta.totalPages}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((current) => Math.min(productsMeta.totalPages, current + 1))}
-                  disabled={productsMeta.page >= productsMeta.totalPages}
-                >
-                  Berikutnya
-                </Button>
-              </div>
-            </div>
+          {productsMeta && productsMeta.total > 0 && (
+            <TablePagination
+              currentPage={productsMeta.page}
+              totalPages={productsMeta.totalPages}
+              onPageChange={setPage}
+              startIndex={(productsMeta.page - 1) * productsMeta.limit + (products.length > 0 ? 1 : 0)}
+              endIndex={(productsMeta.page - 1) * productsMeta.limit + products.length}
+              totalCount={productsMeta.total}
+              pageSize={limit}
+              onPageSizeChange={(size) => setLimit(size)}
+            />
           )}
         </CardContent>
       </Card>
