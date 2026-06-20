@@ -14,7 +14,7 @@ import { DialogFormActions } from "@/components/DialogFormActions";
 import { TransactionStatusBadge } from "@/components/TransactionStatusBadge";
 import { SalesOrderDetailDialog } from "@/components/SalesOrderDetailDialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateWIB } from "@/lib/format";
 import { useCustomerById, useCustomerTransactions, useUpdateCustomer } from "@/hooks/useCustomers";
 import {
   ArrowLeft, Pencil, User, Phone, MapPin, Mail,
@@ -217,7 +217,7 @@ export default function CustomerDetail() {
                           className={tx.unpaid_transaction > 0 ? "bg-red-50/50 dark:bg-red-950/10" : ""}
                         >
                           <TableCell className="text-sm">
-                            {new Date(tx.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                            {formatDateWIB(tx.sales_date)}
                           </TableCell>
                           <TableCell className="font-mono text-xs">{tx.invoice_number}</TableCell>
                           <TableCell>

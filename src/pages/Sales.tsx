@@ -13,6 +13,7 @@ import { ItemsTable } from "@/features/sales/components/ItemsTable";
 import { SuccessScreen } from "@/features/sales/components/SuccessScreen";
 import { CartManager } from "@/features/sales/components/CartManager";
 import { useCart, createEmptyCartData } from "@/hooks/useCart";
+import { nowLocalDateTimeString } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
 import type { Product } from "@/hooks/useProducts";
 
@@ -29,7 +30,8 @@ export default function Sales() {
 
   // ── form state (initialised from active cart in localStorage) ──────────────
   const [invoiceNumber, setInvoiceNumber] = useState(() => activeCart?.invoiceNumber ?? "");
-  const [salesDate, setSalesDate] = useState(() => activeCart?.salesDate ?? new Date().toISOString().slice(0, 16));
+  const [salesDate, setSalesDate] = useState(() => activeCart?.salesDate ?? nowLocalDateTimeString());
+
   const [customerMode, setCustomerMode] = useState<"existing" | "manual">(() => activeCart?.customerMode ?? "existing");
   const [customerId, setCustomerId] = useState<string>(() => activeCart?.customerId ?? "");
   const [customerName, setCustomerName] = useState(() => activeCart?.customerName ?? "");

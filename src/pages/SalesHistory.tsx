@@ -13,7 +13,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DeliveryBadge } from "@/components/DeliveryBadge";
 import { TransactionStatusBadge } from "@/components/TransactionStatusBadge";
 import { ItemDeliveryStatusBadge } from "@/components/ItemDeliveryStatusBadge";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateWIB, formatTimeWIB } from "@/lib/format";
 import { useSalesOrders, useSalesDetail, usePaymentMethods, useAddPaymentLog, usePaymentLogs, useSalesOrderStatusCounts, useUpdateItemDeliveryStatus } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -260,10 +260,10 @@ export default function SalesHistory() {
                                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                                 <div>
                                   <p className="text-sm">
-                                    {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                    {formatDateWIB(order.sales_date)}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    {new Date(order.sales_date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                    {formatTimeWIB(order.sales_date)}
                                   </p>
                                 </div>
                               </div>
@@ -365,7 +365,7 @@ export default function SalesHistory() {
               <div className="grid grid-cols-2 gap-px bg-border">
                 {[
                   { label: "No. Invoice", value: <span className="font-mono font-semibold">{detail.invoice_number}</span> },
-                  { label: "Tanggal", value: new Date(detail.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) },
+                  { label: "Tanggal", value: formatDateWIB(detail.sales_date, { day: "2-digit", month: "long", year: "numeric" }) },
                   { label: "Pelanggan", value: detail.customer?.name || detail.customer_name || "-" },
                   { label: "Metode Bayar", value: detail.payment_method?.name || "-" },
                   {
@@ -633,6 +633,7 @@ export default function SalesHistory() {
                           <TableRow key={log.id} className="hover:bg-muted/20">
                             <TableCell className="pl-4 py-2 text-xs text-muted-foreground whitespace-nowrap">
                               {new Date(log.paid_at).toLocaleString("id-ID", {
+                                timeZone: "Asia/Jakarta",
                                 day: "2-digit", month: "short", year: "numeric",
                                 hour: "2-digit", minute: "2-digit",
                               })}

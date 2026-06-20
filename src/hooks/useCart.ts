@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { generateInvoice } from "@/lib/format";
+import { generateInvoice, nowLocalDateTimeString } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
 
 const STORAGE_KEY = "puri_indah_carts_v1";
@@ -28,7 +28,7 @@ export type CartFormData = Omit<PendingCart, "id" | "createdAt">;
 export function createEmptyCartData(): CartFormData {
   return {
     invoiceNumber: generateInvoice(),
-    salesDate: new Date().toISOString().slice(0, 16),
+    salesDate: nowLocalDateTimeString(),
     customerMode: "existing",
     customerId: "",
     customerName: "",

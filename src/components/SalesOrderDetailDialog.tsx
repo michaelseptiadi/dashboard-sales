@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TransactionStatusBadge } from "@/components/TransactionStatusBadge";
 import { ItemDeliveryStatusBadge } from "@/components/ItemDeliveryStatusBadge";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateWIB } from "@/lib/format";
 import { useSalesDetail } from "@/hooks/useSales";
 import { Receipt } from "lucide-react";
 
@@ -37,7 +37,7 @@ export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
               <div>
                 <span className="text-muted-foreground">Tanggal</span>
                 <p className="font-medium">
-                  {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                   {formatDateWIB(order.sales_date)}
                 </p>
               </div>
               <div>
