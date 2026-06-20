@@ -268,7 +268,7 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: () =>
-      apiClient.get<{ id: string; name: string }[]>("/master-data/categories"),
+      apiClient.get<{ id: string; name: string }[]>("/categories"),
   });
 }
 
@@ -276,7 +276,7 @@ export function useUnits() {
   return useQuery({
     queryKey: ["units"],
     queryFn: () =>
-      apiClient.get<{ id: string; name: string }[]>("/master-data/units"),
+      apiClient.get<{ id: string; name: string }[]>("/units"),
   });
 }
 

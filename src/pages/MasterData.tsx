@@ -219,7 +219,7 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
 
 // ── Driver Table ──────────────────────────────────────────────────────────────
 
-const emptyDriverForm = { driver_name: "", phone_number: "", address: "" };
+const emptyDriverForm = { driver_name: "", phone_number: "" };
 
 function DriverTable() {
   const { toast } = useToast();
@@ -241,7 +241,7 @@ function DriverTable() {
 
   const openEdit = (d: Driver) => {
     setEditId(d.id);
-    setForm({ driver_name: d.driver_name, phone_number: d.phone_number ?? "", address: d.address ?? "" });
+    setForm({ driver_name: d.driver_name, phone_number: d.phone_number ?? "" });
     setDialogOpen(true);
   };
 
@@ -253,7 +253,6 @@ function DriverTable() {
     const payload = {
       driver_name: form.driver_name.trim(),
       phone_number: form.phone_number.trim() || null,
-      address: form.address.trim() || null,
     };
     try {
       if (editId) {
@@ -268,6 +267,7 @@ function DriverTable() {
       toast({ title: "Gagal menyimpan supir", description: error.message, variant: "destructive" });
     }
   };
+
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -326,7 +326,6 @@ function DriverTable() {
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama Supir</TableHead>
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">No. Telepon</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">Alamat</TableHead>
                     <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -344,16 +343,7 @@ function DriverTable() {
                           <span className="text-muted-foreground/40">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm py-2.5 hidden md:table-cell">
-                        {driver.address ? (
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <MapPin className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate max-w-[240px]">{driver.address}</span>
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </TableCell>
+
                       <TableCell className="text-right py-2.5">
                         <div className="flex justify-end gap-0.5">
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(driver)}>
@@ -401,14 +391,7 @@ function DriverTable() {
                 type="tel"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Alamat</Label>
-              <Input
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Contoh: Jl. Merdeka No. 10, Jakarta"
-              />
-            </div>
+
             <DialogFormActions
               onCancel={() => setDialogOpen(false)}
               onSave={handleSave}
