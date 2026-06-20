@@ -280,7 +280,7 @@ export default function Products() {
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.id}`)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.store_product_id}`)}>
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </div>

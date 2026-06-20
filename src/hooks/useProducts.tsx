@@ -196,6 +196,53 @@ export function useLowStockProducts() {
   });
 }
 
+// ── Store Product Detail (GET /store-products/:id) ───────────────────────────
+
+export interface StoreProductDetail {
+  // StoreProduct fields
+  id: string;               // store_product id
+  product_id: string;       // master product id
+  store_id: string;
+  selling_price: number;
+  capital_price: number;
+  minimum_stock: number;
+  stock: number;
+  created_at: string;
+  updated_at: string;
+  // Nested master product
+  productDetail: {
+    id: string;
+    product_code: string;
+    name: string;
+    is_active: boolean;
+    category: { id: string; name: string } | null;
+    unit: { id: string; name: string } | null;
+  };
+  // Inventory movements (most recent first)
+  InventoryMovement: Array<{
+    id: string;
+    product_id: string;
+    store_id: string | null;
+    movement_type: string;
+    reference_id: string | null;
+    qty_in: number;
+    qty_out: number;
+    notes: string | null;
+    created_at: string;
+  }>;
+}
+
+/** Fetch a single StoreProduct by its ID (store_product.id) */
+export function useStoreProductDetail(storeProductId: string | null) {
+  return useQuery<StoreProductDetail>({
+    queryKey: ["store-product-detail", storeProductId],
+    enabled: !!storeProductId,
+    queryFn: () =>
+      apiClient.get<StoreProductDetail>(`/store-products/${storeProductId}`),
+  });
+}
+
+/** @deprecated Use useStoreProductDetail instead. */
 export function useProductById(productId: string | null) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
@@ -217,6 +264,7 @@ export function useProductById(productId: string | null) {
     },
   });
 }
+
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
@@ -261,6 +309,7 @@ export function useUpdateProduct() {
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["active-products"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
+      queryClient.invalidateQueries({ queryKey: ["store-product-detail", variables.id] });
     },
   });
 }
@@ -308,10 +357,16 @@ export function useAdjustStock() {
         },
       );
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["product", variables.product_id] });
       queryClient.invalidateQueries({ queryKey: ["inventory-movements", variables.product_id] });
+      // Invalidate the detail page cache — the storeProduct id is returned in the response
+      if (data?.storeProduct?.id) {
+        queryClient.invalidateQueries({ queryKey: ["store-product-detail", data.storeProduct.id] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["store-product-detail"] });
+      }
     },
   });
 }

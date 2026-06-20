@@ -18,8 +18,7 @@ import { SalesOrderDetailDialog } from "@/components/SalesOrderDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import {
-  useProductById,
-  useInventoryMovements,
+  useStoreProductDetail,
   useUpdateProduct,
   useAdjustStock,
   useCategories,
@@ -31,18 +30,18 @@ import {
 } from "lucide-react";
 
 interface ProductFormData {
-  product_code: string;
-  name: string;
-  category_id: string;
-  unit_id: string;
   selling_price: number;
   capital_price: number;
   minimum_stock: number;
 }
 
+// Maps backend movement_type strings to display labels and colours
 const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  sale:       { label: "Penjualan",    className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400" },
-  adjustment: { label: "Penyesuaian", className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" },
+  PURCHASE:       { label: "Pembelian",    className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-400" },
+  ADJUSTMENT_IN:  { label: "Penyesuaian +", className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400" },
+  ADJUSTMENT_OUT: { label: "Penyesuaian −", className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" },
+  RETURN:         { label: "Retur",         className: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-400" },
+  SALE_OUT:       { label: "Penjualan",     className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400" },
 };
 
 function MovementTypeBadge({ type }: { type: string }) {
@@ -55,37 +54,34 @@ function MovementTypeBadge({ type }: { type: string }) {
 }
 
 export default function ProductDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>(); // id = store_product_id
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: product, isLoading: productLoading } = useProductById(id ?? null);
-  const { data: movements, isLoading: movementsLoading } = useInventoryMovements(id ?? null);
+  // Single API call: GET /store-products/:id
+  const { data: detail, isLoading } = useStoreProductDetail(id ?? null);
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
 
-  const currentStock = movements?.[0]?.stockAfter ?? 0;
-  const isLowStock = product ? currentStock <= (product.minimum_stock ?? 0) : false;
+  // Derive display values from the API response
+  const currentStock = detail?.stock ?? 0;
+  const isLowStock = detail ? currentStock <= (detail.minimum_stock ?? 0) : false;
+  const movements = detail?.InventoryMovement ?? [];
 
-  // Edit dialog
+  // ── Edit dialog ──────────────────────────────────────────────────────────
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>({
-    product_code: "", name: "", category_id: "", unit_id: "",
     selling_price: 0, capital_price: 0, minimum_stock: 0,
   });
 
   const openEdit = () => {
-    if (!product) return;
+    if (!detail) return;
     setForm({
-      product_code: product.product_code,
-      name: product.name,
-      category_id: product.category_id || "",
-      unit_id: product.unit_id || "",
-      selling_price: product.selling_price,
-      capital_price: product.capital_price,
-      minimum_stock: product.minimum_stock,
+      selling_price: detail.selling_price,
+      capital_price: detail.capital_price,
+      minimum_stock: detail.minimum_stock,
     });
     setEditOpen(true);
   };
@@ -96,12 +92,9 @@ export default function ProductDetail() {
       return;
     }
     try {
-      if (!product?.store_product_id) {
-        throw new Error("Store product tidak ditemukan");
-      }
-
+      if (!id) throw new Error("Store product tidak ditemukan");
       await updateProduct.mutateAsync({
-        id: product.store_product_id,
+        id,                                    // store_product_id
         selling_price: form.selling_price,
         capital_price: form.capital_price,
         minimum_stock: form.minimum_stock,
@@ -113,7 +106,7 @@ export default function ProductDetail() {
     }
   };
 
-  // Stock adjust dialog
+  // ── Stock adjust dialog ──────────────────────────────────────────────────
   const [stockOpen, setStockOpen] = useState(false);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
@@ -132,8 +125,10 @@ export default function ProductDetail() {
       return;
     }
     try {
+      if (!detail) throw new Error("Detail produk tidak ditemukan");
+      // useAdjustStock calls POST /store-products/adjustment with { storeId, productId (master), type, qty }
       await adjustStock.mutateAsync({
-        product_id: id!,
+        product_id: detail.product_id,   // master product id for adjustment API
         qty: adjustQty,
         type: adjustType,
         notes: adjustNotes || undefined,
@@ -145,7 +140,7 @@ export default function ProductDetail() {
     }
   };
 
-  // Transaction detail
+  // ── Transaction detail ───────────────────────────────────────────────────
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   return (
@@ -157,7 +152,7 @@ export default function ProductDetail() {
             <ArrowLeft className="h-4 w-4" />
             Kembali ke Produk
           </Button>
-          {!productLoading && product && (
+          {!isLoading && detail && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={openStock}>
                 <PackagePlus className="h-4 w-4" />
@@ -176,34 +171,34 @@ export default function ProductDetail() {
           <CardHeader className="px-6 pb-3 pt-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                {productLoading ? (
+                {isLoading ? (
                   <div className="space-y-2">
                     <Skeleton className="h-5 w-48" />
                     <Skeleton className="h-4 w-24" />
                   </div>
                 ) : (
                   <>
-                    <CardTitle className="text-lg">{product?.name}</CardTitle>
-                    <p className="mt-0.5 font-mono text-sm text-muted-foreground">{product?.product_code}</p>
+                    <CardTitle className="text-lg">{detail?.productDetail.name}</CardTitle>
+                    <p className="mt-0.5 font-mono text-sm text-muted-foreground">{detail?.productDetail.product_code}</p>
                   </>
                 )}
               </div>
-              {!productLoading && product && (
+              {!isLoading && detail && (
                 <Badge
                   variant="outline"
                   className={`text-xs ${
-                    product.is_active
+                    detail.productDetail.is_active
                       ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                       : "bg-slate-100 text-slate-500 border-slate-200"
                   }`}
                 >
-                  {product.is_active ? "Aktif" : "Nonaktif"}
+                  {detail.productDetail.is_active ? "Aktif" : "Nonaktif"}
                 </Badge>
               )}
             </div>
           </CardHeader>
           <CardContent className="px-6 pb-5">
-            {productLoading ? (
+            {isLoading ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {Array.from({ length: 4 }).map((_, i) => (
@@ -216,7 +211,7 @@ export default function ProductDetail() {
                   ))}
                 </div>
               </div>
-            ) : product ? (
+            ) : detail ? (
               <div className="space-y-4">
                 {/* Key metric tiles */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -232,27 +227,27 @@ export default function ProductDetail() {
                       isLowStock ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"
                     }`}>{currentStock}</p>
                     {isLowStock && (
-                      <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5">Min. {product.minimum_stock}</p>
+                      <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5">Min. {detail.minimum_stock}</p>
                     )}
                   </div>
                   <div className="rounded-xl px-4 py-3 border bg-muted/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                       <Tag className="h-3 w-3" /> Harga Jual
                     </p>
-                    <p className="text-base font-bold leading-tight">{formatCurrency(product.selling_price)}</p>
+                    <p className="text-base font-bold leading-tight">{formatCurrency(detail.selling_price)}</p>
                   </div>
                   <div className="rounded-xl px-4 py-3 border bg-muted/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                       <TrendingUp className="h-3 w-3" /> Harga Modal
                     </p>
-                    <p className="text-base font-bold leading-tight">{formatCurrency(product.capital_price)}</p>
+                    <p className="text-base font-bold leading-tight">{formatCurrency(detail.capital_price)}</p>
                   </div>
                   <div className="rounded-xl px-4 py-3 border bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                       <Package2 className="h-3 w-3" /> Margin
                     </p>
                     <p className="text-base font-bold leading-tight text-violet-700 dark:text-violet-400">
-                      {formatCurrency(product.selling_price - product.capital_price)}
+                      {formatCurrency(detail.selling_price - detail.capital_price)}
                     </p>
                   </div>
                 </div>
@@ -261,15 +256,15 @@ export default function ProductDetail() {
                 <div className="grid grid-cols-3 gap-x-6 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground">Kategori</p>
-                    <p className="font-medium">{product.categories?.name ?? "—"}</p>
+                    <p className="font-medium">{detail.productDetail.category?.name ?? "—"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Satuan</p>
-                    <p className="font-medium">{product.units?.name ?? "—"}</p>
+                    <p className="font-medium">{detail.productDetail.unit?.name ?? "—"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Stok Minimum</p>
-                    <p className="font-medium">{product.minimum_stock}</p>
+                    <p className="font-medium">{detail.minimum_stock}</p>
                   </div>
                 </div>
               </div>
@@ -282,7 +277,7 @@ export default function ProductDetail() {
           <CardHeader className="px-6 pb-3 pt-5">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Riwayat Pergerakan Stok</CardTitle>
-              {movements && movements.length > 0 && (
+              {movements.length > 0 && (
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
                     <ArrowDownToLine className="h-3 w-3" />
@@ -300,13 +295,13 @@ export default function ProductDetail() {
             </div>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            {movementsLoading ? (
+            {isLoading ? (
               <div className="space-y-2 px-6 pb-6">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
-            ) : !movements || movements.length === 0 ? (
+            ) : movements.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <PackagePlus className="h-10 w-10 text-muted-foreground/30 mb-3" />
                 <p className="text-sm font-medium text-muted-foreground">Belum ada pergerakan stok</p>
@@ -316,12 +311,11 @@ export default function ProductDetail() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-t bg-muted/30">
-                      <TableHead className="pl-6 text-xs">Tanggal & Waktu</TableHead>
+                      <TableHead className="pl-6 text-xs">Tanggal &amp; Waktu</TableHead>
                       <TableHead className="text-xs">Tipe</TableHead>
                       <TableHead className="text-xs">Catatan</TableHead>
                       <TableHead className="text-xs text-right text-green-700 dark:text-green-400">Masuk</TableHead>
                       <TableHead className="text-xs text-right text-red-600 dark:text-red-400">Keluar</TableHead>
-                      <TableHead className="text-xs text-right">Stok</TableHead>
                       <TableHead className="pr-6 text-xs">Referensi</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -364,20 +358,15 @@ export default function ProductDetail() {
                             <span className="text-sm text-muted-foreground/40">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <span className="text-sm font-semibold tabular-nums">{m.stockAfter}</span>
-                        </TableCell>
                         <TableCell className="pr-6">
-                          {m.invoiceNumber ? (
+                          {m.reference_id ? (
                             <button
                               onClick={() => setSelectedOrderId(m.reference_id!)}
                               className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400 font-medium"
                             >
-                              {m.invoiceNumber}
+                              {m.reference_id.slice(0, 8)}…
                               <ExternalLink className="h-3 w-3 shrink-0" />
                             </button>
-                          ) : m.reference_id ? (
-                            <span className="font-mono text-xs text-muted-foreground">{m.reference_id.slice(0, 8)}…</span>
                           ) : (
                             <span className="text-sm text-muted-foreground/40">—</span>
                           )}
@@ -400,7 +389,7 @@ export default function ProductDetail() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-base">Sesuaikan Stok</DialogTitle>
-            <p className="text-sm text-muted-foreground">{product?.name}</p>
+            <p className="text-sm text-muted-foreground">{detail?.productDetail.name}</p>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
@@ -456,39 +445,20 @@ export default function ProductDetail() {
 
       {/* Edit Product Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Produk</DialogTitle>
+            <p className="text-sm text-muted-foreground">{detail?.productDetail.name} · {detail?.productDetail.product_code}</p>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Kode Produk</Label>
-                <Input value={form.product_code} disabled />
+                <Label>Kategori</Label>
+                <p className="text-sm font-medium py-2">{detail?.productDetail.category?.name ?? "—"}</p>
               </div>
               <div className="space-y-2">
-                <Label>Nama Produk <span className="text-destructive">*</span></Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Kategori <span className="text-destructive">*</span></Label>
-                <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Satuan <span className="text-destructive">*</span></Label>
-                <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih satuan" /></SelectTrigger>
-                  <SelectContent>
-                    {units?.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Satuan</Label>
+                <p className="text-sm font-medium py-2">{detail?.productDetail.unit?.name ?? "—"}</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
