@@ -5,14 +5,12 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { SearchInput } from "@/components/SearchInput";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
@@ -27,7 +25,7 @@ import {
   useLowStockProducts,
 } from "@/hooks/useProducts";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
+import { Plus, PackagePlus, AlertTriangle, Eye, TrendingUp } from "lucide-react";
 import { AddProductDialog } from "@/components/AddProductDialog";
 
 export default function Products() {
@@ -172,21 +170,19 @@ export default function Products() {
             <Table>
               <TableHeader>
                 <TableRow className="border-t bg-muted/30">
-                  <TableHead className="pl-6 text-xs">Kode</TableHead>
-                  <TableHead className="text-xs">Nama</TableHead>
-                  <TableHead className="text-xs">Kategori</TableHead>
-                  <TableHead className="text-xs">Satuan</TableHead>
-                  <TableHead className="text-right text-xs">Harga Modal</TableHead>
-                  <TableHead className="text-right text-xs">Harga Jual</TableHead>
-                  <TableHead className="text-right text-xs">Stok</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="w-10 pr-6"></TableHead>
+                  <TableHead className="pl-6 text-xs font-semibold text-foreground">Produk</TableHead>
+                  <TableHead className="text-xs font-semibold text-foreground">Kategori</TableHead>
+                  <TableHead className="text-right text-xs font-semibold text-foreground">Harga Modal</TableHead>
+                  <TableHead className="text-right text-xs font-semibold text-foreground">Harga Jual</TableHead>
+                  <TableHead className="text-right text-xs font-semibold text-foreground">Estimasi Laba / Margin</TableHead>
+                  <TableHead className="text-right text-xs font-semibold text-foreground">Stok</TableHead>
+                  <TableHead className="w-24 pr-6 text-right text-xs font-semibold text-foreground">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-16 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-16 text-center text-muted-foreground">
                       <PackagePlus className="mx-auto mb-2 h-8 w-8 opacity-25" />
                       <p className="text-sm">Tidak ada produk ditemukan</p>
                     </TableCell>
@@ -194,33 +190,97 @@ export default function Products() {
                 ) : (
                   products.map((product) => {
                     const isLowStock = product.current_stock !== undefined && product.current_stock <= product.minimum_stock;
+                    const profit = product.selling_price - product.capital_price;
+                    const marginPercent = product.selling_price > 0 ? Math.round((profit / product.selling_price) * 100) : 0;
+
                     return (
-                      <TableRow key={product.id} className="group">
-                        <TableCell className="pl-6 font-mono text-xs text-muted-foreground">{product.product_code}</TableCell>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{product.categories?.name || "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{product.units?.name || "—"}</TableCell>
-                        <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(product.capital_price)}</TableCell>
-                        <TableCell className="text-right text-sm font-medium">{formatCurrency(product.selling_price)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
-                              <PackagePlus className="h-3.5 w-3.5" />
-                            </Button>
+                      <TableRow
+                        key={product.id}
+                        className={`group transition-colors ${isLowStock
+                          ? "bg-red-100/70 hover:bg-red-100 dark:bg-red-950/10 dark:hover:bg-red-950/20"
+                          : "hover:bg-muted/40"
+                          }`}
+                      >
+                        {/* Product Detail */}
+                        <TableCell className="pl-6 py-3.5">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-sm text-foreground leading-none">{product.name}</span>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded leading-none">
+                                {product.product_code}
+                              </span>
+                              {product.units?.name && (
+                                <span className="text-[11px] text-muted-foreground leading-none">
+                                  per {product.units.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Category Badge */}
+                        <TableCell className="py-3.5">
+                          <Badge variant="secondary" className="font-normal bg-indigo-50/80 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 px-2 py-0.5">
+                            {product.categories?.name || "Umum"}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Capital Price */}
+                        <TableCell className="text-right py-3.5 text-sm text-muted-foreground">
+                          {formatCurrency(product.capital_price)}
+                        </TableCell>
+
+                        {/* Selling Price */}
+                        <TableCell className="text-right py-3.5 text-sm font-medium">
+                          {formatCurrency(product.selling_price)}
+                        </TableCell>
+
+                        {/* Estimated Profit Margin */}
+                        <TableCell className="text-right py-3.5">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 leading-none">
+                              +{formatCurrency(profit)}
+                            </span>
+                            <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 px-1.5 py-0.5 rounded-full leading-none">
+                              <TrendingUp className="h-3 w-3 text-emerald-500" /> {marginPercent}% Margin
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Stock status */}
+                        <TableCell className="text-right py-3.5">
+                          <div className="flex items-center justify-end gap-1.5">
                             <Badge
-                              className={isLowStock ? "bg-red-100 text-red-700 border-red-300 hover:bg-red-100" : "bg-green-100 text-green-700 border-green-300 hover:bg-green-100"}
+                              className={`font-semibold px-2.5 py-0.5 rounded-full ${isLowStock
+                                ? "bg-red-300 text-red-700 border-red-300 hover:bg-red-100"
+                                : "bg-green-100 text-green-700 border-green-300 hover:bg-green-100"
+                                }`}
                             >
                               {product.current_stock ?? 0}
                             </Badge>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Switch checked={product.is_active} disabled />
-                        </TableCell>
-                        <TableCell className="pr-6">
+
+                        {/* Row Actions */}
+                        <TableCell className="pr-6 py-3.5">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.store_product_id}`)}>
-                              <Eye className="h-3.5 w-3.5" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 hover:bg-muted"
+                              title="Sesuaikan Stok"
+                              onClick={() => openStockDialog(product)}
+                            >
+                              <PackagePlus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 hover:bg-muted"
+                              title="Lihat detail"
+                              onClick={() => navigate(`/produk/${product.store_product_id}`)}
+                            >
+                              <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                             </Button>
                           </div>
                         </TableCell>
