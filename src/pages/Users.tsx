@@ -26,7 +26,7 @@ import { useAuth, useStoresList } from "@/hooks/useAuth";
 import { UserDialog } from "@/components/users/UserDialog";
 import { TablePagination } from "@/components/TablePagination";
 import { ManageAccessDialog } from "@/components/users/ManageAccessDialog";
-import { getStoreRoleLabel, useDeleteUser, useUserApiAccess, useUsers } from "@/hooks/useUserStoreRoles";
+import { getStoreRoleLabel, useDeleteUser, useUserApiAccess, useUsers, useStoreUserRoles } from "@/hooks/useUserStoreRoles";
 import type { BackendRoleName, StoreOption, UserRecord } from "@/types/users";
 
 function roleBadgeVariant(role: BackendRoleName) {
@@ -39,8 +39,46 @@ export default function Users() {
   const [manageUserId, setManageUserId] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
 
-  const { data: users = [], isLoading: usersLoading } = useUsers();
+  const { selectedStore } = useAuth();
+  const { actorRole, canAccessUsers } = useUserApiAccess();
+  const { toast } = useToast();
+  const deleteUser = useDeleteUser();
+
+  const { data: globalUsers = [], isLoading: globalUsersLoading } = useUsers();
+  const { data: storeUsers = [], isLoading: storeUsersLoading } = useStoreUserRoles(
+    actorRole === "manager" ? selectedStore?.id ?? null : null
+  );
   const { data: allStores = [] } = useStoresList();
+
+  const users = useMemo(() => {
+    if (actorRole === "superadmin") {
+      return globalUsers;
+    }
+    if (actorRole === "manager") {
+      return storeUsers.map((assignment) => ({
+        id: assignment.user.id,
+        email: assignment.user.email,
+        phone_number: assignment.user.phone_number,
+        name: assignment.user.name,
+        is_active: assignment.user.is_active,
+        created_at: assignment.created_at,
+        user_store_roles: [
+          {
+            id: assignment.id,
+            user_id: assignment.user_id,
+            store_id: assignment.store_id,
+            role_id: assignment.role_id,
+            created_at: assignment.created_at,
+            role: assignment.role,
+            store: allStores.find((s) => s.id === assignment.store_id),
+          },
+        ],
+      }));
+    }
+    return [];
+  }, [actorRole, globalUsers, storeUsers, allStores]);
+
+  const usersLoading = actorRole === "superadmin" ? globalUsersLoading : storeUsersLoading;
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -58,10 +96,6 @@ export default function Users() {
   useEffect(() => {
     setCurrentPage(1);
   }, [users.length]);
-  const { selectedStore } = useAuth();
-  const { canAccessUsers } = useUserApiAccess();
-  const { toast } = useToast();
-  const deleteUser = useDeleteUser();
 
   const storeOptions: StoreOption[] = allStores.map((store) => ({
     id: store.id,
@@ -152,7 +186,7 @@ export default function Users() {
                               variant={roleBadgeVariant(assignment.role.name)}
                               className="text-xs"
                             >
-                              {assignment.store?.store_name ?? assignment.store_id}: {getStoreRoleLabel(assignment.role.name)}
+                              {assignment.store?.store_name ?? selectedStore?.store_name}: {getStoreRoleLabel(assignment.role.name)}
                             </Badge>
                           ))
                         )}

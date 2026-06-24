@@ -21,8 +21,8 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   useEffect(() => {
     if (roleLoading || superAdminLoading) return;
 
-    // Superadmin-only pages: redirect non-superadmins away
-    if (SUPERADMIN_ONLY_ROUTES.includes(location.pathname) && !isSuperAdmin) {
+    // Superadmin & Manager pages: redirect others away
+    if (SUPERADMIN_ONLY_ROUTES.includes(location.pathname) && !isSuperAdmin && currentRole !== "admin") {
       navigate("/", { replace: true });
       return;
     }

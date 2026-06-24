@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useUserApiAccess, useAssignStoreUserRole, useRemoveStoreUserRole, useUpdateStoreUserRole, getStoreRoleLabel } from "@/hooks/useUserStoreRoles";
 import {
   type BackendRoleName,
@@ -36,6 +37,9 @@ function roleBadgeVariant(role: BackendRoleName) {
 
 export function ManageAccessDialog({ user, open, onOpenChange, allStores }: ManageAccessDialogProps) {
   const { actorRole, canAccessStoreRoles } = useUserApiAccess();
+  const { selectedStore } = useAuth();
+  const currentStoreId = selectedStore?.id;
+
   const [selectedStoreId, setSelectedStoreId] = useState("");
   const [selectedRole, setSelectedRole] = useState<BackendRoleName>(
     actorRole === "manager" ? "staff" : "manager",
@@ -45,17 +49,25 @@ export function ManageAccessDialog({ user, open, onOpenChange, allStores }: Mana
   const updateMutation = useUpdateStoreUserRole();
   const removeMutation = useRemoveStoreUserRole();
 
-  const userRoles = user.user_store_roles ?? [];
+  const rawUserRoles = user.user_store_roles ?? [];
+  const userRoles = actorRole === "manager"
+    ? rawUserRoles.filter((role) => role.store_id === currentStoreId)
+    : rawUserRoles;
+
   const assignedStoreIds = new Set(userRoles.map((role) => role.store_id));
-  const availableStores = allStores.filter((store) => !assignedStoreIds.has(store.id));
+  const rawAvailableStores = allStores.filter((store) => !assignedStoreIds.has(store.id));
+  const availableStores = actorRole === "manager"
+    ? rawAvailableStores.filter((store) => store.id === currentStoreId)
+    : rawAvailableStores;
+
   const availableRoles: BackendRoleName[] = actorRole === "manager" ? ["staff"] : ["manager", "staff"];
 
   useEffect(() => {
     if (!open) {
-      setSelectedStoreId("");
+      setSelectedStoreId(actorRole === "manager" ? currentStoreId ?? "" : "");
       setSelectedRole(actorRole === "manager" ? "staff" : "manager");
     }
-  }, [open, actorRole]);
+  }, [open, actorRole, currentStoreId]);
 
   const handleAssign = async () => {
     try {
@@ -127,7 +139,7 @@ export function ManageAccessDialog({ user, open, onOpenChange, allStores }: Mana
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <div className="text-sm font-medium">
-                        {assignment.store?.store_name ?? assignment.store_id}
+                        {assignment.store?.store_name ?? selectedStore?.store_name}
                       </div>
                       <Badge variant={roleBadgeVariant(assignment.role.name)}>
                         {getStoreRoleLabel(assignment.role.name)}
@@ -137,7 +149,7 @@ export function ManageAccessDialog({ user, open, onOpenChange, allStores }: Mana
                       <Select
                         value={assignment.role.name}
                         onValueChange={(value) => handleUpdateRole(assignment.store_id, value as BackendRoleName)}
-                        disabled={!canAccessStoreRoles || updateMutation.isPending}
+                        disabled={!canAccessStoreRoles || updateMutation.isPending || (actorRole === "manager" && assignment.role.name !== "staff")}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
@@ -155,7 +167,7 @@ export function ManageAccessDialog({ user, open, onOpenChange, allStores }: Mana
                         size="icon"
                         className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => handleRemove(assignment.store_id)}
-                        disabled={!canAccessStoreRoles || removeMutation.isPending}
+                        disabled={!canAccessStoreRoles || removeMutation.isPending || (actorRole === "manager" && assignment.role.name !== "staff")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -24,7 +24,7 @@ export function useUserApiAccess() {
 
   return {
     actorRole,
-    canAccessUsers: actorRole === "superadmin",
+    canAccessUsers: actorRole === "superadmin" || actorRole === "manager",
     canAccessStoreRoles: actorRole === "superadmin" || actorRole === "manager",
     canAssignStoreRole: (targetRole: BackendRoleName) =>
       actorRole === "superadmin" || (actorRole === "manager" && targetRole === "staff"),

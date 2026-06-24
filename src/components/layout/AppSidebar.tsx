@@ -71,7 +71,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "Sistem",
     items: [
-      { title: "Manajemen User", url: "/users", icon: UserCog, end: false, roles: [], superadminOnly: true },
+      { title: "Manajemen User", url: "/users", icon: UserCog, end: false, roles: ["admin"] },
     ],
   },
 ];

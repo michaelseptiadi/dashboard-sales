@@ -23,7 +23,7 @@ import {
   type UpdateUserPayload,
   type UserRecord,
 } from "@/types/users";
-import { useCreateStoreUser, useUpdateUser } from "@/hooks/useUserStoreRoles";
+import { useCreateStoreUser, useUpdateUser, useUserApiAccess } from "@/hooks/useUserStoreRoles";
 
 export interface UserDialogProps {
   open: boolean;
@@ -44,6 +44,7 @@ export function UserDialog({ open, mode, user, storeOptions = [], createStoreId,
   const { toast } = useToast();
   const createStoreUser = useCreateStoreUser();
   const updateUser = useUpdateUser();
+  const { actorRole } = useUserApiAccess();
 
   const isEditMode = mode === "edit";
   const loading = createStoreUser.isPending || updateUser.isPending;
@@ -65,8 +66,8 @@ export function UserDialog({ open, mode, user, storeOptions = [], createStoreId,
     setName("");
     setPassword("");
     setSelectedStoreId(createStoreId ?? storeOptions[0]?.id ?? "");
-    setStoreRole("manager");
-  }, [open, isEditMode, user, createStoreId, storeOptions]);
+    setStoreRole(actorRole === "manager" ? "staff" : "manager");
+  }, [open, isEditMode, user, createStoreId, storeOptions, actorRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,44 +121,50 @@ export function UserDialog({ open, mode, user, storeOptions = [], createStoreId,
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {!isEditMode && (
-            <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-              <div className="space-y-1.5">
-                <Label>Store</Label>
-                <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih toko" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {storeOptions.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.store_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">User akan dibuat langsung di toko ini.</p>
-              </div>
+            actorRole === "superadmin" ? (
+              <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                <div className="space-y-1.5">
+                  <Label>Store</Label>
+                  <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih toko" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {storeOptions.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                          {store.store_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">User akan dibuat langsung di toko ini.</p>
+                </div>
 
-              <div className="space-y-1.5">
-                <Label>Role Toko</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant={storeRole === "manager" ? "default" : "outline"}
-                    onClick={() => setStoreRole("manager")}
-                  >
-                    Admin
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={storeRole === "staff" ? "default" : "outline"}
-                    onClick={() => setStoreRole("staff")}
-                  >
-                    Kasir
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label>Role Toko</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={storeRole === "manager" ? "default" : "outline"}
+                      onClick={() => setStoreRole("manager")}
+                    >
+                      Admin
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={storeRole === "staff" ? "default" : "outline"}
+                      onClick={() => setStoreRole("staff")}
+                    >
+                      Kasir
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-400">
+                User baru akan ditambahkan sebagai <span className="font-semibold">Kasir</span> di toko Anda.
+              </div>
+            )
           )}
 
           <div className="space-y-3">
