@@ -18,29 +18,17 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
-import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
+import {
+  useProducts,
+  useUpdateProduct,
+  useCategories,
+  useAdjustStock,
+  useRealtimeStock,
+  useLowStockProducts,
+} from "@/hooks/useProducts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
-
-interface ProductFormData {
-  product_code: string;
-  name: string;
-  category_id: string;
-  unit_id: string;
-  selling_price: number;
-  capital_price: number;
-  minimum_stock: number;
-}
-
-const emptyForm: ProductFormData = {
-  product_code: "",
-  name: "",
-  category_id: "",
-  unit_id: "",
-  selling_price: 0,
-  capital_price: 0,
-  minimum_stock: 0,
-};
+import { AddProductDialog } from "@/components/AddProductDialog";
 
 export default function Products() {
   const { toast } = useToast();
@@ -51,7 +39,6 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number } | null>(null);
   const [adjustQty, setAdjustQty] = useState<number>(0);
@@ -61,8 +48,6 @@ export default function Products() {
   const { data: productsResponse, isLoading } = useProducts(debouncedSearch, categoryFilter || undefined, page, limit);
   const { data: lowStockItems } = useLowStockProducts();
   const { data: categories } = useCategories();
-  const { data: units } = useUnits();
-  const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
   useRealtimeStock();
@@ -74,36 +59,8 @@ export default function Products() {
     setPage(1);
   }, [debouncedSearch, categoryFilter, limit]);
 
-  const nextProductCode = () => {
-    const existing = (products ?? [])
-      .map((p) => p.product_code)
-      .filter((code) => /^BRG-\d+$/.test(code))
-      .map((code) => parseInt(code.replace("BRG-", ""), 10));
-    const max = existing.length > 0 ? Math.max(...existing) : 0;
-    return `BRG-${String(max + 1).padStart(4, "0")}`;
-  };
-
   const openCreate = () => {
-    setForm({ ...emptyForm, product_code: nextProductCode() });
     setDialogOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.product_code || !form.name || !form.category_id || !form.unit_id || !form.selling_price || !form.capital_price) {
-      toast({ title: "Semua field wajib diisi", variant: "destructive" });
-      return;
-    }
-    try {
-      await createProduct.mutateAsync({
-        ...form,
-        category_id: form.category_id || null,
-        unit_id: form.unit_id || null,
-      });
-      toast({ title: "Produk berhasil ditambahkan" });
-      setDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyimpan produk", description: error.message, variant: "destructive" });
-    }
   };
 
   const openStockDialog = (product: any) => {
@@ -125,15 +82,6 @@ export default function Products() {
       setStockDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Gagal menyesuaikan stok", description: error.message, variant: "destructive" });
-    }
-  };
-
-  const handleToggleActive = async (id: string, currentActive: boolean) => {
-    try {
-      // Store-products API doesn't expose is_active toggling; keep current behavior by blocking this action.
-      throw new Error("Ubah status aktif produk belum tersedia di endpoint store-products");
-    } catch (error: any) {
-      toast({ title: "Gagal mengubah status", description: error.message, variant: "destructive" });
     }
   };
 
@@ -363,68 +311,7 @@ export default function Products() {
       </Dialog>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tambah Produk</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Kode Produk</Label>
-                <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>Nama Produk <span className="text-destructive">*</span></Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Kategori <span className="text-destructive">*</span></Label>
-                <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Satuan <span className="text-destructive">*</span></Label>
-                <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih satuan" /></SelectTrigger>
-                  <SelectContent>
-                    {units?.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Harga Jual <span className="text-destructive">*</span></Label>
-                <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Harga Modal <span className="text-destructive">*</span></Label>
-                <CurrencyInput value={form.capital_price} onChange={(v) => setForm({ ...form, capital_price: v })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Stok Minimum</Label>
-                <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
-              </div>
-            </div>
-            <DialogFormActions
-              onCancel={() => setDialogOpen(false)}
-              onSave={handleSave}
-              isPending={createProduct.isPending || updateProduct.isPending}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddProductDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </DashboardLayout>
   );
 }

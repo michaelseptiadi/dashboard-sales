@@ -181,15 +181,8 @@ export function useLowStockProducts() {
   return useQuery<Product[]>({
     queryKey: ["low-stock-products", storeId],
     queryFn: async () => {
-      const p = new URLSearchParams();
-      if (storeId) p.set("storeId", storeId);
-      p.set("page", "1");
-      p.set("limit", "100");
-
-      const response = await apiClient.get<StoreProductsApiResponse>(`/store-products?${p.toString()}`);
-      return (response.data ?? [])
-        .map(mapStoreProduct)
-        .filter((item) => item.current_stock <= item.minimum_stock);
+      const response = await apiClient.get<StoreProductApi[]>(`/store-products/low-stock?storeId=${storeId}`);
+      return (response ?? []).map(mapStoreProduct);
     },
     enabled: !!storeId,
     staleTime: 1000 * 60 * 5,
@@ -382,4 +375,93 @@ export function useInventoryMovements(_productId: string | null) {
 /** No-op — Supabase realtime is removed. Re-queries happen via React Query invalidation. */
 export function useRealtimeStock() {
   return;
+}
+
+export interface GlobalProduct {
+  id: string;
+  product_code: string;
+  name: string;
+  category_id: string;
+  unit_id: string;
+  is_active: boolean;
+  category?: { id: string; name: string } | null;
+  unit?: { id: string; name: string } | null;
+  store_products?: { id: string; store_id: string }[];
+}
+
+export interface PaginatedGlobalProducts {
+  data: GlobalProduct[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export function useGlobalProducts(search?: string, page = 1, limit = 10) {
+  return useQuery<PaginatedGlobalProducts>({
+    queryKey: ["global-products", search, page, limit],
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (search) p.set("search", search);
+      p.set("page", String(page));
+      p.set("limit", String(limit));
+      return apiClient.get<PaginatedGlobalProducts>(`/products?${p.toString()}`);
+    },
+  });
+}
+
+export interface StoreProductAddInput {
+  productId: string;
+  sellingPrice: number;
+  capitalPrice: number;
+  stock: number;
+  minStock: number;
+}
+
+export function useAddStoreProduct() {
+  const queryClient = useQueryClient();
+  const { selectedStore } = useAuth();
+
+  return useMutation({
+    mutationFn: (input: StoreProductAddInput) => {
+      if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
+      return apiClient.post<{ id: string }>("/store-products", {
+        productId: input.productId,
+        storeId: selectedStore.id,
+        sellingPrice: input.sellingPrice,
+        capitalPrice: input.capitalPrice,
+        stock: input.stock,
+        minStock: input.minStock,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["global-products"] });
+      queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
+    },
+  });
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiClient.post<{ id: string; name: string }>("/categories", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
+export function useCreateUnit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiClient.post<{ id: string; name: string }>("/units", { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["units"] });
+    },
+  });
 }
