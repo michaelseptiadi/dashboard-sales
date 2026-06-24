@@ -285,7 +285,7 @@ function MasterTable({
                         {row.name}
                       </TableCell>
                       <TableCell className="px-4 sm:px-5 py-3 text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -353,6 +353,7 @@ function MasterTable({
                 placeholder={`Contoh: ${singularLabel === "Kategori" ? "Semen & Beton" : "Kilogram"}`}
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}
                 autoFocus
+                className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0"
               />
             </div>
             <DialogFormActions
@@ -551,7 +552,7 @@ function DriverTable() {
                         )}
                       </TableCell>
                       <TableCell className="px-4 sm:px-5 py-3 text-right">
-                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -615,6 +616,7 @@ function DriverTable() {
                 onChange={(e) => setForm({ ...form, driver_name: e.target.value })}
                 placeholder="Contoh: Budi Santoso"
                 autoFocus
+                className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0"
               />
             </div>
             <div className="space-y-2">
@@ -624,6 +626,7 @@ function DriverTable() {
                 onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
                 placeholder="Contoh: 08123456789"
                 type="tel"
+                className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0"
               />
             </div>
             <DialogFormActions
