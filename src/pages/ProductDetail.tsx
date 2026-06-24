@@ -28,6 +28,7 @@ import { TablePagination } from "@/components/TablePagination";
 import {
   ArrowLeft, ArrowDownToLine, ArrowUpFromLine, PackagePlus,
   Pencil, ExternalLink, Tag, Boxes, TrendingUp, Package2,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ProductFormData {
@@ -232,41 +233,73 @@ export default function ProductDetail() {
             ) : detail ? (
               <div className="space-y-4">
                 {/* Key metric tiles */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className={`rounded-xl px-4 py-3 border ${
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {/* Stok Sekarang */}
+                  <div className={`relative overflow-hidden rounded-xl px-4 py-4 border transition-all hover:shadow-sm ${
                     isLowStock
-                      ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
-                      : "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800"
+                      ? "bg-red-50/60 border-red-200 dark:bg-red-950/20 dark:border-red-900/60"
+                      : "bg-green-50/60 border-green-200 dark:bg-green-950/20 dark:border-green-900/60"
                   }`}>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <Boxes className="h-3 w-3" /> Stok Sekarang
-                    </p>
-                    <p className={`text-2xl font-bold tabular-nums ${
+                    <div className="flex items-center justify-between gap-1 mb-2">
+                      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <Boxes className="h-4 w-4 text-muted-foreground" /> Stok Sekarang
+                      </span>
+                      {isLowStock && (
+                        <AlertTriangle className="h-4 w-4 text-red-500 animate-pulse" />
+                      )}
+                    </div>
+                    <p className={`text-2xl font-bold tabular-nums tracking-tight ${
                       isLowStock ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"
                     }`}>{currentStock}</p>
-                    {isLowStock && (
-                      <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5">Min. {detail.minimum_stock}</p>
-                    )}
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Minimum stok: <span className="font-semibold">{detail.minimum_stock ?? 0}</span>
+                    </p>
                   </div>
-                  <div className="rounded-xl px-4 py-3 border bg-muted/50">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <Tag className="h-3 w-3" /> Harga Jual
+
+                  {/* Harga Jual */}
+                  <div className="relative overflow-hidden rounded-xl px-4 py-4 border bg-card hover:shadow-sm transition-all">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">Harga Jual</span>
+                    </div>
+                    <p className="text-xl font-bold leading-tight text-foreground tracking-tight">{formatCurrency(detail.selling_price)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
+                      Per {detail.productDetail.unit?.name || "satuan"}
                     </p>
-                    <p className="text-base font-bold leading-tight">{formatCurrency(detail.selling_price)}</p>
                   </div>
-                  <div className="rounded-xl px-4 py-3 border bg-muted/50">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <TrendingUp className="h-3 w-3" /> Harga Modal
+
+                  {/* Harga Modal */}
+                  <div className="relative overflow-hidden rounded-xl px-4 py-4 border bg-card hover:shadow-sm transition-all">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">Harga Modal</span>
+                    </div>
+                    <p className="text-xl font-bold leading-tight text-foreground tracking-tight">{formatCurrency(detail.capital_price)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
+                      Acuan harga beli awal
                     </p>
-                    <p className="text-base font-bold leading-tight">{formatCurrency(detail.capital_price)}</p>
                   </div>
-                  <div className="rounded-xl px-4 py-3 border bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <Package2 className="h-3 w-3" /> Margin
-                    </p>
-                    <p className="text-base font-bold leading-tight text-violet-700 dark:text-violet-400">
-                      {formatCurrency(detail.selling_price - detail.capital_price)}
-                    </p>
+
+                  {/* Estimasi Laba & Margin */}
+                  <div className="relative overflow-hidden rounded-xl px-4 py-4 border bg-emerald-50/60 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/60 hover:shadow-sm transition-all">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-xs font-medium text-emerald-800 dark:text-emerald-400">Estimasi Laba</span>
+                    </div>
+                    {(() => {
+                      const profit = detail.selling_price - detail.capital_price;
+                      const marginPercent = detail.selling_price > 0 ? Math.round((profit / detail.selling_price) * 100) : 0;
+                      return (
+                        <>
+                          <p className="text-xl font-bold leading-tight text-emerald-700 dark:text-emerald-400 tracking-tight">
+                            +{formatCurrency(profit)}
+                          </p>
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                            {marginPercent}% Profit Margin
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 <Separator />
@@ -432,7 +465,7 @@ export default function ProductDetail() {
             <div className="space-y-2">
               <Label>Jenis Penyesuaian</Label>
               <Select value={adjustType} onValueChange={(v) => setAdjustType(v as "in" | "out")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="focus:ring-1 focus:ring-primary focus:ring-offset-0"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="in">Tambah Stok (Masuk)</SelectItem>
                   <SelectItem value="out">Kurangi Stok (Keluar)</SelectItem>
@@ -447,6 +480,7 @@ export default function ProductDetail() {
                 value={adjustQty}
                 onChange={(e) => setAdjustQty(Number(e.target.value))}
                 placeholder="0"
+                className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0"
               />
             </div>
             <div className="space-y-2">
@@ -456,7 +490,7 @@ export default function ProductDetail() {
                 onChange={(e) => setAdjustNotes(e.target.value)}
                 placeholder="Contoh: Stok opname, retur dari pelanggan..."
                 rows={2}
-                className="resize-none"
+                className="resize-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0"
               />
             </div>
             {adjustQty > 0 && (
@@ -497,15 +531,15 @@ export default function ProductDetail() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Harga Jual <span className="text-destructive">*</span></Label>
-                <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} />
+                <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0" />
               </div>
               <div className="space-y-2">
                 <Label>Harga Modal <span className="text-destructive">*</span></Label>
-                <CurrencyInput value={form.capital_price} onChange={(v) => setForm({ ...form, capital_price: v })} />
+                <CurrencyInput value={form.capital_price} onChange={(v) => setForm({ ...form, capital_price: v })} className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0" />
               </div>
               <div className="space-y-2">
                 <Label>Stok Minimum</Label>
-                <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
+                <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} className="focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-0" />
               </div>
             </div>
             <DialogFormActions
