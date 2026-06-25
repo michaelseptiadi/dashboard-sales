@@ -9,6 +9,7 @@ export interface PendingCart {
   createdAt: string;
   invoiceNumber: string;
   salesDate: string;
+  dueDate?: string;
   customerMode: "existing" | "manual";
   customerId: string;
   customerName: string;
@@ -26,12 +27,15 @@ export interface PendingCart {
 export type CartFormData = Omit<PendingCart, "id" | "createdAt">;
 
 export function createEmptyCartData(): CartFormData {
+  const tzoffset = new Date().getTimezoneOffset() * 60000;
+  const localDate = new Date(Date.now() - tzoffset).toISOString().slice(0, 16);
   return {
     invoiceNumber: generateInvoice(),
-    salesDate: new Date().toISOString().slice(0, 16),
+    salesDate: localDate,
+    dueDate: "",
     customerMode: "existing",
     customerId: "",
-    customerName: "",
+    customerName: "Umum (Walk-in)",
     customerPhone: "",
     customerAddress: "",
     paymentMethodId: "",
@@ -67,11 +71,7 @@ function makeCart(): PendingCart {
 
 export function useCart() {
   const [carts, setCarts] = useState<PendingCart[]>(() => {
-    const saved = loadCarts();
-    if (saved.length > 0) return saved;
-    const initial = makeCart();
-    persistCarts([initial]);
-    return [initial];
+    return loadCarts();
   });
 
   const [activeCartId, setActiveCartId] = useState<string>(() => {
@@ -109,20 +109,14 @@ export function useCart() {
       let nextActiveId = "";
       setCarts((prev) => {
         const remaining = prev.filter((c) => c.id !== id);
-        if (remaining.length === 0) {
-          const fresh = makeCart();
-          persistCarts([fresh]);
-          nextActiveId = fresh.id;
-          return [fresh];
-        }
         persistCarts(remaining);
         if (id === activeCartId) {
-          nextActiveId = remaining[0].id;
+          nextActiveId = remaining[0]?.id ?? "";
         }
         return remaining;
       });
-      if (id === activeCartId || nextActiveId) {
-        setActiveCartId((prev) => (nextActiveId || prev));
+      if (id === activeCartId) {
+        setActiveCartId(nextActiveId);
       }
     },
     [activeCartId],

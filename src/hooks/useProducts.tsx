@@ -148,10 +148,10 @@ function mapStoreProduct(item: StoreProductApi): Product {
     store_id: item.store_id,
     category_id: item.product.category?.id ?? null,
     unit_id: item.product.unit?.id ?? null,
-    selling_price: item.selling_price,
-    capital_price: item.capital_price,
-    minimum_stock: item.minimum_stock,
-    current_stock: item.stock,
+    selling_price: Number(item.selling_price),
+    capital_price: Number(item.capital_price),
+    minimum_stock: Number(item.minimum_stock),
+    current_stock: Number(item.stock),
     is_active: item.product.is_active,
     created_at: item.created_at,
     updated_at: item.updated_at,
@@ -174,8 +174,8 @@ function responseDetailToProduct(res: StoreProductDetailResponse): Product {
     unit_id: pDetail.unit?.id ?? pDetail.unit_id ?? null,
     selling_price: Number(res.selling_price),
     capital_price: Number(res.capital_price),
-    minimum_stock: res.minimum_stock,
-    current_stock: res.stock,
+    minimum_stock: Number(res.minimum_stock),
+    current_stock: Number(res.stock),
     is_active: pDetail.is_active,
     created_at: res.created_at,
     updated_at: res.updated_at,
@@ -309,7 +309,7 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: () =>
-      apiClient.get<{ id: string; name: string }[]>("/master-data/categories"),
+      apiClient.get<{ id: string; name: string }[]>("/categories"),
   });
 }
 
@@ -317,7 +317,7 @@ export function useUnits() {
   return useQuery({
     queryKey: ["units"],
     queryFn: () =>
-      apiClient.get<{ id: string; name: string }[]>("/master-data/units"),
+      apiClient.get<{ id: string; name: string }[]>("/units"),
   });
 }
 

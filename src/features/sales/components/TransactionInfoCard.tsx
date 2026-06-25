@@ -16,6 +16,8 @@ interface TransactionInfoCardProps {
   setSalesDate: (v: string) => void;
   paymentMethodId: string;
   setPaymentMethodId: (v: string) => void;
+  dueDate: string;
+  setDueDate: (v: string) => void;
   notes: string;
   setNotes: (v: string) => void;
   paymentMethods?: PaymentMethod[];
@@ -27,58 +29,80 @@ export function TransactionInfoCard({
   setSalesDate,
   paymentMethodId,
   setPaymentMethodId,
+  dueDate,
+  setDueDate,
   notes,
   setNotes,
   paymentMethods,
 }: TransactionInfoCardProps) {
+  const selectedMethod = paymentMethods?.find((pm) => pm.id === paymentMethodId);
+  const isTempo = selectedMethod?.name.toLowerCase().includes("tempo") ||
+                  selectedMethod?.name.toLowerCase().includes("kredit") ||
+                  selectedMethod?.name.toLowerCase().includes("credit");
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          <Receipt className="h-4 w-4 text-primary" /> Transaksi
+    <Card className="border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md">
+      <CardHeader className="pb-4 border-b border-muted/20 bg-muted/10">
+        <CardTitle className="flex items-center gap-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+            <Receipt className="h-4 w-4" />
+          </div>
+          <span>Transaksi</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="pt-5 space-y-4">
         <div className="space-y-1.5">
-          <Label className="text-xs">No. Invoice</Label>
-          <Input value={invoiceNumber} readOnly className="bg-muted font-mono text-sm h-9" />
+          <Label className="text-xs font-semibold text-muted-foreground">No. Invoice</Label>
+          <Input value={invoiceNumber} readOnly className="bg-muted/50 font-mono text-sm h-10 rounded-xl border-muted/65 focus:ring-0 focus-visible:ring-0 cursor-not-allowed select-none" />
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Tanggal &amp; Waktu</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">Tanggal &amp; Waktu</Label>
             <Input
               type="datetime-local"
               value={salesDate}
               onChange={(e) => setSalesDate(e.target.value)}
-              className="h-9 text-sm w-full"
+              className="h-10 rounded-xl text-sm w-full hover:border-muted-foreground/35"
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">
-              Metode Bayar <span className="text-destructive">*</span>
+            <Label className="text-xs font-semibold text-muted-foreground">
+              Metode Bayar <span className="text-destructive font-bold">*</span>
             </Label>
             <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-              <SelectTrigger className={`h-9 text-sm ${!paymentMethodId ? "border-destructive" : ""}`}>
-                <SelectValue placeholder="Pilih" />
+              <SelectTrigger className={`h-10 rounded-xl text-sm hover:border-muted-foreground/35 ${!paymentMethodId ? "border-destructive/80" : ""}`}>
+                <SelectValue placeholder="Pilih..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl shadow-md border-muted/40">
                 {paymentMethods?.map((pm) => (
-                  <SelectItem key={pm.id} value={pm.id}>
+                  <SelectItem key={pm.id} value={pm.id} className="rounded-lg">
                     {pm.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          {isTempo && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Label className="text-xs font-semibold text-muted-foreground">Tanggal Jatuh Tempo <span className="text-destructive font-bold">*</span></Label>
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="h-10 rounded-xl text-sm w-full hover:border-muted-foreground/35"
+                required
+              />
+            </div>
+          )}
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Catatan</Label>
+          <Label className="text-xs font-semibold text-muted-foreground">Catatan</Label>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Catatan tambahan (opsional)..."
             rows={2}
-            className="text-sm resize-none"
+            className="text-sm rounded-xl resize-none hover:border-muted-foreground/35 focus:ring-primary/20"
           />
         </div>
       </CardContent>

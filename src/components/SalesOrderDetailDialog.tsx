@@ -14,9 +14,8 @@ interface Props {
 }
 
 export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
-  const { data, isLoading } = useSalesDetail(orderId);
-  const order = data?.order;
-  const items = data?.items ?? [];
+  const { data: order, isLoading } = useSalesDetail(orderId);
+  const items = order?.items ?? [];
 
   return (
     <Dialog open={!!orderId} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -43,21 +42,21 @@ export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
               <div>
                 <span className="text-muted-foreground">Status</span>
                 <div className="mt-0.5">
-                  <TransactionStatusBadge status={(order as any).transaction_status} />
+                  <TransactionStatusBadge status={order.transaction_status} />
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Pelanggan</span>
-                <p className="font-medium">{(order as any).customers?.name || order.customer_name || "—"}</p>
-                {((order as any).customers?.address || order.customer_address) && (
+                <p className="font-medium">{order.customer?.name || order.customer_name || "—"}</p>
+                {(order.customer?.address || order.customer_address) && (
                   <p className="text-xs text-muted-foreground">
-                    {(order as any).customers?.address || order.customer_address}
+                    {order.customer?.address || order.customer_address}
                   </p>
                 )}
               </div>
               <div>
                 <span className="text-muted-foreground">Pembayaran</span>
-                <p className="font-medium">{(order as any).payment_methods?.name || "—"}</p>
+                <p className="font-medium">{order.payment_method?.name || "—"}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Grand Total</span>
@@ -86,14 +85,14 @@ export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
                   {items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="text-xs py-1.5">
-                        <p className="font-medium">{(item as any).products?.name ?? "—"}</p>
-                        <p className="text-muted-foreground font-mono">{(item as any).products?.product_code ?? ""}</p>
+                        <p className="font-medium">{item.product?.name ?? "—"}</p>
+                        <p className="text-muted-foreground font-mono">{item.product?.product_code ?? ""}</p>
                       </TableCell>
                       <TableCell className="text-xs py-1.5 text-right">{item.qty}</TableCell>
                       <TableCell className="text-xs py-1.5 text-right">{formatCurrency(item.price)}</TableCell>
                       <TableCell className="text-xs py-1.5 text-right font-medium">{formatCurrency(item.subtotal)}</TableCell>
                       <TableCell className="text-xs py-1.5">
-                        <ItemDeliveryStatusBadge status={(item as any).delivery_status} />
+                        <ItemDeliveryStatusBadge status={item.delivery_status} />
                       </TableCell>
                     </TableRow>
                   ))}

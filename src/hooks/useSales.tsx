@@ -11,6 +11,7 @@ export interface SalesOrder {
   id: string;
   invoice_number: string;
   sales_date: string;
+  due_date?: string | null;
   store_id: string | null;
   customer_id: string | null;
   customer_name: string | null;
@@ -39,8 +40,10 @@ export interface SalesItem {
   qty: number;
   price: number;
   discount: number;
+  capital_price: number;
   subtotal: number;
   delivery_status: string;
+  shipping_method?: string | null;
   product?: { name: string; product_code: string } | null;
 }
 
@@ -52,6 +55,8 @@ export interface PaymentLog {
   notes: string | null;
   paid_at: string;
   created_by: string | null;
+  payment_method_id?: string | null;
+  delivery_id?: string | null;
 }
 
 // ── Filters ───────────────────────────────────────────────────────────────────
@@ -168,6 +173,7 @@ export function useCreateSalesTransaction() {
     mutationFn: (params: {
       p_invoice_number: string;
       p_sales_date: string;
+      p_due_date?: string;
       p_customer_id?: string;
       p_customer_name?: string;
       p_customer_phone?: string;
@@ -177,11 +183,12 @@ export function useCreateSalesTransaction() {
       p_driver_id?: string;
       p_notes?: string;
       p_delivery_fee?: number;
-      p_items: Array<{ product_id: string; qty: number; price: number; discount: number }>;
+      p_items: Array<{ product_id: string; qty: number; price: number; discount: number; shipping_method?: string }>;
     }) =>
       apiClient.post<SalesOrder>("/sales", {
         invoice_number:    params.p_invoice_number,
         sales_date:        params.p_sales_date,
+        due_date:          params.p_due_date,
         store_id:          selectedStore?.id,
         customer_id:       params.p_customer_id,
         customer_name:     params.p_customer_name,
@@ -219,16 +226,22 @@ export function useAddPaymentLog() {
       orderId,
       amount,
       notes,
+      paymentMethodId,
+      deliveryId,
     }: {
       orderId: string;
       amount: number;
       notes?: string;
+      paymentMethodId?: string;
+      deliveryId?: string;
     }) =>
       apiClient.post<PaymentLog>("/payments/logs", {
-        sales_order_id: orderId,
-        store_id:       selectedStore?.id ?? null,
+        sales_order_id:    orderId,
+        store_id:          selectedStore?.id ?? null,
         amount,
-        notes:          notes ?? null,
+        notes:             notes ?? null,
+        payment_method_id: paymentMethodId ?? null,
+        delivery_id:       deliveryId ?? null,
       }),
     onSuccess: (_data, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: ["payment-logs", orderId] });

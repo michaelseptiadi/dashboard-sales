@@ -36,7 +36,7 @@ export function CartManager({ carts, activeCartId, onSwitch, onNew, onRemove }: 
         {carts.map((cart, idx) => {
           const label = cart.customerName.trim() || `Pelanggan ${idx + 1}`;
           const isActive = cart.id === activeCartId;
-          const grandTotal = cart.items.reduce((s, i) => s + i.subtotal, 0) + cart.deliveryFee;
+          const grandTotal = cart.items.reduce((s, i) => s + Number(i.subtotal), 0) + Number(cart.deliveryFee);
 
           return (
             <div
