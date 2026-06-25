@@ -1,4 +1,4 @@
-import { CheckCircle2, Printer, Plus, X, Receipt, Calendar, User, Phone, MapPin, CreditCard, Truck } from "lucide-react";
+import { CheckCircle2, Plus, X, Receipt, Calendar, User, Phone, MapPin, CreditCard, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format";
@@ -46,10 +46,6 @@ export function TransactionReceipt({
 }: TransactionReceiptProps) {
   const kembalian = paymentAmount > grandTotal ? paymentAmount - grandTotal : 0;
   const sisaBayar = grandTotal > paymentAmount ? grandTotal - paymentAmount : 0;
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   return (
     <div className="flex flex-col gap-6 p-1 max-w-3xl mx-auto animate-in fade-in duration-300">
@@ -171,8 +167,19 @@ export function TransactionReceipt({
                     <TableCell className="text-right text-sm py-2.5 text-destructive font-mono">
                       {item.discount > 0 ? `-${formatCurrency(item.discount)}` : "-"}
                     </TableCell>
-                    <TableCell className="text-right text-sm py-2.5 pr-4 font-bold font-mono">
-                      {formatCurrency(item.subtotal)}
+                    <TableCell className="text-right text-sm py-2.5 pr-4">
+                      {item.qty * item.price > item.subtotal ? (
+                        <div className="flex flex-col items-end">
+                          <span className="text-[11px] text-muted-foreground line-through font-normal font-mono">
+                            {formatCurrency(item.qty * item.price)}
+                          </span>
+                          <span className="text-foreground font-bold font-mono">
+                            {formatCurrency(item.subtotal)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-foreground font-bold font-mono">{formatCurrency(item.subtotal)}</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -234,13 +241,6 @@ export function TransactionReceipt({
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-        <Button
-          onClick={handlePrint}
-          variant="outline"
-          className="w-full sm:w-auto gap-2 rounded-2xl h-11 hover:bg-muted"
-        >
-          <Printer className="h-4 w-4" /> Cetak Receipt
-        </Button>
         <div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
           <Button
             onClick={onClose}

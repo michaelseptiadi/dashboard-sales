@@ -32,6 +32,8 @@ import {
   Trash2,
   Receipt,
   ArrowRight,
+  Coins,
+  Check,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
@@ -52,6 +54,12 @@ export default function Sales() {
 
   const { carts, activeCartId, activeCart, saveCart, newCart, switchCart, removeCart } = useCart();
 
+  const sortedCarts = [...carts].sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+
   // ── form state (initialised from active cart in localStorage) ──────────────
   const [invoiceNumber, setInvoiceNumber] = useState(() => activeCart?.invoiceNumber ?? "");
   const [salesDate, setSalesDate] = useState(() => activeCart?.salesDate ?? getLocalDatetimeString());
@@ -65,7 +73,7 @@ export default function Sales() {
   const [customerAddress, setCustomerAddress] = useState(() => activeCart?.customerAddress ?? "");
   const [paymentMethodId, setPaymentMethodId] = useState(() => activeCart?.paymentMethodId ?? "");
   const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">(
-    () => activeCart?.deliveryType ?? "driver"
+    () => activeCart?.deliveryType ?? "self_delivery"
   );
   const [driverId, setDriverId] = useState(() => activeCart?.driverId ?? "");
   const [deliveryFee, setDeliveryFee] = useState(() => activeCart?.deliveryFee ?? 0);
@@ -73,7 +81,24 @@ export default function Sales() {
   const [items, setItems] = useState<SalesItem[]>(() => activeCart?.items ?? []);
   const [paymentAmount, setPaymentAmount] = useState(() => activeCart?.paymentAmount ?? 0);
   const [submitted, setSubmitted] = useState(false);
-  const submittedDataRef = useRef<{ invoice: string; total: number } | null>(null);
+  const submittedDataRef = useRef<{
+    invoice: string;
+    salesDate: string;
+    customerMode: "existing" | "manual";
+    customerName: string;
+    customerPhone?: string;
+    customerAddress?: string;
+    paymentMethodName: string;
+    deliveryType: "driver" | "self_delivery" | "";
+    driverName?: string;
+    notes?: string;
+    items: SalesItem[];
+    totalAmount: number;
+    totalDiscount: number;
+    deliveryFee: number;
+    grandTotal: number;
+    paymentAmount: number;
+  } | null>(null);
 
   const [productSearch, setProductSearch] = useState("");
   const { data: searchProducts } = useActiveProducts(productSearch);
@@ -252,6 +277,7 @@ export default function Sales() {
           price: product.selling_price,
           discount: 0,
           subtotal: product.selling_price,
+          self_pickup: true,
         },
       ]);
       setProductSearch("");
@@ -320,11 +346,15 @@ export default function Sales() {
       toast({ title: "Tambahkan minimal 1 produk", variant: "destructive" });
       return;
     }
-
     try {
+      // If salesDate is unchanged from the cart creation date, we treat it as default
+      // and use the current saving time. Otherwise, we respect the user's manual override.
+      const isDateOverridden = activeCart && salesDate !== activeCart.salesDate;
+      const finalSalesDate = isDateOverridden ? salesDate : getLocalDatetimeString();
+
       const salesOrder = await createTransaction.mutateAsync({
         p_invoice_number: invoiceNumber,
-        p_sales_date: salesDate,
+        p_sales_date: finalSalesDate,
         p_due_date: dueDate || undefined,
         p_customer_id: customerMode === "existing" && customerId ? customerId : undefined,
         p_customer_name: customerMode === "manual" ? customerName : (customerId ? undefined : "Umum (Walk-in)"),
@@ -342,6 +372,13 @@ export default function Sales() {
           discount: i.discount,
         })),
       });
+
+      // Update state to use the saved database timestamp for receipt views
+      if (salesOrder?.sales_date) {
+        setSalesDate(salesOrder.sales_date);
+      } else {
+        setSalesDate(finalSalesDate);
+      }
 
       if (paymentAmount > 0 && salesOrder?.id) {
         await addPaymentLog({
@@ -363,7 +400,31 @@ export default function Sales() {
       }
 
       // Capture submitted data for the SuccessScreen
-      submittedDataRef.current = { invoice: invoiceNumber, total: grandTotal };
+      const pMethod = paymentMethods?.find((p) => p.id === paymentMethodId);
+      const driver = drivers?.find((d) => d.id === driverId);
+
+      const custName = customerMode === "manual" ? customerName : (customers?.find(c => c.id === customerId)?.name || customerName);
+      const custPhone = customerMode === "manual" ? customerPhone : (customers?.find(c => c.id === customerId)?.phone || undefined);
+      const custAddress = customerMode === "manual" ? customerAddress : (customers?.find(c => c.id === customerId)?.address || undefined);
+
+      submittedDataRef.current = {
+        invoice: invoiceNumber,
+        salesDate: salesOrder?.sales_date || finalSalesDate,
+        customerMode,
+        customerName: custName || "Umum (Walk-in)",
+        customerPhone: custPhone,
+        customerAddress: custAddress,
+        paymentMethodName: pMethod?.name || "Cash",
+        deliveryType,
+        driverName: driver?.driver_name,
+        notes,
+        items: [...items],
+        totalAmount,
+        totalDiscount,
+        deliveryFee,
+        grandTotal,
+        paymentAmount,
+      };
 
       // Remove the submitted cart and reset the form
       const submittedId = activeCartId;
@@ -457,33 +518,27 @@ export default function Sales() {
     saveCart,
   ]);
 
-  if (submitted) {
-    const pMethod = paymentMethods?.find((p) => p.id === paymentMethodId);
-    const driver = drivers?.find((d) => d.id === driverId);
-
-    const custName = customerMode === "manual" ? customerName : (customers?.find(c => c.id === customerId)?.name || customerName);
-    const custPhone = customerMode === "manual" ? customerPhone : (customers?.find(c => c.id === customerId)?.phone || undefined);
-    const custAddress = customerMode === "manual" ? customerAddress : (customers?.find(c => c.id === customerId)?.address || undefined);
-
+  if (submitted && submittedDataRef.current) {
+    const data = submittedDataRef.current;
     return (
       <DashboardLayout title="Penjualan">
         <TransactionReceipt
-          invoiceNumber={submittedDataRef.current?.invoice ?? invoiceNumber}
-          salesDate={salesDate}
-          customerMode={customerMode}
-          customerName={custName || "Umum (Walk-in)"}
-          customerPhone={custPhone}
-          customerAddress={custAddress}
-          paymentMethodName={pMethod?.name || "Cash"}
-          deliveryType={deliveryType}
-          driverName={driver?.driver_name}
-          notes={notes}
-          items={items}
-          totalAmount={totalAmount}
-          totalDiscount={totalDiscount}
-          deliveryFee={deliveryFee}
-          grandTotal={submittedDataRef.current?.total ?? grandTotal}
-          paymentAmount={paymentAmount}
+          invoiceNumber={data.invoice}
+          salesDate={data.salesDate}
+          customerMode={data.customerMode}
+          customerName={data.customerName}
+          customerPhone={data.customerPhone}
+          customerAddress={data.customerAddress}
+          paymentMethodName={data.paymentMethodName}
+          deliveryType={data.deliveryType}
+          driverName={data.driverName}
+          notes={data.notes}
+          items={data.items}
+          totalAmount={data.totalAmount}
+          totalDiscount={data.totalDiscount}
+          deliveryFee={data.deliveryFee}
+          grandTotal={data.grandTotal}
+          paymentAmount={data.paymentAmount}
           onReset={resetForm}
           onClose={resetForm}
         />
@@ -531,7 +586,7 @@ export default function Sales() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {carts.map((cart) => {
+              {sortedCarts.map((cart) => {
                 const cartTotal = cart.items.reduce((sum, item) => sum + (item.qty * item.price - item.discount), 0) + (cart.deliveryFee || 0);
                 const isCurrent = cart.id === activeCartId;
                 return (
@@ -598,6 +653,7 @@ export default function Sales() {
       {/* Checkout Wizard Dialog */}
       <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
         <DialogContent 
+          id="pos-checkout-dialog"
           className="max-w-[1380px] w-[96vw] h-[90vh] md:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border bg-card"
         >
           {/* Header */}
@@ -612,30 +668,33 @@ export default function Sales() {
           </div>
 
           {/* Grid Container */}
-          <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 md:grid-cols-[240px_1fr_320px] gap-6 p-6">
+          <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 p-6">
             
-            {/* Left Sidebar Steps Tracker */}
-            <div className="flex flex-col gap-6 border-r pr-6 justify-between h-full">
-              <div className="space-y-6">
-                <div className="flex gap-3 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
+            {/* Left Sidebar Steps Tracker (Centered & Compact) */}
+            <div className="flex flex-col border-r pr-6 justify-center items-center h-full">
+              <div className="space-y-8 flex flex-col items-center">
+                {/* Step 1 */}
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
                   <div className="min-w-0">
-                    <h4 className="font-semibold text-sm">Pelanggan</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{customerName || "Umum (Walk-in)"}</p>
+                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/80">Pelanggan</h4>
+                    <p className="text-[10px] text-foreground font-medium mt-0.5 truncate max-w-[120px]">{customerName || "Umum"}</p>
                   </div>
                 </div>
-                <div className="flex gap-3 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
+                {/* Step 2 */}
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
                   <div className="min-w-0">
-                    <h4 className="font-semibold text-sm">Daftar Item</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">{items.length} produk</p>
+                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/80">Item</h4>
+                    <p className="text-[10px] text-foreground font-medium mt-0.5 truncate max-w-[120px]">{items.length} produk</p>
                   </div>
                 </div>
-                <div className="flex gap-3 items-start">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
+                {/* Step 3 */}
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
                   <div className="min-w-0">
-                    <h4 className="font-semibold text-sm">Pembayaran</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/80">Bayar</h4>
+                    <p className="text-[10px] text-foreground font-medium mt-0.5 truncate max-w-[120px]">
                       {paymentMethodId ? (paymentMethods?.find(p => p.id === paymentMethodId)?.name || "Dipilih") : "Pilih metode"}
                     </p>
                   </div>
@@ -766,17 +825,25 @@ export default function Sales() {
                         </div>
 
                         <div className="border-t border-muted/20 pt-4 space-y-3">
-                          <div className="flex items-center justify-between gap-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <span className="text-sm font-bold text-foreground">Jumlah Dibayar:</span>
-                            <div className="flex items-center gap-2">
-                              {paymentAmount !== grandTotal && (
-                                <button
+                            <div className="flex flex-wrap items-center justify-end gap-2.5">
+                              {paymentAmount === grandTotal ? (
+                                <div className="h-10 flex items-center gap-1.5 px-3 rounded-xl border border-emerald-200 bg-emerald-50/70 text-emerald-700 text-xs font-bold shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                  Uang Pas
+                                </div>
+                              ) : (
+                                <Button
                                   type="button"
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => setPaymentAmount(grandTotal)}
-                                  className="text-xs font-semibold text-primary hover:bg-primary/5 px-2 py-1 rounded-lg transition-colors"
+                                  className="h-10 gap-1.5 px-3 rounded-xl border-primary/30 hover:border-primary bg-primary/5 hover:bg-primary text-primary hover:text-primary-foreground text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] duration-200 animate-in fade-in zoom-in-95"
                                 >
-                                  Bayar Pas
-                                </button>
+                                  <Coins className="h-3.5 w-3.5" />
+                                  Bayar Pas: {formatCurrency(grandTotal)}
+                                </Button>
                               )}
                               <CurrencyInput
                                 value={paymentAmount}
@@ -806,127 +873,58 @@ export default function Sales() {
               )}
             </div>
 
-            {/* Right Sidebar Live Summary */}
-            <div className="border-l pl-6 flex flex-col justify-between h-full min-h-0">
-              <div className="space-y-6 overflow-y-auto pr-1 flex-1">
-                <div>
-                  <h3 className="font-bold text-sm text-foreground mb-3 flex items-center gap-1.5 uppercase tracking-wider">
-                    <ShoppingCart className="h-4 w-4 text-primary" /> Ringkasan Transaksi
-                  </h3>
-                  <div className="space-y-3 text-xs bg-muted/30 p-3.5 rounded-2xl border border-muted/20">
-                    <div>
-                      <span className="text-muted-foreground block">Pelanggan:</span>
-                      <span className="font-bold text-foreground">{customerName || "Umum (Walk-in)"}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block">Tanggal:</span>
-                      <span className="font-semibold text-foreground">
-                        {new Date(salesDate).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+          </div>
 
-                <div>
-                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-wider mb-2">Item Belanja ({items.length})</h4>
-                  <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1 font-sans text-xs">
-                    {items.length === 0 ? (
-                      <p className="text-muted-foreground italic text-xs">Belum ada item</p>
-                    ) : (
-                      items.map((item) => (
-                        <div key={item.product_id} className="flex justify-between items-start py-1 border-b border-dashed border-muted/40">
-                          <div className="min-w-0 pr-2 flex flex-col gap-0.5">
-                            <p className="font-semibold text-foreground truncate leading-normal">{item.product_name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{item.qty}x {formatCurrency(item.price)}</p>
-                          </div>
-                          <span className="font-bold font-mono text-foreground shrink-0">{formatCurrency(item.subtotal)}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2 border-t border-muted/20 pt-4">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Total Harga:</span>
-                    <span className="font-semibold font-mono text-foreground">{formatCurrency(totalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Total Diskon:</span>
-                    <span className="font-semibold font-mono text-destructive">− {formatCurrency(totalDiscount)}</span>
-                  </div>
-                  {deliveryFee > 0 && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Biaya Kirim:</span>
-                      <span className="font-semibold font-mono text-foreground">+ {formatCurrency(deliveryFee)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center text-sm font-bold text-primary bg-primary/5 px-3 py-2.5 rounded-xl border border-primary/10">
-                    <span>Grand Total:</span>
-                    <span className="font-mono text-base">{formatCurrency(grandTotal)}</span>
-                  </div>
-                  {paymentAmount > 0 && (
-                    <div className="flex justify-between text-xs pt-1 border-t border-dashed">
-                      <span className="text-muted-foreground">Jumlah Dibayar:</span>
-                      <span className="font-bold font-mono text-foreground">{formatCurrency(paymentAmount)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Footer Navigation Buttons */}
-              <div className="border-t border-muted/20 pt-4 mt-4 flex flex-col gap-2 shrink-0">
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-                    disabled={currentStep === 1}
-                    className="flex-1 gap-1.5 h-11 rounded-xl"
-                  >
-                    <ChevronLeft className="h-4 w-4" /> Kembali
-                  </Button>
-                  
-                  {currentStep < 3 ? (
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        if (currentStep === 1) {
-                          if (customerMode === "manual" && !customerName.trim()) {
-                            toast({ title: "Nama pelanggan harus diisi", variant: "destructive" });
-                            return;
-                          }
-                        }
-                        if (currentStep === 2) {
-                          if (items.length === 0) {
-                            toast({ title: "Tambahkan minimal 1 produk", variant: "destructive" });
-                            return;
-                          }
-                        }
-                        setCurrentStep((prev) => Math.min(3, prev + 1));
-                      }}
-                      className="flex-1 gap-1.5 h-11 rounded-xl"
-                    >
-                      Lanjut <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={createTransaction.isPending || items.length === 0}
-                      className="flex-1 gap-1.5 h-11 rounded-xl bg-gradient-to-r from-primary to-primary/95 shadow-sm font-bold"
-                    >
-                      {createTransaction.isPending ? "Menyimpan..." : "Simpan"}
-                    </Button>
-                  )}
-                </div>
-              </div>
+          {/* Footer Navigation Buttons */}
+          <div className="px-6 py-4 border-t border-muted/20 bg-muted/5 flex justify-end items-center gap-3 shrink-0">
+            <div className="mr-auto flex items-center gap-4 text-sm font-semibold">
+              <span className="text-muted-foreground">Item: <strong className="text-foreground font-bold font-mono">{items.length}</strong></span>
+              <span className="text-muted-foreground">Total: <strong className="text-primary font-bold font-mono">{formatCurrency(grandTotal)}</strong></span>
             </div>
-
+            <div className="flex gap-2 min-w-[280px]">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
+                disabled={currentStep === 1}
+                className="flex-1 gap-1.5 h-10 rounded-xl text-xs font-semibold"
+              >
+                <ChevronLeft className="h-4 w-4" /> Kembali
+              </Button>
+              
+              {currentStep < 3 ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (currentStep === 1) {
+                      if (customerMode === "manual" && !customerName.trim()) {
+                        toast({ title: "Nama pelanggan harus diisi", variant: "destructive" });
+                        return;
+                      }
+                    }
+                    if (currentStep === 2) {
+                      if (items.length === 0) {
+                        toast({ title: "Tambahkan minimal 1 produk", variant: "destructive" });
+                        return;
+                      }
+                    }
+                    setCurrentStep((prev) => Math.min(3, prev + 1));
+                  }}
+                  className="flex-1 gap-1.5 h-10 rounded-xl text-xs font-semibold"
+                >
+                  Lanjut <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={createTransaction.isPending || items.length === 0}
+                  className="flex-1 gap-1.5 h-10 rounded-xl bg-gradient-to-r from-primary to-primary/95 shadow-sm font-bold text-xs"
+                >
+                  {createTransaction.isPending ? "Menyimpan..." : "Simpan Transaksi"}
+                </Button>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

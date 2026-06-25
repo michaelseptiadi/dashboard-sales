@@ -36,7 +36,7 @@ export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
               <div>
                 <span className="text-muted-foreground">Tanggal</span>
                 <p className="font-medium">
-                  {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                  {new Date(order.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
               <div>
@@ -90,7 +90,20 @@ export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
                       </TableCell>
                       <TableCell className="text-xs py-1.5 text-right">{item.qty}</TableCell>
                       <TableCell className="text-xs py-1.5 text-right">{formatCurrency(item.price)}</TableCell>
-                      <TableCell className="text-xs py-1.5 text-right font-medium">{formatCurrency(item.subtotal)}</TableCell>
+                      <TableCell className="text-xs py-1.5 text-right font-medium">
+                        {item.qty * item.price > item.subtotal ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-muted-foreground line-through font-normal">
+                              {formatCurrency(item.qty * item.price)}
+                            </span>
+                            <span className="text-foreground font-semibold">
+                              {formatCurrency(item.subtotal)}
+                            </span>
+                          </div>
+                        ) : (
+                          formatCurrency(item.subtotal)
+                        )}
+                      </TableCell>
                       <TableCell className="text-xs py-1.5">
                         <ItemDeliveryStatusBadge status={item.delivery_status} />
                       </TableCell>

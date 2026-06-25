@@ -16,7 +16,7 @@ export function DeliveryBadge({ type, driverName = "-" }: DeliveryBadgeProps) {
   }
   if (type === "self_delivery") {
     return (
-      <Badge variant="outline" className="gap-1 border-gray-400 bg-gray-100 text-black font-normal dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-400">
+      <Badge variant="outline" className="gap-1 border-gray-400 bg-gray-100 text-black font-normal dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-400 whitespace-nowrap">
         <User className="h-3 w-3" /> Ambil Sendiri
       </Badge>
     );

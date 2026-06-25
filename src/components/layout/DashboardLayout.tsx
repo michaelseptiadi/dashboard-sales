@@ -30,6 +30,15 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
     // Superadmin bypasses all other restrictions
     if (isSuperAdmin) return;
 
+    // Manager: block access to delivery pages
+    if (
+      currentRole === "admin" &&
+      (location.pathname === "/pengiriman" || location.pathname.startsWith("/pengiriman/"))
+    ) {
+      navigate("/", { replace: true });
+      return;
+    }
+
     // Cashier: only allowed on specific routes
     if (
       currentRole === "cashier" &&
@@ -40,10 +49,10 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   }, [currentRole, roleLoading, isSuperAdmin, superAdminLoading, location.pathname, navigate]);
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
+    <SidebarProvider defaultOpen={false}>
+      <div className="flex h-screen h-dvh w-full bg-background overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto h-full">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-white/80 px-6 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 shadow-sm">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
             <Separator orientation="vertical" className="h-5" />

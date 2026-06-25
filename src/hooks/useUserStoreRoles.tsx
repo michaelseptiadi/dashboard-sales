@@ -184,7 +184,7 @@ export function useRemoveStoreUserRole() {
 
 export function getStoreRoleLabel(role: BackendRoleName | string) {
   if (role === "superadmin") return "Superadmin";
-  if (role === "manager") return "Admin";
+  if (role === "manager") return "Manager";
   if (role === "staff") return "Kasir";
   return role;
 }

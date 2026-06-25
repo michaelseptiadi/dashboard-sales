@@ -1,4 +1,4 @@
-import { Plus, Trash2, Search, Package, Truck, User, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Search, Package, Truck, User, ChevronDown, Coins, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ export function ItemsTable({
   showSummary = true,
 }: ItemsTableProps) {
   const kembalian = paymentAmount > grandTotal ? paymentAmount - grandTotal : 0;
+
   return (
     <Card className="min-h-[500px] border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md flex flex-col justify-between">
       <div>
@@ -72,13 +73,17 @@ export function ItemsTable({
               <span>Daftar Produk</span>
               <span className="text-destructive font-bold">*</span>
             </CardTitle>
-            <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+            <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen} modal={true}>
               <PopoverTrigger asChild>
                 <Button size="sm" className="rounded-xl font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                   <Plus className="mr-1 h-4 w-4" /> Tambah Produk
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 p-2.5 rounded-xl shadow-lg border-muted/40" align="end">
+              <PopoverContent 
+                className="w-80 p-2.5 rounded-xl shadow-lg border-muted/40" 
+                align="end"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
                 <div className="relative mb-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/60" />
                   <Input
@@ -86,10 +91,9 @@ export function ItemsTable({
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     className="pl-8.5 h-9 rounded-lg hover:border-muted-foreground/35"
-                    autoFocus
                   />
                 </div>
-                <div className="max-h-60 overflow-auto space-y-1 pr-1">
+                <div className="max-h-60 overflow-auto overscroll-contain touch-pan-y space-y-1 pr-1">
                   {searchProducts?.length === 0 ? (
                     <p className="py-6 text-center text-sm text-muted-foreground">
                       Produk tidak ditemukan
@@ -174,19 +178,30 @@ export function ItemsTable({
                         className="h-9 rounded-lg text-sm hover:border-muted-foreground/35 transition-colors focus:ring-primary/20"
                       />
                     </TableCell>
-                    <TableCell className="py-3 text-right font-bold text-sm text-foreground">
-                      {formatCurrency(item.subtotal)}
+                    <TableCell className="py-3 text-right font-semibold text-sm">
+                      {item.qty * item.price > item.subtotal ? (
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs text-muted-foreground line-through font-normal">
+                            {formatCurrency(item.qty * item.price)}
+                          </span>
+                          <span className="text-foreground font-bold">
+                            {formatCurrency(item.subtotal)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-foreground font-bold">{formatCurrency(item.subtotal)}</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button type="button" className="flex items-center gap-1.5 focus:outline-none hover:opacity-85 transition-opacity py-1">
                             {item.self_pickup ? (
-                              <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50/70 text-blue-700 font-semibold cursor-pointer hover:bg-blue-100/80 rounded-lg py-1 px-2.5 text-[11px]">
+                              <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50/70 text-blue-700 font-semibold cursor-pointer hover:bg-blue-100/80 rounded-lg py-1 px-2.5 text-[11px] whitespace-nowrap">
                                 <User className="h-3 w-3" /> Ambil Sendiri
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50/70 text-emerald-700 font-semibold cursor-pointer hover:bg-emerald-100/80 rounded-lg py-1 px-2.5 text-[11px]">
+                              <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50/70 text-emerald-700 font-semibold cursor-pointer hover:bg-emerald-100/80 rounded-lg py-1 px-2.5 text-[11px] whitespace-nowrap">
                                 <Truck className="h-3 w-3" /> Dikirim
                               </Badge>
                             )}
@@ -198,7 +213,7 @@ export function ItemsTable({
                             onClick={() => item.self_pickup && toggleItemSelfPickup(index)}
                             className="gap-2 rounded-lg"
                           >
-                            <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold text-[11px] rounded-lg">
+                            <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold text-[11px] rounded-lg whitespace-nowrap">
                               <Truck className="h-3 w-3" /> Dikirim
                             </Badge>
                           </DropdownMenuItem>
@@ -206,7 +221,7 @@ export function ItemsTable({
                             onClick={() => !item.self_pickup && toggleItemSelfPickup(index)}
                             className="gap-2 rounded-lg"
                           >
-                            <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 font-semibold text-[11px] rounded-lg">
+                            <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 font-semibold text-[11px] rounded-lg whitespace-nowrap">
                               <User className="h-3 w-3" /> Ambil Sendiri
                             </Badge>
                           </DropdownMenuItem>
@@ -258,17 +273,25 @@ export function ItemsTable({
               <span className="text-xl font-bold font-mono text-primary">{formatCurrency(grandTotal)}</span>
             </div>
             <div className="border-t border-muted/20 pt-3 space-y-2.5">
-              <div className="flex items-center justify-between gap-12">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-sm font-bold text-foreground">Jumlah Dibayar</span>
-                <div className="flex items-center gap-2">
-                  {paymentAmount !== grandTotal && (
-                    <button
+                <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  {paymentAmount === grandTotal ? (
+                    <div className="h-9 flex items-center gap-1.5 px-3 rounded-xl border border-emerald-200 bg-emerald-50/70 text-emerald-700 text-xs font-bold shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      Uang Pas
+                    </div>
+                  ) : (
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => setPaymentAmount(grandTotal)}
-                      className="text-xs font-semibold text-primary hover:bg-primary/5 px-2 py-1 rounded-lg transition-all active:scale-95 duration-200 animate-in fade-in"
+                      className="h-9 gap-1.5 px-3 rounded-xl border-primary/30 hover:border-primary bg-primary/5 hover:bg-primary text-primary hover:text-primary-foreground text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] duration-200 animate-in fade-in zoom-in-95"
                     >
-                      Bayar Pas
-                    </button>
+                      <Coins className="h-3.5 w-3.5" />
+                      Bayar Pas: {formatCurrency(grandTotal)}
+                    </Button>
                   )}
                   <CurrencyInput
                     value={paymentAmount}

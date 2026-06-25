@@ -146,7 +146,7 @@ export function UserDialog({ open, mode, user, storeOptions = [], createStoreId,
                     variant={storeRole === "manager" ? "default" : "outline"}
                     onClick={() => setStoreRole("manager")}
                   >
-                    Admin
+                    Manager
                   </Button>
                   <Button
                     type="button"

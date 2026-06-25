@@ -10,6 +10,8 @@ import {
   ChevronsUpDown,
   Truck,
   UserCog,
+  Contact,
+  Briefcase,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,27 +59,29 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Transaksi Pending", url: "/penjualan", icon: ShoppingCart, end: false, roles: ["admin", "cashier"] },
       { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false, roles: ["admin"] },
-      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false, roles: ["admin", "cashier"] },
+      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false, roles: ["cashier"] },
     ],
   },
   {
-    label: "Master Data",
+    label: "Data Toko",
     items: [
       { title: "Produk", url: "/produk", icon: Package, end: false, roles: ["admin"] },
       { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false, roles: ["admin"] },
-      { title: "Master Data", url: "/master-data", icon: Database, end: false, roles: ["admin"] },
+      { title: "Supir", url: "/supir", icon: Contact, end: false, roles: ["admin"] },
+      { title: "Karyawan", url: "/karyawan", icon: Briefcase, end: false, roles: ["admin"] },
     ],
   },
   {
     label: "Sistem",
     items: [
       { title: "Manajemen User", url: "/users", icon: UserCog, end: false, roles: [], superadminOnly: true },
+      { title: "Master Data", url: "/master-data", icon: Database, end: false, roles: ["admin"] },
     ],
   },
 ];
 
 const ROLE_LABEL: Record<Role, string> = {
-  admin: "Admin",
+  admin: "Manager",
   cashier: "Kasir",
 };
 
@@ -143,40 +147,47 @@ export function AppSidebar() {
 
       <SidebarContent>
         {visibleGroups.map((group, gi) => (
-          <SidebarGroup key={gi}>
-            {group.label && (
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <div key={gi}>
+            {gi > 0 && (
+              <div className="mx-3.5 my-1.5 border-t border-sidebar-border/20" />
             )}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      tooltip={item.title}
-                      isActive={isActive(item.url, item.end)}
-                    >
-                      <Link to={item.url}>
-                        <item.icon />
-                        <span className="flex-1">{item.title}</span>
-                        {item.url === "/produk" && lowStockCount > 0 && (
-                          <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] leading-none bg-destructive hover:bg-destructive text-white">
-                            {lowStockCount}
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+            <SidebarGroup className="px-2.5 py-1">
+              {group.label && (
+                <SidebarGroupLabel className="text-[10px] font-bold text-sidebar-foreground/40 uppercase tracking-widest px-2.5 mb-1.5 select-none">
+                  {group.label}
+                </SidebarGroupLabel>
+              )}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.title}
+                        isActive={isActive(item.url, item.end)}
+                      >
+                        <Link to={item.url}>
+                          <item.icon />
+                          <span className="flex-1">{item.title}</span>
+                          {item.url === "/produk" && lowStockCount > 0 && (
+                            <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] leading-none bg-destructive hover:bg-destructive text-white">
+                              {lowStockCount}
+                            </Badge>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </div>
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border px-4 py-4">
+      <SidebarFooter className="border-t border-sidebar-border px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
         {!collapsed && (
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2 px-2">
             <p className="truncate text-xs text-sidebar-foreground/50 flex-1">{user?.email}</p>
             {isSuperAdmin ? (
               <Badge className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-500">
@@ -189,15 +200,18 @@ export function AppSidebar() {
             ) : null}
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => signOut()}
-          className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>Keluar</span>}
-        </Button>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Keluar"
+              onClick={() => signOut()}
+              className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>Keluar</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

@@ -10,7 +10,7 @@ const CONFIG: Record<string, { label: string; className: string }> = {
 export function ItemDeliveryStatusBadge({ status }: { status: string | null | undefined }) {
   const cfg = CONFIG[status ?? "pending"] ?? CONFIG["pending"];
   return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
+    <Badge variant="outline" className={`text-xs font-medium whitespace-nowrap ${cfg.className}`}>
       {cfg.label}
     </Badge>
   );

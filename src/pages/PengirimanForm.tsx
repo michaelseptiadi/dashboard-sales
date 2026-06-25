@@ -47,7 +47,7 @@ const ITEM_STATUS_CONFIG: Record<string, { label: string; className: string }> =
 function ItemStatusBadge({ status }: { status: string }) {
   const cfg = ITEM_STATUS_CONFIG[status] ?? { label: status, className: "" };
   return (
-    <Badge variant="outline" className={`text-xs font-medium ${cfg.className}`}>
+    <Badge variant="outline" className={`text-xs font-medium whitespace-nowrap ${cfg.className}`}>
       {cfg.label}
     </Badge>
   );
@@ -459,7 +459,18 @@ export default function PengirimanForm() {
                                 </div>
                                 <div className="text-right shrink-0">
                                   <p className="text-xs font-medium">Qty: {item.qty}</p>
-                                  <p className="text-xs text-muted-foreground">{formatCurrency(item.subtotal)}</p>
+                                  {item.qty * item.price > item.subtotal ? (
+                                    <div className="flex flex-col items-end">
+                                      <span className="text-[10px] text-muted-foreground line-through font-normal">
+                                        {formatCurrency(item.qty * item.price)}
+                                      </span>
+                                      <span className="text-xs font-semibold text-foreground">
+                                        {formatCurrency(item.subtotal)}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(item.subtotal)}</p>
+                                  )}
                                 </div>
                                 <ItemStatusBadge status={item.delivery_status} />
                               </div>

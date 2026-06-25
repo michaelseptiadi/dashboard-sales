@@ -357,7 +357,7 @@ export default function SalesHistory() {
               <div className="grid grid-cols-2 gap-px bg-border">
                 {[
                   { label: "No. Invoice", value: <span className="font-mono font-semibold">{detail.invoice_number}</span> },
-                  { label: "Tanggal", value: new Date(detail.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) },
+                  { label: "Tanggal", value: new Date(detail.sales_date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
                   { label: "Pelanggan", value: detail.customer?.name || detail.customer_name || "-" },
                   { label: "Metode Bayar", value: detail.payment_method?.name || "-" },
                   {
@@ -434,7 +434,20 @@ export default function SalesHistory() {
                               );
                             })()}
                           </TableCell>
-                          <TableCell className="text-right pr-4 text-sm font-medium py-2.5">{formatCurrency(item.subtotal)}</TableCell>
+                          <TableCell className="text-right pr-4 text-sm font-medium py-2.5">
+                            {item.qty * item.price > item.subtotal ? (
+                              <div className="flex flex-col items-end">
+                                <span className="text-xs text-muted-foreground line-through font-normal font-mono">
+                                  {formatCurrency(item.qty * item.price)}
+                                </span>
+                                <span className="text-foreground font-bold font-mono">
+                                  {formatCurrency(item.subtotal)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="font-mono">{formatCurrency(item.subtotal)}</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
