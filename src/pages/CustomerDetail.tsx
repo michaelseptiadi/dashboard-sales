@@ -15,6 +15,7 @@ import { TransactionStatusBadge } from "@/components/TransactionStatusBadge";
 import { SalesOrderDetailDialog } from "@/components/SalesOrderDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
 import { useCustomerById, useCustomerTransactions, useUpdateCustomer } from "@/hooks/useCustomers";
 import {
   ArrowLeft, Pencil, User, Phone, MapPin, Mail,
@@ -34,6 +35,8 @@ export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentRole, isSuperAdmin } = useAuth();
+  const isAdmin = isSuperAdmin || currentRole === "admin";
 
   const { data: customer, isLoading: loadingCustomer } = useCustomerById(id ?? null);
   const { data: transactions, isLoading: loadingTx } = useCustomerTransactions(id ?? null);
@@ -69,8 +72,9 @@ export default function CustomerDetail() {
       });
       toast({ title: "Pelanggan berhasil diperbarui" });
       setEditOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyimpan", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast({ title: "Gagal menyimpan", description: message, variant: "destructive" });
     }
   };
 
@@ -79,16 +83,17 @@ export default function CustomerDetail() {
     try {
       await updateCustomer.mutateAsync({ id: id!, is_active: !customer.is_active });
       toast({ title: customer.is_active ? "Pelanggan dinonaktifkan" : "Pelanggan diaktifkan" });
-    } catch (error: any) {
-      toast({ title: "Gagal mengubah status", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast({ title: "Gagal mengubah status", description: message, variant: "destructive" });
     }
   };
 
   // ── Derived stats ────────────────────────────────────────────────────────
   const totalTransactions = transactions?.length ?? 0;
-  const totalSpend = transactions?.reduce((sum, t) => sum + (t.grand_total ?? 0), 0) ?? 0;
-  const totalPayment = transactions?.reduce((sum, t) => sum + (t.grand_total - t.unpaid_transaction), 0) ?? 0;
-  const totalDebt = transactions?.reduce((sum, t) => sum + (t.unpaid_transaction ?? 0), 0) ?? 0;
+  const totalSpend = transactions?.reduce((sum, t) => sum + (Number(t.grand_total) || 0), 0) ?? 0;
+  const totalPayment = transactions?.reduce((sum, t) => sum + ((Number(t.grand_total) || 0) - (Number(t.unpaid_transaction) || 0)), 0) ?? 0;
+  const totalDebt = transactions?.reduce((sum, t) => sum + (Number(t.unpaid_transaction) || 0), 0) ?? 0;
 
   const stats = [
     { label: "Total Transaksi", value: `${totalTransactions}x`, icon: ShoppingBag, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
@@ -132,18 +137,20 @@ export default function CustomerDetail() {
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>{customer.is_active ? "Aktif" : "Nonaktif"}</span>
                     <Switch
                       checked={customer.is_active}
                       onCheckedChange={handleToggleActive}
-                      disabled={updateCustomer.isPending}
+                      disabled={updateCustomer.isPending || !isAdmin}
                     />
                   </div>
-                  <Button variant="outline" size="sm" onClick={openEdit}>
-                    <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
-                  </Button>
+                  {isAdmin && (
+                    <Button variant="outline" size="sm" onClick={openEdit}>
+                      <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>

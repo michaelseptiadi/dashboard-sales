@@ -72,6 +72,7 @@ export default function Sales() {
   const [customerPhone, setCustomerPhone] = useState(() => activeCart?.customerPhone ?? "");
   const [customerAddress, setCustomerAddress] = useState(() => activeCart?.customerAddress ?? "");
   const [paymentMethodId, setPaymentMethodId] = useState(() => activeCart?.paymentMethodId ?? "");
+  const [paymentBank, setPaymentBank] = useState(() => activeCart?.paymentBank ?? "");
   const [deliveryType, setDeliveryType] = useState<"driver" | "self_delivery" | "">(
     () => activeCart?.deliveryType ?? "self_delivery"
   );
@@ -89,6 +90,7 @@ export default function Sales() {
     customerPhone?: string;
     customerAddress?: string;
     paymentMethodName: string;
+    paymentBank?: string;
     deliveryType: "driver" | "self_delivery" | "";
     driverName?: string;
     notes?: string;
@@ -110,6 +112,8 @@ export default function Sales() {
 
   // prevent auto-save from firing when we're loading a different cart
   const loadingCartRef = useRef(false);
+  // prevent the cart-sync effect from resetting submitted state right after a successful submit
+  const justSubmittedRef = useRef(false);
 
   // auto-save current form to active cart (debounced)
   useEffect(() => {
@@ -126,6 +130,7 @@ export default function Sales() {
         customerPhone,
         customerAddress,
         paymentMethodId,
+        paymentBank,
         deliveryType,
         driverId,
         deliveryFee,
@@ -145,6 +150,7 @@ export default function Sales() {
     customerPhone,
     customerAddress,
     paymentMethodId,
+    paymentBank,
     deliveryType,
     driverId,
     deliveryFee,
@@ -168,6 +174,7 @@ export default function Sales() {
     setCustomerPhone(cart.customerPhone);
     setCustomerAddress(cart.customerAddress);
     setPaymentMethodId(cart.paymentMethodId);
+    setPaymentBank(cart.paymentBank ?? "");
     setDeliveryType(cart.deliveryType);
     setDriverId(cart.driverId);
     setDeliveryFee(cart.deliveryFee);
@@ -181,58 +188,62 @@ export default function Sales() {
     });
   }, []);
 
+  // Keep form state synchronized when activeCartId changes (e.g. switching carts or switching stores)
+  useEffect(() => {
+    // Don't reset state right after a successful submission — the receipt needs to stay visible
+    if (justSubmittedRef.current) return;
+    if (!activeCartId) {
+      // If no active cart exists (e.g. empty queue for this store), clear form fields
+      const empty = createEmptyCartData();
+      loadingCartRef.current = true;
+      setInvoiceNumber(empty.invoiceNumber);
+      setSalesDate(empty.salesDate);
+      setDueDate(empty.dueDate ?? "");
+      setCustomerMode(empty.customerMode);
+      setCustomerId(empty.customerId);
+      setCustomerName(empty.customerName);
+      setCustomerPhone(empty.customerPhone);
+      setCustomerAddress(empty.customerAddress);
+      setPaymentMethodId(empty.paymentMethodId);
+      setPaymentBank(empty.paymentBank ?? "");
+      setDeliveryType(empty.deliveryType);
+      setDriverId(empty.driverId);
+      setDeliveryFee(empty.deliveryFee);
+      setNotes(empty.notes);
+      setItems(empty.items);
+      setPaymentAmount(0);
+      setSubmitted(false);
+      requestAnimationFrame(() => {
+        loadingCartRef.current = false;
+      });
+      return;
+    }
+
+    const currentActiveCart = carts.find((c) => c.id === activeCartId);
+    if (currentActiveCart) {
+      loadCart(currentActiveCart);
+    }
+  }, [activeCartId, loadCart, carts]);
+
   // switch to an existing pending cart
   const handleSwitchCart = useCallback(
     (id: string) => {
-      if (id === activeCartId) return;
-      const target = carts.find((c) => c.id === id);
-      if (!target) return;
       switchCart(id);
-      loadCart(target);
     },
-    [activeCartId, carts, switchCart, loadCart]
+    [switchCart]
   );
 
   // create a new pending cart
   const handleNewCart = useCallback(() => {
-    const cart = newCart();
-    loadCart(cart);
-  }, [newCart, loadCart]);
+    newCart();
+  }, [newCart]);
 
   // remove a cart (and switch to another)
   const handleRemoveCart = useCallback(
     (id: string) => {
-      const remaining = carts.filter((c) => c.id !== id);
       removeCart(id);
-      if (id === activeCartId) {
-        if (remaining.length > 0) {
-          loadCart(remaining[0]);
-        } else {
-          const empty = createEmptyCartData();
-          loadingCartRef.current = true;
-          setInvoiceNumber(empty.invoiceNumber);
-          setSalesDate(empty.salesDate);
-          setDueDate(empty.dueDate ?? "");
-          setCustomerMode(empty.customerMode);
-          setCustomerId(empty.customerId);
-          setCustomerName(empty.customerName);
-          setCustomerPhone(empty.customerPhone);
-          setCustomerAddress(empty.customerAddress);
-          setPaymentMethodId(empty.paymentMethodId);
-          setDeliveryType(empty.deliveryType);
-          setDriverId(empty.driverId);
-          setDeliveryFee(empty.deliveryFee);
-          setNotes(empty.notes);
-          setItems(empty.items);
-          setPaymentAmount(0);
-          setSubmitted(false);
-          requestAnimationFrame(() => {
-            loadingCartRef.current = false;
-          });
-        }
-      }
     },
-    [activeCartId, carts, removeCart, loadCart]
+    [removeCart]
   );
 
   // When an existing customer is selected, also sync their name into customerName
@@ -289,7 +300,11 @@ export default function Sales() {
   const updateItem = (index: number, field: keyof SalesItem, value: number) => {
     setItems((prev) => {
       const updated = [...prev];
-      (updated[index] as any)[field] = value;
+      const item = { ...updated[index] };
+      if (field === "qty" || field === "price" || field === "discount" || field === "subtotal") {
+        item[field] = value;
+      }
+      updated[index] = item;
       updated[index].subtotal =
         updated[index].qty * updated[index].price - updated[index].discount;
       return updated;
@@ -361,6 +376,7 @@ export default function Sales() {
         p_customer_phone: customerMode === "manual" ? customerPhone : undefined,
         p_customer_address: customerMode === "manual" ? customerAddress : undefined,
         p_payment_method_id: paymentMethodId || undefined,
+        p_payment_details: paymentBank || undefined,
         p_delivery_types: deliveryType || undefined,
         p_driver_id: deliveryType === "driver" && driverId ? driverId : undefined,
         p_notes: notes || undefined,
@@ -415,6 +431,7 @@ export default function Sales() {
         customerPhone: custPhone,
         customerAddress: custAddress,
         paymentMethodName: pMethod?.name || "Cash",
+        paymentBank: paymentBank || undefined,
         deliveryType,
         driverName: driver?.driver_name,
         notes,
@@ -429,6 +446,7 @@ export default function Sales() {
       // Remove the submitted cart and reset the form
       const submittedId = activeCartId;
       const remaining = carts.filter((c) => c.id !== submittedId);
+      justSubmittedRef.current = true;  // prevent sync effect from resetting submitted state
       removeCart(submittedId);
       if (remaining.length > 0) {
         switchCart(remaining[0].id);
@@ -444,6 +462,7 @@ export default function Sales() {
         setCustomerPhone(empty.customerPhone);
         setCustomerAddress(empty.customerAddress);
         setPaymentMethodId(empty.paymentMethodId);
+        setPaymentBank(empty.paymentBank ?? "");
         setDeliveryType(empty.deliveryType);
         setDriverId(empty.driverId);
         setDeliveryFee(empty.deliveryFee);
@@ -458,16 +477,18 @@ export default function Sales() {
       setSubmitted(true);
       setIsModalOpen(false);
       toast({ title: "Transaksi berhasil disimpan!" });
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as Error;
       toast({
         title: "Gagal menyimpan transaksi",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
     }
   };
 
   const resetForm = useCallback(() => {
+    justSubmittedRef.current = false;  // allow cart sync effect to run normally again
     submittedDataRef.current = null;
     setSubmitted(false);
     setIsModalOpen(false);
@@ -488,6 +509,7 @@ export default function Sales() {
           customerPhone,
           customerAddress,
           paymentMethodId,
+          paymentBank,
           deliveryType,
           driverId,
           deliveryFee,
@@ -509,6 +531,7 @@ export default function Sales() {
     customerPhone,
     customerAddress,
     paymentMethodId,
+    paymentBank,
     deliveryType,
     driverId,
     deliveryFee,
@@ -530,6 +553,7 @@ export default function Sales() {
           customerPhone={data.customerPhone}
           customerAddress={data.customerAddress}
           paymentMethodName={data.paymentMethodName}
+          paymentBank={data.paymentBank}
           deliveryType={data.deliveryType}
           driverName={data.driverName}
           notes={data.notes}
@@ -712,6 +736,8 @@ export default function Sales() {
                     setSalesDate={setSalesDate}
                     paymentMethodId={paymentMethodId}
                     setPaymentMethodId={setPaymentMethodId}
+                    paymentBank={paymentBank}
+                    setPaymentBank={setPaymentBank}
                     dueDate={dueDate}
                     setDueDate={setDueDate}
                     notes={notes}

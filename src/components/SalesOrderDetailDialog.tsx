@@ -56,7 +56,10 @@ export function SalesOrderDetailDialog({ orderId, onClose }: Props) {
               </div>
               <div>
                 <span className="text-muted-foreground">Pembayaran</span>
-                <p className="font-medium">{order.payment_method?.name || "—"}</p>
+                <p className="font-medium">
+                  {order.payment_method?.name || "—"}
+                  {order.payment_details ? ` (${order.payment_details})` : ""}
+                </p>
               </div>
               <div>
                 <span className="text-muted-foreground">Grand Total</span>

@@ -5,8 +5,7 @@ import { AppSidebar } from "./AppSidebar";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 
-const CASHIER_ALLOWED_ROUTES = ["/penjualan", "/pengiriman"];
-const SUPERADMIN_ONLY_ROUTES = ["/users"];
+const SUPERADMIN_ONLY_ROUTES = ["/users", "/pengiriman"];
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -22,29 +21,34 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
     if (roleLoading || superAdminLoading) return;
 
     // Superadmin-only pages: redirect non-superadmins away
-    if (SUPERADMIN_ONLY_ROUTES.includes(location.pathname) && !isSuperAdmin) {
-      navigate("/", { replace: true });
+    if (
+      (SUPERADMIN_ONLY_ROUTES.includes(location.pathname) ||
+       location.pathname.startsWith("/pengiriman/")) &&
+      !isSuperAdmin
+    ) {
+      if (currentRole === "cashier") {
+        navigate("/penjualan", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
       return;
     }
 
     // Superadmin bypasses all other restrictions
     if (isSuperAdmin) return;
 
-    // Manager: block access to delivery pages
-    if (
-      currentRole === "admin" &&
-      (location.pathname === "/pengiriman" || location.pathname.startsWith("/pengiriman/"))
-    ) {
-      navigate("/", { replace: true });
-      return;
-    }
-
     // Cashier: only allowed on specific routes
-    if (
-      currentRole === "cashier" &&
-      !CASHIER_ALLOWED_ROUTES.includes(location.pathname)
-    ) {
-      navigate("/penjualan", { replace: true });
+    if (currentRole === "cashier") {
+      const isAllowed =
+        location.pathname === "/penjualan" ||
+        location.pathname === "/riwayat" ||
+        location.pathname === "/produk" || location.pathname.startsWith("/produk/") ||
+        location.pathname === "/pelanggan" || location.pathname.startsWith("/pelanggan/") ||
+        location.pathname === "/supir";
+
+      if (!isAllowed) {
+        navigate("/penjualan", { replace: true });
+      }
     }
   }, [currentRole, roleLoading, isSuperAdmin, superAdminLoading, location.pathname, navigate]);
 

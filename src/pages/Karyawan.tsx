@@ -335,7 +335,6 @@ export default function Karyawan() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Contoh: John Doe"
-                autoFocus
               />
             </div>
             <div className="space-y-2">

@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useDrivers, useCreateDriver, useUpdateDriver, useDeleteDriver, type Driver } from "@/hooks/useMasterData";
 import { Plus, Pencil, Trash2, Truck, Phone, Search, X } from "lucide-react";
 
@@ -18,6 +19,9 @@ const emptyDriverForm = { driver_name: "", phone_number: "" };
 
 export default function Supir() {
   const { toast } = useToast();
+  const { currentRole, isSuperAdmin } = useAuth();
+  const isAdmin = isSuperAdmin || currentRole === "admin";
+
   const { data: drivers = [], isLoading } = useDrivers();
   const createDriver = useCreateDriver();
   const updateDriver = useUpdateDriver();
@@ -59,8 +63,9 @@ export default function Supir() {
         toast({ title: "Supir berhasil ditambahkan" });
       }
       setDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyimpan supir", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast({ title: "Gagal menyimpan supir", description: message, variant: "destructive" });
     }
   };
 
@@ -69,8 +74,9 @@ export default function Supir() {
     try {
       await deleteDriver.mutateAsync(deleteTarget.id);
       toast({ title: "Supir berhasil dihapus" });
-    } catch (error: any) {
-      toast({ title: "Gagal menghapus supir", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast({ title: "Gagal menghapus supir", description: message, variant: "destructive" });
     } finally {
       setDeleteTarget(null);
     }
@@ -130,9 +136,11 @@ export default function Supir() {
                 </Button>
               )}
             </div>
-            <Button size="sm" onClick={openCreate} className="shrink-0">
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Supir
-            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={openCreate} className="shrink-0">
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Supir
+              </Button>
+            )}
           </div>
         </CardHeader>
 
@@ -159,7 +167,7 @@ export default function Supir() {
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama Supir</TableHead>
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">No. Telepon</TableHead>
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dibuat Oleh</TableHead>
-                    <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aksi</TableHead>
+                    {isAdmin && <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aksi</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -182,16 +190,18 @@ export default function Supir() {
                       <TableCell className="text-sm py-2.5 text-muted-foreground">
                         {driver.created_by || "—"}
                       </TableCell>
-                      <TableCell className="text-right py-2.5">
-                        <div className="flex justify-end gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(driver)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(driver)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right py-2.5">
+                          <div className="flex justify-end gap-0.5">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(driver)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(driver)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -217,7 +227,6 @@ export default function Supir() {
                 value={form.driver_name}
                 onChange={(e) => setForm({ ...form, driver_name: e.target.value })}
                 placeholder="Contoh: Budi Santoso"
-                autoFocus
               />
             </div>
             <div className="space-y-2">

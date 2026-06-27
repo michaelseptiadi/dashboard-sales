@@ -85,6 +85,7 @@ function buildFormOrders(
           customer_address: di.sales_orders.customer_address,
           sales_date: di.sales_orders.sales_date,
           delivery_status: "",
+          items: [],
           sales_items: [],
         },
         selectedItemIds: new Set(),

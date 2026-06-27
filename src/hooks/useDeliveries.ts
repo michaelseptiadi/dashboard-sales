@@ -19,7 +19,9 @@ export interface Delivery {
   created_at: string;
   updated_at: string;
   driver?: { driver_name: string; phone_number: string | null } | null;
+  drivers?: { driver_name: string; phone_number: string | null } | null;
   items?: { id: string; sales_order_id: string; sales_item_id: string }[];
+  delivery_items?: { id: string; sales_order_id: string; sales_item_id: string }[];
 }
 
 export interface DeliveryItemDetail {
@@ -34,6 +36,12 @@ export interface DeliveryItemDetail {
     customer_address: string | null;
     sales_date: string;
   } | null;
+  sales_orders: {
+    invoice_number: string;
+    customer_name: string | null;
+    customer_address: string | null;
+    sales_date: string;
+  } | null;
   sales_item: {
     id: string;
     qty: number;
@@ -42,11 +50,21 @@ export interface DeliveryItemDetail {
     delivery_status: string;
     product: { name: string; product_code: string } | null;
   } | null;
+  sales_items: {
+    id: string;
+    qty: number;
+    price: number;
+    subtotal: number;
+    delivery_status: string;
+    products: { name: string; product_code: string } | null;
+  } | null;
 }
 
-export interface DeliveryDetail extends Omit<Delivery, "items"> {
+export interface DeliveryDetail extends Omit<Delivery, "items" | "delivery_items"> {
   driver: { driver_name: string; phone_number: string | null } | null;
+  drivers: { driver_name: string; phone_number: string | null } | null;
   items: DeliveryItemDetail[];
+  delivery_items: DeliveryItemDetail[];
 }
 
 export interface SalesOrderForDelivery {
@@ -63,6 +81,14 @@ export interface SalesOrderForDelivery {
     subtotal: number;
     delivery_status: string;
     product: { name: string; product_code: string } | null;
+  }[];
+  sales_items: {
+    id: string;
+    qty: number;
+    price: number;
+    subtotal: number;
+    delivery_status: string;
+    products: { name: string; product_code: string } | null;
   }[];
 }
 
@@ -84,14 +110,26 @@ export function useDeliveries(filters: DeliveryFilters = {}) {
 
   return useQuery<Delivery[]>({
     queryKey: ["deliveries", selectedStore?.id, dateFrom, dateTo, driverId, status],
-    queryFn: () => {
+    queryFn: async () => {
       const p = new URLSearchParams();
       if (selectedStore?.id) p.set("store_id", selectedStore.id);
       if (dateFrom) p.set("date_from", dateFrom);
       if (dateTo) p.set("date_to", dateTo);
       if (driverId) p.set("driver_id", driverId);
       if (status) p.set("status", status);
-      return apiClient.get<Delivery[]>(`/deliveries?${p.toString()}`);
+      const res = await apiClient.get<any[]>(`/deliveries?${p.toString()}`);
+      return (res || []).map((d) => ({
+        ...d,
+        drivers: d.driver,
+        delivery_items: (d.items || []).map((item: any) => ({
+          ...item,
+          sales_orders: item.sales_order,
+          sales_items: item.sales_item ? {
+            ...item.sales_item,
+            products: item.sales_item.product,
+          } : null,
+        })),
+      }));
     },
   });
 }
@@ -100,7 +138,30 @@ export function useDeliveryDetail(id: string | null) {
   return useQuery<DeliveryDetail | null>({
     queryKey: ["delivery-detail", id],
     enabled: !!id,
-    queryFn: () => apiClient.get<DeliveryDetail>(`/deliveries/${id}`),
+    queryFn: async () => {
+      const data = await apiClient.get<any>(`/deliveries/${id}`);
+      if (!data) return null;
+      return {
+        ...data,
+        drivers: data.driver,
+        delivery_items: (data.items || []).map((item: any) => ({
+          ...item,
+          sales_orders: item.sales_order,
+          sales_items: item.sales_item ? {
+            ...item.sales_item,
+            products: item.sales_item.product,
+          } : null,
+        })),
+        items: (data.items || []).map((item: any) => ({
+          ...item,
+          sales_orders: item.sales_order,
+          sales_items: item.sales_item ? {
+            ...item.sales_item,
+            products: item.sales_item.product,
+          } : null,
+        })),
+      };
+    },
   });
 }
 
@@ -112,10 +173,36 @@ export function useSalesOrdersForDelivery(search: string) {
       const p = new URLSearchParams();
       if (selectedStore?.id) p.set("store_id", selectedStore.id);
       if (search) p.set("search", search);
-      p.set("page_size", "50");
+      p.set("pageSize", "50");
       return apiClient
-        .get<{ data: SalesOrderForDelivery[] }>(`/sales?${p.toString()}`)
-        .then((res) => res.data);
+        .get<{ data: any[] }>(`/sales?${p.toString()}`)
+        .then((res) => {
+          const rawList = res.data || [];
+          return rawList.map((order: any) => ({
+            id: order.id,
+            invoice_number: order.invoice_number,
+            customer_name: order.customer_name,
+            customer_address: order.customer_address,
+            sales_date: order.sales_date,
+            delivery_status: order.delivery_status,
+            items: (order.items || []).map((item: any) => ({
+              id: item.id,
+              qty: item.qty,
+              price: item.price,
+              subtotal: item.subtotal,
+              delivery_status: item.delivery_status,
+              product: item.product,
+            })),
+            sales_items: (order.items || []).map((item: any) => ({
+              id: item.id,
+              qty: item.qty,
+              price: item.price,
+              subtotal: item.subtotal,
+              delivery_status: item.delivery_status,
+              products: item.product,
+            })),
+          }));
+        });
     },
     enabled: true,
   });
@@ -209,81 +296,6 @@ export function useDeleteDelivery() {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders-for-delivery"] });
-      queryClient.invalidateQueries({ queryKey: ["sales-detail"] });
     },
   });
-}
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export type DeliveryStatus = "pending" | "in_progress" | "delivered" | "failed";
-
-export interface Delivery {
-  id: string;
-  delivery_number: string;
-  delivery_date: string;
-  delivery_status: DeliveryStatus;
-  driver_id: string | null;
-  ritase_fee: number;
-  notes: string | null;
-  store_id: string | null;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  drivers?: { driver_name: string; phone_number: string | null } | null;
-  delivery_items?: { id: string; sales_order_id: string; sales_item_id: string }[];
-}
-
-export interface DeliveryItemDetail {
-  id: string;
-  delivery_id: string;
-  sales_order_id: string;
-  sales_item_id: string;
-  created_at: string;
-  sales_orders: {
-    invoice_number: string;
-    customer_name: string | null;
-    customer_address: string | null;
-    sales_date: string;
-  } | null;
-  sales_items: {
-    id: string;
-    qty: number;
-    price: number;
-    subtotal: number;
-    delivery_status: string;
-    products: { name: string; product_code: string } | null;
-  } | null;
-}
-
-export interface DeliveryDetail extends Omit<Delivery, "delivery_items"> {
-  drivers: { driver_name: string; phone_number: string | null } | null;
-  delivery_items: DeliveryItemDetail[];
-}
-
-export interface SalesOrderForDelivery {
-  id: string;
-  invoice_number: string;
-  customer_name: string | null;
-  customer_address: string | null;
-  sales_date: string;
-  delivery_status: string;
-  sales_items: {
-    id: string;
-    qty: number;
-    price: number;
-    subtotal: number;
-    delivery_status: string;
-    products: { name: string; product_code: string } | null;
-  }[];
-}
-
-// ── Filters ───────────────────────────────────────────────────────────────────
-
-export interface DeliveryFilters {
-  dateFrom?: string;
-  dateTo?: string;
-  driverId?: string;
-  status?: string;
-  customerSearch?: string;
 }

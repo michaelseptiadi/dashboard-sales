@@ -7,9 +7,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { data, isLoading } = useDashboardStats();
+  const { currentRole, isSuperAdmin } = useAuth();
+
+  if (currentRole === "cashier" && !isSuperAdmin) {
+    return <Navigate to="/penjualan" replace />;
+  }
 
   return (
     <DashboardLayout title="Dashboard">

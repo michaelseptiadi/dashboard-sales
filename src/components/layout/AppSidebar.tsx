@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -58,16 +59,16 @@ const menuGroups: MenuGroup[] = [
     label: "Transaksi",
     items: [
       { title: "Transaksi Pending", url: "/penjualan", icon: ShoppingCart, end: false, roles: ["admin", "cashier"] },
-      { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false, roles: ["admin"] },
-      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false, roles: ["cashier"] },
+      { title: "Riwayat Penjualan", url: "/riwayat", icon: History, end: false, roles: ["admin", "cashier"] },
+      { title: "Pengiriman", url: "/pengiriman", icon: Truck, end: false, roles: [], superadminOnly: true },
     ],
   },
   {
     label: "Data Toko",
     items: [
-      { title: "Produk", url: "/produk", icon: Package, end: false, roles: ["admin"] },
-      { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false, roles: ["admin"] },
-      { title: "Supir", url: "/supir", icon: Contact, end: false, roles: ["admin"] },
+      { title: "Produk", url: "/produk", icon: Package, end: false, roles: ["admin", "cashier"] },
+      { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false, roles: ["admin", "cashier"] },
+      { title: "Supir", url: "/supir", icon: Contact, end: false, roles: ["admin", "cashier"] },
       { title: "Karyawan", url: "/karyawan", icon: Briefcase, end: false, roles: ["admin"] },
     ],
   },
@@ -92,6 +93,20 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { data: lowStockItems } = useLowStockProducts();
   const lowStockCount = lowStockItems?.length ?? 0;
+
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem("sidebar_scroll_position");
+    if (savedScroll && contentRef.current) {
+      contentRef.current.scrollTop = parseFloat(savedScroll);
+    }
+  }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    sessionStorage.setItem("sidebar_scroll_position", e.currentTarget.scrollTop.toString());
+  };
 
   const isActive = (url: string, end: boolean) => {
     if (end) return location.pathname === url;
@@ -145,7 +160,7 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent ref={contentRef} onScroll={handleScroll}>
         {visibleGroups.map((group, gi) => (
           <div key={gi}>
             {gi > 0 && (

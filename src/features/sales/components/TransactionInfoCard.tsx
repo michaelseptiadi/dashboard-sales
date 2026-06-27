@@ -10,12 +10,16 @@ interface PaymentMethod {
   name: string;
 }
 
+const BANK_OPTIONS = ["BCA", "Mandiri", "BNI", "BRI (QRIS)"] as const;
+
 interface TransactionInfoCardProps {
   invoiceNumber: string;
   salesDate: string;
   setSalesDate: (v: string) => void;
   paymentMethodId: string;
   setPaymentMethodId: (v: string) => void;
+  paymentBank: string;
+  setPaymentBank: (v: string) => void;
   dueDate: string;
   setDueDate: (v: string) => void;
   notes: string;
@@ -29,6 +33,8 @@ export function TransactionInfoCard({
   setSalesDate,
   paymentMethodId,
   setPaymentMethodId,
+  paymentBank,
+  setPaymentBank,
   dueDate,
   setDueDate,
   notes,
@@ -39,6 +45,7 @@ export function TransactionInfoCard({
   const isTempo = selectedMethod?.name.toLowerCase().includes("tempo") ||
                   selectedMethod?.name.toLowerCase().includes("kredit") ||
                   selectedMethod?.name.toLowerCase().includes("credit");
+  const isTransferBank = selectedMethod?.name.toLowerCase().includes("transfer");
 
   return (
     <Card className="border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md">
@@ -82,6 +89,25 @@ export function TransactionInfoCard({
               </SelectContent>
             </Select>
           </div>
+          {isTransferBank && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                Bank Tujuan <span className="text-destructive font-bold">*</span>
+              </Label>
+              <Select value={paymentBank} onValueChange={setPaymentBank}>
+                <SelectTrigger className={`h-10 rounded-xl text-sm hover:border-muted-foreground/35 ${!paymentBank ? "border-destructive/80" : ""}`}>
+                  <SelectValue placeholder="Pilih Bank..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl shadow-md border-muted/40">
+                  {BANK_OPTIONS.map((bank) => (
+                    <SelectItem key={bank} value={bank} className="rounded-lg">
+                      {bank}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {isTempo && (
             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
               <Label className="text-xs font-semibold text-muted-foreground">Tanggal Jatuh Tempo <span className="text-destructive font-bold">*</span></Label>

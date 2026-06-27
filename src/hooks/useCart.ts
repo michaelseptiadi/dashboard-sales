@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { generateInvoice } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
+import { useAuth } from "@/hooks/useAuth";
 
-const STORAGE_KEY = "puri_indah_carts_v1";
+const STORAGE_KEY_PREFIX = "puri_indah_carts_v1";
 
 export interface PendingCart {
   id: string;
@@ -16,6 +17,7 @@ export interface PendingCart {
   customerPhone: string;
   customerAddress: string;
   paymentMethodId: string;
+  paymentBank?: string;
   deliveryType: "driver" | "self_delivery" | "";
   driverId: string;
   deliveryFee: number;
@@ -39,6 +41,7 @@ export function createEmptyCartData(): CartFormData {
     customerPhone: "",
     customerAddress: "",
     paymentMethodId: "",
+    paymentBank: "",
     deliveryType: "self_delivery",
     driverId: "",
     deliveryFee: 0,
@@ -46,19 +49,6 @@ export function createEmptyCartData(): CartFormData {
     items: [],
     paymentAmount: 0,
   };
-}
-
-function loadCarts(): PendingCart[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PendingCart[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistCarts(carts: PendingCart[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(carts));
 }
 
 function generateUUID(): string {
@@ -82,14 +72,52 @@ function makeCart(): PendingCart {
 }
 
 export function useCart() {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id ?? "global";
+  const storageKey = `${STORAGE_KEY_PREFIX}_${storeId}`;
+
+  const loadCarts = useCallback((): PendingCart[] => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? (JSON.parse(raw) as PendingCart[]) : [];
+    } catch {
+      return [];
+    }
+  }, [storageKey]);
+
+  const persistCarts = useCallback((updatedCarts: PendingCart[]) => {
+    localStorage.setItem(storageKey, JSON.stringify(updatedCarts));
+  }, [storageKey]);
+
   const [carts, setCarts] = useState<PendingCart[]>(() => {
-    return loadCarts();
+    try {
+      const initStore = localStorage.getItem("selected_store");
+      const initStoreId = initStore ? (JSON.parse(initStore) as { id: string })?.id : "global";
+      const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}_${initStoreId}`);
+      return raw ? (JSON.parse(raw) as PendingCart[]) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [activeCartId, setActiveCartId] = useState<string>(() => {
-    const saved = loadCarts();
-    return saved[0]?.id ?? "";
+    try {
+      const initStore = localStorage.getItem("selected_store");
+      const initStoreId = initStore ? (JSON.parse(initStore) as { id: string })?.id : "global";
+      const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}_${initStoreId}`);
+      const parsed = raw ? (JSON.parse(raw) as PendingCart[]) : [];
+      return parsed[0]?.id ?? "";
+    } catch {
+      return "";
+    }
   });
+
+  // Keep carts state and activeCartId in sync when storeId changes
+  useEffect(() => {
+    const loaded = loadCarts();
+    setCarts(loaded);
+    setActiveCartId(loaded[0]?.id ?? "");
+  }, [storeId, loadCarts]);
 
   const activeCart = carts.find((c) => c.id === activeCartId) ?? carts[0];
 
@@ -99,7 +127,7 @@ export function useCart() {
       persistCarts(updated);
       return updated;
     });
-  }, []);
+  }, [persistCarts]);
 
   const newCart = useCallback((): PendingCart => {
     const cart = makeCart();
@@ -110,7 +138,7 @@ export function useCart() {
     });
     setActiveCartId(cart.id);
     return cart;
-  }, []);
+  }, [persistCarts]);
 
   const switchCart = useCallback((id: string) => {
     setActiveCartId(id);
@@ -131,7 +159,7 @@ export function useCart() {
         setActiveCartId(nextActiveId);
       }
     },
-    [activeCartId],
+    [activeCartId, persistCarts],
   );
 
   return { carts, activeCartId, activeCart, saveCart, newCart, switchCart, removeCart };

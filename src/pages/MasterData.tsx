@@ -181,7 +181,6 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
                 onChange={(e) => setName(e.target.value)}
                 placeholder={`Contoh: ${singularLabel === "Kategori" ? "Semen & Beton" : "Kilogram"}`}
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                autoFocus
               />
             </div>
             <DialogFormActions

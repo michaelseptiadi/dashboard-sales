@@ -18,6 +18,7 @@ export interface SalesOrder {
   customer_address: string | null;
   customer_phone: string | null;
   payment_method_id: string | null;
+  payment_details?: string | null;
   delivery_types: string | null;
   driver_id: string | null;
   delivery_fee: number;
@@ -179,6 +180,7 @@ export function useCreateSalesTransaction() {
       p_customer_phone?: string;
       p_customer_address?: string;
       p_payment_method_id?: string;
+      p_payment_details?: string;
       p_delivery_types?: "driver" | "self_delivery";
       p_driver_id?: string;
       p_notes?: string;
@@ -195,6 +197,7 @@ export function useCreateSalesTransaction() {
         customer_phone:    params.p_customer_phone,
         customer_address:  params.p_customer_address,
         payment_method_id: params.p_payment_method_id,
+        payment_details:    params.p_payment_details,
         delivery_types:    params.p_delivery_types,
         driver_id:         params.p_driver_id,
         notes:             params.p_notes,

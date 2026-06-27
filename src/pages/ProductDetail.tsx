@@ -17,6 +17,7 @@ import { DialogFormActions } from "@/components/DialogFormActions";
 import { SalesOrderDetailDialog } from "@/components/SalesOrderDetailDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
 import {
   useProductById,
   useInventoryMovements,
@@ -58,6 +59,8 @@ export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentRole, isSuperAdmin } = useAuth();
+  const isAdmin = isSuperAdmin || currentRole === "admin";
 
   const { data: product, isLoading: productLoading } = useProductById(id ?? null);
   const { data: movements, isLoading: movementsLoading } = useInventoryMovements(id ?? null);
@@ -160,7 +163,7 @@ export default function ProductDetail() {
             <ArrowLeft className="h-4 w-4" />
             Kembali ke Produk
           </Button>
-          {!productLoading && product && (
+          {!productLoading && product && isAdmin && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={openStock}>
                 <PackagePlus className="h-4 w-4" />
@@ -222,7 +225,7 @@ export default function ProductDetail() {
             ) : product ? (
               <div className="space-y-4">
                 {/* Key metric tiles */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className={`grid grid-cols-2 gap-3 ${isAdmin ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}>
                   <div className={`rounded-xl px-4 py-3 border ${
                     isLowStock
                       ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
@@ -244,20 +247,24 @@ export default function ProductDetail() {
                     </p>
                     <p className="text-base font-bold leading-tight">{formatCurrency(product.selling_price)}</p>
                   </div>
-                  <div className="rounded-xl px-4 py-3 border bg-muted/50">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <TrendingUp className="h-3 w-3" /> Harga Modal
-                    </p>
-                    <p className="text-base font-bold leading-tight">{formatCurrency(product.capital_price)}</p>
-                  </div>
-                  <div className="rounded-xl px-4 py-3 border bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <Package2 className="h-3 w-3" /> Margin
-                    </p>
-                    <p className="text-base font-bold leading-tight text-violet-700 dark:text-violet-400">
-                      {formatCurrency(product.selling_price - product.capital_price)}
-                    </p>
-                  </div>
+                  {isAdmin && (
+                    <>
+                      <div className="rounded-xl px-4 py-3 border bg-muted/50">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                          <TrendingUp className="h-3 w-3" /> Harga Modal
+                        </p>
+                        <p className="text-base font-bold leading-tight">{formatCurrency(product.capital_price)}</p>
+                      </div>
+                      <div className="rounded-xl px-4 py-3 border bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                          <Package2 className="h-3 w-3" /> Margin
+                        </p>
+                        <p className="text-base font-bold leading-tight text-violet-700 dark:text-violet-400">
+                          {formatCurrency(product.selling_price - product.capital_price)}
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <Separator />
                 {/* Secondary details */}

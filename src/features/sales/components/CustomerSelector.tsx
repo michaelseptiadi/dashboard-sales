@@ -82,7 +82,7 @@ export function CustomerSelector({
       </CardHeader>
       <CardContent className="pt-5">
         {customerMode === "existing" ? (
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover open={open} onOpenChange={setOpen} modal={true}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -96,7 +96,11 @@ export function CustomerSelector({
                 <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl overflow-hidden shadow-lg border-muted/40" align="start">
+            <PopoverContent
+              className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl overflow-hidden shadow-lg border-muted/40"
+              align="start"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
               <Command className="rounded-xl">
                 <CommandInput placeholder="Cari nama atau nomor telepon..." className="h-10" />
                 <CommandList>

@@ -12,6 +12,7 @@ interface TransactionReceiptProps {
   customerPhone?: string;
   customerAddress?: string;
   paymentMethodName: string;
+  paymentBank?: string;
   deliveryType: "driver" | "self_delivery" | "";
   driverName?: string;
   notes?: string;
@@ -32,6 +33,7 @@ export function TransactionReceipt({
   customerPhone,
   customerAddress,
   paymentMethodName,
+  paymentBank,
   deliveryType,
   driverName,
   notes,
@@ -121,7 +123,9 @@ export function TransactionReceipt({
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Metode Bayar:</span>
-                <span className="font-semibold text-foreground">{paymentMethodName || "-"}</span>
+                <span className="font-semibold text-foreground">
+                  {paymentMethodName || "-"}{paymentBank ? ` (${paymentBank})` : ""}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Pengiriman:</span>

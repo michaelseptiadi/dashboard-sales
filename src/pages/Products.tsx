@@ -17,6 +17,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
 import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
 import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
 
@@ -43,6 +44,9 @@ const emptyForm: ProductFormData = {
 export default function Products() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { currentRole, isSuperAdmin } = useAuth();
+  const isAdmin = isSuperAdmin || currentRole === "admin";
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [page, setPage] = useState(1);
@@ -196,9 +200,11 @@ export default function Products() {
                 </span>
               )}
             </div>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="mr-1.5 h-4 w-4" /> Tambah Produk
-            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="mr-1.5 h-4 w-4" /> Tambah Produk
+              </Button>
+            )}
           </div>
           <div className="flex flex-wrap gap-3 pt-1">
             <SearchInput
@@ -242,7 +248,7 @@ export default function Products() {
                   <TableHead className="text-xs">Nama</TableHead>
                   <TableHead className="text-xs">Kategori</TableHead>
                   <TableHead className="text-xs">Satuan</TableHead>
-                  <TableHead className="text-right text-xs">Harga Modal</TableHead>
+                  {isAdmin && <TableHead className="text-right text-xs">Harga Modal</TableHead>}
                   <TableHead className="text-right text-xs">Harga Jual</TableHead>
                   <TableHead className="text-right text-xs">Stok</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
@@ -252,7 +258,7 @@ export default function Products() {
               <TableBody>
                 {products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-16 text-center text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 9 : 8} className="py-16 text-center text-muted-foreground">
                       <PackagePlus className="mx-auto mb-2 h-8 w-8 opacity-25" />
                       <p className="text-sm">Tidak ada produk ditemukan</p>
                     </TableCell>
@@ -266,7 +272,7 @@ export default function Products() {
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{product.categories?.name || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{product.units?.name || "—"}</TableCell>
-                        <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(product.capital_price)}</TableCell>
+                        {isAdmin && <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(product.capital_price)}</TableCell>}
                         <TableCell className="text-right text-sm font-medium">{formatCurrency(product.selling_price)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -275,9 +281,11 @@ export default function Products() {
                             >
                               {product.current_stock ?? 0}
                             </Badge>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
-                              <PackagePlus className="h-3.5 w-3.5" />
-                            </Button>
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
+                                <PackagePlus className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

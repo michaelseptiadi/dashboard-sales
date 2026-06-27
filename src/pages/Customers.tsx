@@ -12,6 +12,7 @@ import { SearchInput } from "@/components/SearchInput";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
 import { Plus, Eye, Users } from "lucide-react";
 
@@ -27,6 +28,9 @@ const emptyForm: CustomerFormData = { name: "", phone: "", address: "", email: "
 export default function Customers() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { currentRole, isSuperAdmin } = useAuth();
+  const isAdmin = isSuperAdmin || currentRole === "admin";
+
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<CustomerFormData>(emptyForm);
@@ -53,8 +57,9 @@ export default function Customers() {
       });
       toast({ title: "Pelanggan berhasil ditambahkan" });
       setDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Gagal menyimpan pelanggan", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast({ title: "Gagal menyimpan pelanggan", description: message, variant: "destructive" });
     }
   };
 
@@ -71,9 +76,11 @@ export default function Customers() {
                 </span>
               )}
             </div>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="mr-1.5 h-4 w-4" /> Tambah Pelanggan
-            </Button>
+            {isAdmin && (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="mr-1.5 h-4 w-4" /> Tambah Pelanggan
+              </Button>
+            )}
           </div>
           <div className="pt-1">
             <SearchInput

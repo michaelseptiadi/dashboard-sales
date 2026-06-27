@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
+import { SalesOrder } from "@/hooks/useSales";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -9,7 +10,9 @@ export interface Customer {
   name: string;
   phone: string | null;
   address: string | null;
-  store_id: string | null;
+  email: string | null;
+  is_active?: boolean;
+  store_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -65,10 +68,14 @@ export function useCustomerById(customerId: string | null) {
 }
 
 export function useCustomerTransactions(customerId: string | null) {
-  return useQuery({
+  return useQuery<SalesOrder[]>({
     queryKey: ["customer-transactions", customerId],
     enabled: !!customerId,
     queryFn: () =>
-      apiClient.get<unknown[]>(`/sales?customer_id=${customerId}`),
+      apiClient
+        .get<{ data: SalesOrder[] }>(
+          `/sales?customer_id=${customerId}&pageSize=1000`,
+        )
+        .then((res) => res.data || []),
   });
 }
