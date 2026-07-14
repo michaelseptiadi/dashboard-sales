@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { SalesOrderDetailDialog } from "@/components/SalesOrderDetailDialog";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,10 +26,17 @@ import {
   useAdjustStock,
   useCategories,
   useUnits,
+  useProductVariants,
+  useCreateVariant,
+  useUpdateVariant,
+  useDeleteVariant,
+  type ProductVariant,
 } from "@/hooks/useProducts";
 import {
   ArrowLeft, ArrowDownToLine, ArrowUpFromLine, PackagePlus,
-  Pencil, ExternalLink, Tag, Boxes, TrendingUp, Package2,
+  Pencil, ExternalLink, Boxes,
+  Plus, Trash2, Layers, ToggleLeft, ToggleRight,
+  QrCode, Folder, Scale, Power, AlertTriangle,
 } from "lucide-react";
 
 interface ProductFormData {
@@ -36,9 +44,6 @@ interface ProductFormData {
   name: string;
   category_id: string;
   unit_id: string;
-  selling_price: number;
-  capital_price: number;
-  minimum_stock: number;
 }
 
 const MOVEMENT_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
@@ -68,15 +73,25 @@ export default function ProductDetail() {
   const { data: units } = useUnits();
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
+  const createVariant = useCreateVariant();
+  const updateVariant = useUpdateVariant();
+  const deleteVariant = useDeleteVariant();
+
+  const { data: variants, isLoading: variantsLoading } = useProductVariants(
+    product?.id ?? null,
+    product?.store_id ?? null,
+  );
 
   const currentStock = product?.current_stock ?? 0;
-  const isLowStock = product ? currentStock <= (product.minimum_stock ?? 0) : false;
+  const isLowStock = variants ? variants.some((v) => v.is_active && Number(v.stock) <= Number(v.minimum_stock)) : false;
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>({
-    product_code: "", name: "", category_id: "", unit_id: "",
-    selling_price: 0, capital_price: 0, minimum_stock: 0,
+    product_code: "",
+    name: "",
+    category_id: "",
+    unit_id: "",
   });
 
   const openEdit = () => {
@@ -86,28 +101,27 @@ export default function ProductDetail() {
       name: product.name,
       category_id: product.category_id || "",
       unit_id: product.unit_id || "",
-      selling_price: product.selling_price,
-      capital_price: product.capital_price,
-      minimum_stock: product.minimum_stock,
     });
     setEditOpen(true);
   };
 
   const handleSave = async () => {
-    if (!form.selling_price || !form.capital_price) {
+    if (!form.name || !form.product_code || !form.category_id || !form.unit_id) {
       toast({ title: "Semua field wajib diisi", variant: "destructive" });
       return;
     }
+
     try {
-      if (!product?.store_product_id) {
-        throw new Error("Store product tidak ditemukan");
+      if (!product?.id) {
+        throw new Error("Produk tidak ditemukan");
       }
 
       await updateProduct.mutateAsync({
-        id: product.store_product_id,
-        selling_price: form.selling_price,
-        capital_price: form.capital_price,
-        minimum_stock: form.minimum_stock,
+        id: product.id,
+        name: form.name,
+        product_code: form.product_code,
+        category_id: form.category_id,
+        unit_id: form.unit_id,
       });
       toast({ title: "Produk berhasil diperbarui" });
       setEditOpen(false);
@@ -118,11 +132,14 @@ export default function ProductDetail() {
 
   // Stock adjust dialog
   const [stockOpen, setStockOpen] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
   const openStock = () => {
+    const vars = product?.variants || [];
+    setSelectedVariantId(vars[0]?.id || "");
     setAdjustQty("");
     setAdjustType("in");
     setAdjustNotes("");
@@ -131,7 +148,7 @@ export default function ProductDetail() {
 
   const handleAdjustStock = async () => {
     const qty = Number(adjustQty);
-    if (isNaN(qty) || qty <= 0) {
+    if (!selectedVariantId || isNaN(qty) || qty <= 0) {
       toast({ title: "Jumlah penyesuaian harus lebih dari 0", variant: "destructive" });
       return;
     }
@@ -139,6 +156,7 @@ export default function ProductDetail() {
       if (!product) return;
       await adjustStock.mutateAsync({
         product_id: product.id,
+        productVariantId: selectedVariantId,
         qty: qty,
         type: adjustType,
         notes: adjustNotes || undefined,
@@ -154,14 +172,154 @@ export default function ProductDetail() {
   // Transaction detail
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
+  // ── Variant management ──────────────────────────────────────────────────────
+  const [variantDialogOpen, setVariantDialogOpen] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
+  const [variantForm, setVariantForm] = useState({
+    name: "",
+    skuSuffix: "",
+    unitId: "",
+    conversionFactor: 1,
+    sellingPrice: 0,
+    capitalPrice: 0,
+    stock: 0,
+    minimumStock: 0,
+  });
+
+  const openCreateVariant = () => {
+    setEditingVariant(null);
+    setVariantForm({
+      name: "",
+      skuSuffix: "",
+      unitId: product?.unit_id || "",
+      conversionFactor: 1,
+      sellingPrice: 0,
+      capitalPrice: 0,
+      stock: 0,
+      minimumStock: 0
+    });
+    setVariantDialogOpen(true);
+  };
+
+  const openEditVariant = (v: ProductVariant) => {
+    setEditingVariant(v);
+    setVariantForm({
+      name: v.name,
+      skuSuffix: v.sku_suffix ?? "",
+      unitId: v.unit_id,
+      conversionFactor: Number(v.conversion_factor),
+      sellingPrice: Number(v.selling_price),
+      capitalPrice: Number(v.capital_price),
+      stock: Number(v.stock),
+      minimumStock: Number(v.minimum_stock),
+    });
+    setVariantDialogOpen(true);
+  };
+
+  const handleSaveVariant = async () => {
+    if (!variantForm.name.trim() || !variantForm.unitId) {
+      toast({ title: "Nama varian dan satuan wajib diisi", variant: "destructive" });
+      return;
+    }
+    if (!product) return;
+    try {
+      const isDefault = variantForm.name.toLowerCase() === "default" || 
+        (variantForm.unitId === product.unit_id && variantForm.name.toLowerCase() === (product.units?.name || "").toLowerCase());
+        
+      if (editingVariant) {
+        await updateVariant.mutateAsync({
+          id: editingVariant.id,
+          productId: product.id,
+          name: variantForm.name,
+          skuSuffix: variantForm.skuSuffix || undefined,
+          unitId: variantForm.unitId,
+          conversionFactor: variantForm.conversionFactor,
+          sellingPrice: variantForm.sellingPrice,
+          capitalPrice: variantForm.capitalPrice,
+          minimumStock: variantForm.minimumStock,
+        });
+        toast({ title: "Varian berhasil diperbarui" });
+      } else {
+        await createVariant.mutateAsync({
+          productId: product.id,
+          name: variantForm.name,
+          skuSuffix: variantForm.skuSuffix || undefined,
+          unitId: variantForm.unitId,
+          conversionFactor: variantForm.conversionFactor,
+          sellingPrice: variantForm.sellingPrice,
+          capitalPrice: variantForm.capitalPrice,
+          stock: variantForm.stock,
+          minimumStock: variantForm.minimumStock,
+        });
+        toast({ title: "Varian berhasil ditambahkan" });
+      }
+      setVariantDialogOpen(false);
+    } catch (err: unknown) {
+      toast({ title: "Gagal menyimpan varian", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const handleToggleVariant = async (v: ProductVariant) => {
+    if (!product) return;
+    try {
+      if (v.is_active) {
+        await updateVariant.mutateAsync({ id: v.id, productId: product.id, isActive: false });
+        toast({ title: `Varian "${v.name}" dinonaktifkan` });
+      } else {
+        await updateVariant.mutateAsync({ id: v.id, productId: product.id, isActive: true });
+        toast({ title: `Varian "${v.name}" diaktifkan kembali` });
+      }
+    } catch (err: unknown) {
+      toast({ title: "Gagal memperbarui varian", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteVariant = async (v: ProductVariant) => {
+    if (!product) return;
+    if (!confirm(`Apakah Anda yakin ingin menghapus varian "${v.name}"?`)) {
+      return;
+    }
+    try {
+      await deleteVariant.mutateAsync({ id: v.id, productId: product.id });
+      toast({ title: `Varian "${v.name}" berhasil dihapus` });
+    } catch (err: unknown) {
+      toast({ title: "Gagal menghapus varian", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const handleToggleProductActive = async (newVal: boolean) => {
+    if (!product?.id) return;
+    try {
+      await updateProduct.mutateAsync({
+        id: product.id,
+        is_active: newVal,
+      });
+      toast({
+        title: `Produk berhasil ${newVal ? "diaktifkan" : "dinonaktifkan"}`,
+      });
+    } catch (err: unknown) {
+      toast({
+        title: `Gagal ${newVal ? "mengaktifkan" : "menonaktifkan"} produk`,
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const activeVariant = product?.variants?.find((v) => v.id === selectedVariantId);
+  const activeStock = activeVariant ? Number(activeVariant.stock) : (product?.current_stock ?? 0);
+
+  const isDefaultVariant = variantForm.name.toLowerCase() === "default" || 
+    (product && variantForm.unitId === product.unit_id && variantForm.name.toLowerCase() === (product.units?.name || "").toLowerCase());
+
   return (
     <DashboardLayout title="Detail Produk">
       <div className="space-y-5">
         {/* Header row */}
         <div className="flex items-center justify-between gap-4">
-          <Button variant="ghost" size="sm" className="gap-1.5 -ml-1" onClick={() => navigate("/produk")}>
+          <Button variant="ghost" size="sm" className="gap-1.5 -ml-1" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
-            Kembali ke Produk
+            Kembali
           </Button>
           {!productLoading && product && isAdmin && (
             <div className="flex items-center gap-2">
@@ -176,6 +334,15 @@ export default function ProductDetail() {
             </div>
           )}
         </div>
+
+        {!productLoading && product && isLowStock && (
+          <Card className="border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30">
+            <CardContent className="px-5 py-3 flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>Perhatian: Satu atau lebih varian dari produk ini memiliki stok di bawah batas minimum!</span>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Product info card */}
         <Card>
@@ -216,76 +383,192 @@ export default function ProductDetail() {
                     <Skeleton key={i} className="h-20 w-full rounded-xl" />
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-full" />
-                  ))}
-                </div>
               </div>
             ) : product ? (
               <div className="space-y-4">
-                {/* Key metric tiles */}
-                <div className={`grid grid-cols-2 gap-3 ${isAdmin ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}>
-                  <div className={`rounded-xl px-4 py-3 border ${
-                    isLowStock
-                      ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
-                      : "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800"
-                  }`}>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl px-4 py-3 border bg-muted/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <Boxes className="h-3 w-3" /> Stok Sekarang
+                      <QrCode className="h-3.5 w-3.5" /> Product Code
                     </p>
-                    <p className={`text-2xl font-bold tabular-nums ${
-                      isLowStock ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"
-                    }`}>{currentStock}</p>
-                    {isLowStock && (
-                      <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5">Min. {product.minimum_stock}</p>
-                    )}
+                    <p className="text-sm font-semibold truncate font-mono mt-1">{product.product_code}</p>
                   </div>
                   <div className="rounded-xl px-4 py-3 border bg-muted/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <Tag className="h-3 w-3" /> Harga Jual
+                      <Folder className="h-3.5 w-3.5" /> Kategori
                     </p>
-                    <p className="text-base font-bold leading-tight">{formatCurrency(product.selling_price)}</p>
+                    <p className="text-sm font-semibold truncate mt-1">{product.categories?.name ?? "—"}</p>
                   </div>
-                  {isAdmin && (
-                    <>
-                      <div className="rounded-xl px-4 py-3 border bg-muted/50">
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                          <TrendingUp className="h-3 w-3" /> Harga Modal
-                        </p>
-                        <p className="text-base font-bold leading-tight">{formatCurrency(product.capital_price)}</p>
-                      </div>
-                      <div className="rounded-xl px-4 py-3 border bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800">
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                          <Package2 className="h-3 w-3" /> Margin
-                        </p>
-                        <p className="text-base font-bold leading-tight text-violet-700 dark:text-violet-400">
-                          {formatCurrency(product.selling_price - product.capital_price)}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <Separator />
-                {/* Secondary details */}
-                <div className="grid grid-cols-3 gap-x-6 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Kategori</p>
-                    <p className="font-medium">{product.categories?.name ?? "—"}</p>
+                  <div className="rounded-xl px-4 py-3 border bg-muted/50">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                      <Scale className="h-3.5 w-3.5" /> Satuan Dasar
+                    </p>
+                    <p className="text-sm font-semibold truncate mt-1">{product.units?.name ?? "—"}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Satuan</p>
-                    <p className="font-medium">{product.units?.name ?? "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Stok Minimum</p>
-                    <p className="font-medium">{product.minimum_stock}</p>
+                  <div className="rounded-xl px-4 py-3 border bg-muted/50 flex flex-col justify-between">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Power className="h-3.5 w-3.5" /> Status Aktif
+                    </p>
+                    <div className="flex items-center mt-1">
+                      <Switch
+                        checked={product.is_active}
+                        onCheckedChange={handleToggleProductActive}
+                        disabled={updateProduct.isPending}
+                      />
+                      <span className="text-xs font-semibold ml-2">
+                        {product.is_active ? "Aktif" : "Nonaktif"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             ) : null}
           </CardContent>
         </Card>
+
+
+
+        {/* Product Variants Card */}
+        {!productLoading && product && isAdmin && (
+          <Card>
+            <CardHeader className="px-6 pb-3 pt-5">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-violet-500" />
+                  Varian Produk
+                  {variants && variants.length > 0 && (
+                    <span className="rounded-full bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-400 text-xs font-semibold px-2 py-0.5">
+                      {variants.length}
+                    </span>
+                  )}
+                </CardTitle>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={openCreateVariant}>
+                  <Plus className="h-3.5 w-3.5" /> Tambah Varian
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-6 pb-5">
+              {variantsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : !variants || variants.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Layers className="h-8 w-8 text-muted-foreground/25 mb-2" />
+                  <p className="text-sm text-muted-foreground">Belum ada varian.</p>
+                  <p className="text-xs text-muted-foreground/70 mt-0.5">Tambahkan varian seperti ukuran, warna, atau kemasan.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="text-xs">Nama Varian</TableHead>
+                        <TableHead className="text-xs">SKU Suffix</TableHead>
+                        <TableHead className="text-xs text-right">Faktor Konversi</TableHead>
+                        <TableHead className="text-xs text-right">Stok</TableHead>
+                        <TableHead className="text-xs text-right">Stok Min.</TableHead>
+                        <TableHead className="text-xs text-right">Harga Jual</TableHead>
+                        {isAdmin && (
+                          <>
+                            <TableHead className="text-xs text-right">Harga Modal</TableHead>
+                            <TableHead className="text-xs text-right text-violet-700 dark:text-violet-400">Margin</TableHead>
+                          </>
+                        )}
+                        <TableHead className="text-xs text-center">Status</TableHead>
+                        <TableHead className="text-xs w-20" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {variants.map((v) => {
+                        const isVariantLowStock = v.is_active && Number(v.stock) <= Number(v.minimum_stock);
+                        return (
+                          <TableRow
+                            key={v.id}
+                            className={`border-b border-muted/10 transition-colors ${
+                              !v.is_active
+                                ? "opacity-50"
+                                : isVariantLowStock
+                                ? "bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/25 dark:hover:bg-red-950/35 border-l-2 border-l-red-500"
+                                : ""
+                            }`}
+                          >
+                            <TableCell className="font-semibold text-sm">{v.name}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">{v.sku_suffix ?? "—"}</TableCell>
+                            <TableCell className="text-right text-sm tabular-nums">
+                              {Number(v.conversion_factor)}
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-medium tabular-nums">
+                              {v.stock}
+                            </TableCell>
+                            <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                              {v.minimum_stock}
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-bold text-primary">
+                              {formatCurrency(Number(v.selling_price))}
+                            </TableCell>
+                            {isAdmin && (
+                              <>
+                                <TableCell className="text-right text-sm text-muted-foreground">
+                                  {formatCurrency(Number(v.capital_price))}
+                                </TableCell>
+                                <TableCell className="text-right text-sm font-semibold text-violet-700 dark:text-violet-400">
+                                  {formatCurrency(Number(v.selling_price) - Number(v.capital_price))}
+                                </TableCell>
+                              </>
+                            )}
+                            <TableCell className="text-center">
+                              <Badge
+                                variant="outline"
+                                className={`text-xs cursor-pointer select-none ${
+                                  v.is_active
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
+                                    : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800"
+                                } transition-colors`}
+                                onClick={() => handleToggleVariant(v)}
+                                title={v.is_active ? "Klik untuk nonaktifkan" : "Klik untuk aktifkan"}
+                              >
+                                {v.is_active ? (
+                                  <><ToggleRight className="h-3 w-3 mr-1" />Aktif</>
+                                ) : (
+                                  <><ToggleLeft className="h-3 w-3 mr-1" />Nonaktif</>
+                                )}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="flex items-center gap-1 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openEditVariant(v)}
+                                title="Edit varian"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              {variants.length > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeleteVariant(v)}
+                                  title="Hapus varian"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Inventory movements table */}
         <Card>
@@ -413,9 +696,26 @@ export default function ProductDetail() {
             <p className="text-sm text-muted-foreground">{product?.name}</p>
           </DialogHeader>
           <div className="space-y-4">
+            {product && product.variants && product.variants.length > 1 && (
+              <div className="space-y-2">
+                <Label>Varian</Label>
+                <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {product.variants.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name} (Stok: {v.stock})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
               <span className="text-sm text-muted-foreground">Stok saat ini</span>
-              <span className="text-2xl font-bold tabular-nums">{currentStock}</span>
+              <span className="text-2xl font-bold tabular-nums">{activeStock}</span>
             </div>
             <div className="space-y-2">
               <Label>Jenis Penyesuaian</Label>
@@ -451,7 +751,7 @@ export default function ProductDetail() {
               <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
                 <span className="text-sm text-muted-foreground">Stok setelah</span>
                 <span className={`text-2xl font-bold tabular-nums ${adjustType === "in" ? "text-green-600" : "text-red-600"}`}>
-                  {adjustType === "in" ? currentStock + adjustQty : Math.max(0, currentStock - adjustQty)}
+                  {adjustType === "in" ? activeStock + adjustQty : Math.max(0, activeStock - adjustQty)}
                 </span>
               </div>
             )}
@@ -466,20 +766,18 @@ export default function ProductDetail() {
 
       {/* Edit Product Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Produk</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Kode Produk</Label>
-                <Input value={form.product_code} disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>Nama Produk <span className="text-destructive">*</span></Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" />
-              </div>
+            <div className="space-y-2">
+              <Label>Kode Produk</Label>
+              <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="Kode produk" disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>Nama Produk <span className="text-destructive">*</span></Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -492,33 +790,118 @@ export default function ProductDetail() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Satuan <span className="text-destructive">*</span></Label>
+                <Label>Satuan Dasar <span className="text-destructive">*</span></Label>
                 <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Pilih satuan" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Pilih satuan dasar" /></SelectTrigger>
                   <SelectContent>
                     {units?.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Harga Jual <span className="text-destructive">*</span></Label>
-                <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Harga Modal <span className="text-destructive">*</span></Label>
-                <CurrencyInput value={form.capital_price} onChange={(v) => setForm({ ...form, capital_price: v })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Stok Minimum</Label>
-                <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
-              </div>
-            </div>
+
             <DialogFormActions
               onCancel={() => setEditOpen(false)}
               onSave={handleSave}
               isPending={updateProduct.isPending}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create / Edit Variant Dialog */}
+      <Dialog open={variantDialogOpen} onOpenChange={setVariantDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingVariant ? "Edit Varian" : "Tambah Varian Baru"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nama Varian <span className="text-destructive">*</span></Label>
+                <Input
+                  value={variantForm.name}
+                  onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })}
+                  placeholder="cth: Small, Merah, 500ml"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>SKU Suffix <span className="text-muted-foreground font-normal">(opsional)</span></Label>
+                <Input
+                  value={variantForm.skuSuffix}
+                  onChange={(e) => setVariantForm({ ...variantForm, skuSuffix: e.target.value })}
+                  placeholder="cth: -SM"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Satuan <span className="text-destructive">*</span></Label>
+                <Select
+                  value={variantForm.unitId}
+                  onValueChange={(v) => setVariantForm({ ...variantForm, unitId: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pilih satuan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units?.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Faktor Konversi <span className="text-destructive">*</span></Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={variantForm.conversionFactor === 0 ? "" : variantForm.conversionFactor}
+                  onChange={(e) => setVariantForm({ ...variantForm, conversionFactor: e.target.value === "" ? 0 : Number(e.target.value) })}
+                  placeholder="1"
+                />
+              </div>
+            </div>
+            <Separator />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stok & Harga di Toko Ini</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Harga Jual</Label>
+                <CurrencyInput value={variantForm.sellingPrice} onChange={(v) => setVariantForm({ ...variantForm, sellingPrice: v })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga Modal</Label>
+                <CurrencyInput value={variantForm.capitalPrice} onChange={(v) => setVariantForm({ ...variantForm, capitalPrice: v })} />
+              </div>
+              {!editingVariant && (
+                <div className="space-y-2">
+                  <Label>Stok Awal</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={variantForm.stock === 0 ? "" : variantForm.stock}
+                    onChange={(e) => setVariantForm({ ...variantForm, stock: e.target.value === "" ? 0 : Number(e.target.value) })}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Stok Minimum</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={variantForm.minimumStock === 0 ? "" : variantForm.minimumStock}
+                  onChange={(e) => setVariantForm({ ...variantForm, minimumStock: e.target.value === "" ? 0 : Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <DialogFormActions
+              onCancel={() => setVariantDialogOpen(false)}
+              onSave={handleSaveVariant}
+              isPending={createVariant.isPending || updateVariant.isPending}
             />
           </div>
         </DialogContent>

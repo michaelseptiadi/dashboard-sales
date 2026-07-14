@@ -499,7 +499,10 @@ export default function SalesHistory() {
                       {detail.items?.map((item) => (
                         <TableRow key={item.id} className="hover:bg-muted/20">
                           <TableCell className="pl-4 py-2.5">
-                            <p className="text-sm font-medium">{item.product?.name}</p>
+                            <p className="text-sm font-medium">
+                              {item.product?.name}
+                              {item.product_variant ? ` (${item.product_variant.name})` : ""}
+                            </p>
                             <p className="text-xs text-muted-foreground">{item.product?.product_code}</p>
                           </TableCell>
                           <TableCell className="text-right text-sm py-2.5">{formatCurrency(item.price)}</TableCell>

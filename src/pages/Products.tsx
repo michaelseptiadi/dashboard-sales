@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import { SearchInput } from "@/components/SearchInput";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/format";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
 import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
@@ -47,14 +46,26 @@ export default function Products() {
   const { currentRole, isSuperAdmin } = useAuth();
   const isAdmin = isSuperAdmin || currentRole === "admin";
 
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const categoryFilter = searchParams.get("cat") ?? "";
+  const page = Number(searchParams.get("page") ?? "1");
+  const limit = Number(searchParams.get("limit") ?? "10");
+
+  const setSearch = (value: string) =>
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("q", value); p.set("page", "1"); return p; }, { replace: true });
+  const setCategoryFilter = (value: string) =>
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("cat", value); p.set("page", "1"); return p; }, { replace: true });
+  const setPage = (value: number) =>
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("page", String(value)); return p; }, { replace: true });
+  const setLimit = (value: number) =>
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("limit", String(value)); p.set("page", "1"); return p; }, { replace: true });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
-  const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number; store_product_id?: string } | null>(null);
+  const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number; store_product_id?: string; variants: import("@/hooks/useProducts").ProductVariant[] } | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
@@ -71,9 +82,7 @@ export default function Products() {
   const products = productsResponse?.data ?? [];
   const productsMeta = productsResponse?.meta;
 
-  useEffect(() => {
-    setPage(1);
-  }, [search, categoryFilter, limit]);
+
 
   const nextProductCode = () => {
     const existing = (products ?? [])
@@ -108,7 +117,16 @@ export default function Products() {
   };
 
   const openStockDialog = (product: import("@/hooks/useProducts").Product) => {
-    setStockProduct({ id: product.id, name: product.name, current_stock: product.current_stock ?? 0, store_product_id: product.store_product_id });
+    const fullProduct = products.find((p) => p.id === product.id);
+    const vars = fullProduct?.variants || product.variants || [];
+    setStockProduct({
+      id: product.id,
+      name: product.name,
+      current_stock: product.current_stock ?? 0,
+      store_product_id: product.store_product_id || fullProduct?.store_product_id,
+      variants: vars
+    });
+    setSelectedVariantId((product as import("@/hooks/useProducts").Product & { variant_id?: string }).variant_id || vars[0]?.id || "");
     setAdjustQty("");
     setAdjustType("in");
     setAdjustNotes("");
@@ -117,13 +135,14 @@ export default function Products() {
 
   const handleAdjustStock = async () => {
     const qty = Number(adjustQty);
-    if (!stockProduct || isNaN(qty) || qty <= 0) {
+    if (!stockProduct || !selectedVariantId || isNaN(qty) || qty <= 0) {
       toast({ title: "Jumlah penyesuaian harus lebih dari 0", variant: "destructive" });
       return;
     }
     try {
       await adjustStock.mutateAsync({
         product_id: stockProduct.id,
+        productVariantId: selectedVariantId,
         qty: qty,
         type: adjustType,
         notes: adjustNotes || undefined,
@@ -144,6 +163,9 @@ export default function Products() {
       toast({ title: "Gagal mengubah status", description: (error as Error).message, variant: "destructive" });
     }
   };
+
+  const activeVariant = stockProduct?.variants?.find((v) => v.id === selectedVariantId);
+  const activeStock = activeVariant ? Number(activeVariant.stock) : (stockProduct?.current_stock ?? 0);
 
   return (
     <DashboardLayout title="Manajemen Produk">
@@ -247,10 +269,7 @@ export default function Products() {
                   <TableHead className="pl-6 text-xs">Kode</TableHead>
                   <TableHead className="text-xs">Nama</TableHead>
                   <TableHead className="text-xs">Kategori</TableHead>
-                  <TableHead className="text-xs">Satuan</TableHead>
-                  {isAdmin && <TableHead className="text-right text-xs">Harga Modal</TableHead>}
-                  <TableHead className="text-right text-xs">Harga Jual</TableHead>
-                  <TableHead className="text-right text-xs">Stok</TableHead>
+                  <TableHead className="text-xs">Satuan Dasar</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="w-10 pr-6"></TableHead>
                 </TableRow>
@@ -258,45 +277,43 @@ export default function Products() {
               <TableBody>
                 {products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isAdmin ? 9 : 8} className="py-16 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
                       <PackagePlus className="mx-auto mb-2 h-8 w-8 opacity-25" />
                       <p className="text-sm">Tidak ada produk ditemukan</p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   products.map((product) => {
-                    const isLowStock = product.current_stock !== undefined && product.current_stock <= product.minimum_stock;
+                    const isLowStock = product.variants?.some((v) => v.is_active && Number(v.stock) <= Number(v.minimum_stock));
                     return (
-                      <TableRow key={product.id} className="group">
+                      <TableRow
+                        key={product.id}
+                        className={`group transition-colors ${
+                          isLowStock
+                            ? "bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/25 dark:hover:bg-red-950/35 border-l-2 border-l-red-500"
+                            : ""
+                        }`}
+                      >
                         <TableCell className="pl-6 font-mono text-xs text-muted-foreground">{product.product_code}</TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{product.categories?.name || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{product.units?.name || "—"}</TableCell>
-                        {isAdmin && <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(product.capital_price)}</TableCell>}
-                        <TableCell className="text-right text-sm font-medium">{formatCurrency(product.selling_price)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Badge
-                              className={isLowStock ? "bg-red-100 text-red-700 border-red-300 hover:bg-red-100" : "bg-green-100 text-green-700 border-green-300 hover:bg-green-100"}
-                            >
-                              {product.current_stock ?? 0}
-                            </Badge>
-                            {isAdmin && (
-                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => openStockDialog(product)}>
-                                <PackagePlus className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
                         <TableCell>
-                          <Switch checked={product.is_active} disabled />
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              product.is_active
+                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                : "bg-slate-100 text-slate-500 border-slate-200"
+                            }`}
+                          >
+                            {product.is_active ? "Aktif" : "Nonaktif"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="pr-6">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lihat detail" onClick={() => navigate(`/produk/${product.store_product_id}`)}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate(`/produk/${product.id}`)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -306,17 +323,16 @@ export default function Products() {
             </Table>
           )}
           {productsMeta && productsMeta.totalPages > 1 && (
-            <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Menampilkan {(productsMeta.page - 1) * productsMeta.limit + (products.length > 0 ? 1 : 0)}-
-                {(productsMeta.page - 1) * productsMeta.limit + products.length} dari {productsMeta.total} produk
-              </p>
+            <div className="flex items-center justify-between border-t px-6 py-4">
+              <div className="text-xs text-muted-foreground">
+                Menampilkan {(page - 1) * limit + 1} - {Math.min(page * limit, productsMeta.total)} dari {productsMeta.total} produk
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={productsMeta.page <= 1}
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page <= 1}
                 >
                   Sebelumnya
                 </Button>
@@ -326,8 +342,8 @@ export default function Products() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage((current) => Math.min(productsMeta.totalPages, current + 1))}
-                  disabled={productsMeta.page >= productsMeta.totalPages}
+                  onClick={() => setPage(Math.min(productsMeta.totalPages, page + 1))}
+                  disabled={page >= productsMeta.totalPages}
                 >
                   Berikutnya
                 </Button>
@@ -345,9 +361,26 @@ export default function Products() {
             <p className="text-sm text-muted-foreground">{stockProduct?.name}</p>
           </DialogHeader>
           <div className="space-y-4">
+            {stockProduct && stockProduct.variants.length > 1 && (
+              <div className="space-y-2">
+                <Label>Varian</Label>
+                <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stockProduct.variants.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name} (Stok: {v.stock})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
               <span className="text-sm text-muted-foreground">Stok saat ini</span>
-              <span className="text-2xl font-bold tabular-nums">{stockProduct?.current_stock ?? 0}</span>
+              <span className="text-2xl font-bold tabular-nums">{activeStock}</span>
             </div>
             <div className="space-y-2">
               <Label>Jenis Penyesuaian</Label>
@@ -388,8 +421,8 @@ export default function Products() {
                   adjustType === "in" ? "text-green-600" : "text-red-600"
                 }`}>
                   {adjustType === "in"
-                    ? stockProduct.current_stock + adjustQty
-                    : Math.max(0, stockProduct.current_stock - adjustQty)}
+                    ? activeStock + adjustQty
+                    : Math.max(0, activeStock - adjustQty)}
                 </span>
               </div>
             )}

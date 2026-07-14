@@ -46,6 +46,7 @@ export interface SalesItem {
   delivery_status: string;
   shipping_method?: string | null;
   product?: { name: string; product_code: string } | null;
+  product_variant?: { id: string; name: string } | null;
 }
 
 export interface PaymentLog {
@@ -185,7 +186,7 @@ export function useCreateSalesTransaction() {
       p_driver_id?: string;
       p_notes?: string;
       p_delivery_fee?: number;
-      p_items: Array<{ product_id: string; qty: number; price: number; discount: number; shipping_method?: string }>;
+      p_items: Array<{ product_id: string; qty: number; price: number; discount: number; product_unit_id?: string | null; product_variant_id?: string | null; shipping_method?: string }>;
     }) =>
       apiClient.post<SalesOrder>("/sales", {
         invoice_number:    params.p_invoice_number,

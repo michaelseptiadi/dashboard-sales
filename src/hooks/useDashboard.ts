@@ -2,61 +2,46 @@ import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
-interface DashboardSummary {
-  total_orders: number;
-  total_revenue: number;
-  total_unpaid: number;
-  total_deliveries: number;
-  pending_deliveries: number;
+export interface DashboardData {
+  cards: {
+    today_revenue: number;
+    yesterday_revenue: number;
+    revenue_change_percentage: number;
+    month_revenue: number;
+    month_target: number;
+    month_percentage: number;
+    today_transactions: number;
+    today_avg_transaction: number;
+    receivables_amount: number;
+    debtor_count: number;
+  };
+  sales_trend: { label: string; value: number }[];
+  top_products: { name: string; qty: number; unit: string }[];
+  top_customers: { name: string; total_spent: number; last_transaction: string; badge: 'Repeat' | 'Baru' }[];
+  receivables: { name: string; total_debt: number; days_left: number; due_date: string | null; status: 'Terlambat' | 'Hampir Jatuh Tempo' | 'Aman' }[];
+  low_stock_products: { id: string; name: string; product_code: string; current_stock: number; minimum_stock: number }[];
 }
 
-export function useDashboardStats() {
+export function useDashboardStats(
+  range: '7d' | '30d' | '12m' = '7d',
+  metric: 'revenue' | 'orders' = 'revenue',
+) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
 
-  return useQuery({
-    queryKey: ["dashboard", storeId],
+  return useQuery<DashboardData>({
+    queryKey: ["dashboard-data", storeId, range, metric],
     queryFn: async () => {
-      const today = new Date().toISOString().split("T")[0];
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-      const startDate = sevenDaysAgo.toISOString().split("T")[0];
-
       const params = new URLSearchParams();
       if (storeId) params.set("store_id", storeId);
-      params.set("start_date", startDate);
-      params.set("end_date", today);
+      params.set("range", range);
+      params.set("metric", metric);
 
-      const summary = await apiClient.get<DashboardSummary>(
-        `/dashboard/summary?${params.toString()}`,
+      const response = await apiClient.get<DashboardData>(
+        `/dashboard/store-data?${params.toString()}`,
       );
-
-      // Build 7-day chart data placeholder (backend doesn't return daily breakdown)
-      const chartData: { date: string; total: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        chartData.push({ date: d.toISOString().split("T")[0], total: 0 });
-      }
-
-      // Today's stats from a today-only summary call
-      const todayParams = new URLSearchParams();
-      if (storeId) todayParams.set("store_id", storeId);
-      todayParams.set("start_date", today);
-      todayParams.set("end_date", today);
-      const todaySummary = await apiClient.get<DashboardSummary>(
-        `/dashboard/summary?${todayParams.toString()}`,
-      );
-
-      return {
-        totalSalesToday: todaySummary.total_revenue,
-        totalTransactionsToday: todaySummary.total_orders,
-        // TODO: topProducts and lowStockProducts require dedicated backend endpoints
-        topProducts: [] as { id: string; name: string; code: string; totalQty: number }[],
-        lowStockProducts: [] as { id: string; name: string; product_code: string; minimum_stock: number; current_stock: number }[],
-        chartData,
-        summary,
-      };
+      return response;
     },
+    enabled: true,
   });
 }

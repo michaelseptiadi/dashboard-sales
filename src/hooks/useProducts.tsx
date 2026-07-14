@@ -4,6 +4,16 @@ import { useAuth } from "@/hooks/useAuth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface ProductUnit {
+  id: string;
+  product_id: string;
+  unit_id: string;
+  conversion_factor: number;
+  is_base_unit: boolean;
+  price: number;
+  unit?: { id: string; name: string } | null;
+}
+
 export interface Product {
   // Product master id
   id: string;
@@ -26,6 +36,8 @@ export interface Product {
   units?: { id?: string; name: string } | null;
   category?: { name: string } | null;
   unit?: { name: string } | null;
+  product_units?: ProductUnit[] | null;
+  variants?: ProductVariant[] | null;
 }
 
 export interface ProductInsert {
@@ -46,6 +58,11 @@ export type ProductUpdate = Partial<{
   capital_price: number;
   current_stock: number;
   minimum_stock: number;
+  name: string;
+  product_code: string;
+  category_id: string;
+  unit_id: string;
+  is_active: boolean;
 }>;
 
 export interface InventoryMovement {
@@ -76,61 +93,54 @@ export interface BackendMovement {
   id: string;
   product_id: string;
   store_id: string | null;
-  movement_type: string;
-  qty_in: number;
-  qty_out: number;
-  reference_id: string | null;
+  movement_type?: string | null;
+  reference_type?: string | null;
+  reference_id?: string | null;
+  quantity?: number | string | null;
+  qty_in?: number | null;
+  qty_out?: number | null;
   notes: string | null;
   created_at: string;
 }
 
-export interface StoreProductDetailResponse {
+interface ProductApiPayload {
   id: string;
-  product_id: string;
+  product_code: string;
+  name: string;
+  is_active: boolean;
+  category_id: string | null;
   store_id: string;
-  selling_price: string | number;
-  capital_price: string | number;
-  minimum_stock: number;
-  stock: number;
+  base_unit_id: string | null;
   created_at: string;
   updated_at: string;
-  productDetail: {
+  category: { id: string; name: string } | null;
+  base_unit?: { id: string; name: string } | null;
+  variants?: {
     id: string;
-    product_code: string;
+    product_id: string;
     name: string;
+    sku_suffix?: string | null;
+    unit_id: string;
+    conversion_factor: number | string;
+    selling_price: number | string;
+    capital_price: number | string;
+    stock: number | string;
+    minimum_stock: number;
     is_active: boolean;
-    category: { id: string; name: string } | null;
-    unit: { id: string; name: string } | null;
-    category_id?: string | null;
-    unit_id?: string | null;
-  };
-  InventoryMovement: BackendMovement[];
+    created_at: string;
+    updated_at: string;
+    unit?: { id: string; name: string } | null;
+  }[];
+}
+
+export interface StoreProductDetailResponse extends ProductApiPayload {
+  stockMutations?: BackendMovement[];
 }
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
-type StoreProductApi = {
-  id: string;
-  product_id: string;
-  store_id: string;
-  selling_price: number;
-  capital_price: number;
-  stock: number;
-  minimum_stock: number;
-  created_at: string;
-  updated_at: string;
-  product: {
-    id: string;
-    product_code: string;
-    name: string;
-    is_active: boolean;
-    category: { id: string; name: string } | null;
-    unit: { id: string; name: string } | null;
-  };
-};
-
 type StoreProductsApiResponse = {
-  data: StoreProductApi[];
+  data: ProductApiPayload[];
   meta: {
     page: number;
     limit: number;
@@ -139,51 +149,59 @@ type StoreProductsApiResponse = {
   };
 };
 
-function mapStoreProduct(item: StoreProductApi): Product {
+function mapStoreProduct(item: ProductApiPayload): Product {
+  const variants = item.variants ?? [];
+  const defaultVariant = variants.find((v) => v.name.toLowerCase() === "default") || variants[0];
+
+  const sellingPrice = defaultVariant ? Number(defaultVariant.selling_price) : 0;
+  const capitalPrice = defaultVariant ? Number(defaultVariant.capital_price) : 0;
+  const minimumStock = defaultVariant ? Number(defaultVariant.minimum_stock) : 0;
+  const currentStock = defaultVariant ? Number(defaultVariant.stock) : 0;
+
+  const unitName = defaultVariant?.unit?.name || item.base_unit?.name || "";
+  const unitId = defaultVariant?.unit_id || item.base_unit_id || "";
+
   return {
-    id: item.product.id,
+    id: item.id,
     store_product_id: item.id,
-    name: item.product.name,
-    product_code: item.product.product_code,
+    name: item.name,
+    product_code: item.product_code,
     store_id: item.store_id,
-    category_id: item.product.category?.id ?? null,
-    unit_id: item.product.unit?.id ?? null,
-    selling_price: Number(item.selling_price),
-    capital_price: Number(item.capital_price),
-    minimum_stock: Number(item.minimum_stock),
-    current_stock: Number(item.stock),
-    is_active: item.product.is_active,
+    category_id: item.category_id,
+    unit_id: unitId,
+    selling_price: sellingPrice,
+    capital_price: capitalPrice,
+    minimum_stock: minimumStock,
+    current_stock: currentStock,
+    is_active: item.is_active,
     created_at: item.created_at,
     updated_at: item.updated_at,
-    categories: item.product.category,
-    units: item.product.unit,
-    category: item.product.category,
-    unit: item.product.unit,
+    categories: item.category,
+    units: item.base_unit,
+    category: item.category,
+    unit: item.base_unit,
+    product_units: null,
+    variants: variants.map((v) => ({
+      id: v.id,
+      product_id: v.product_id,
+      name: v.name,
+      sku_suffix: v.sku_suffix ?? null,
+      unit_id: v.unit_id,
+      conversion_factor: Number(v.conversion_factor),
+      selling_price: Number(v.selling_price),
+      capital_price: Number(v.capital_price),
+      stock: Number(v.stock),
+      minimum_stock: Number(v.minimum_stock),
+      is_active: v.is_active,
+      created_at: v.created_at,
+      updated_at: v.updated_at,
+      unit: v.unit ? { id: v.unit.id, name: v.unit.name } : null,
+    })),
   };
 }
 
 function responseDetailToProduct(res: StoreProductDetailResponse): Product {
-  const pDetail = res.productDetail;
-  return {
-    id: pDetail.id,
-    store_product_id: res.id,
-    name: pDetail.name,
-    product_code: pDetail.product_code,
-    store_id: res.store_id,
-    category_id: pDetail.category?.id ?? pDetail.category_id ?? null,
-    unit_id: pDetail.unit?.id ?? pDetail.unit_id ?? null,
-    selling_price: Number(res.selling_price),
-    capital_price: Number(res.capital_price),
-    minimum_stock: Number(res.minimum_stock),
-    current_stock: Number(res.stock),
-    is_active: pDetail.is_active,
-    created_at: res.created_at,
-    updated_at: res.updated_at,
-    categories: pDetail.category,
-    units: pDetail.unit,
-    category: pDetail.category,
-    unit: pDetail.unit,
-  };
+  return mapStoreProduct(res);
 }
 
 export function useProducts(search?: string, categoryId?: string, page = 1, limit = 10) {
@@ -224,12 +242,35 @@ export function useActiveProducts(search?: string) {
       params.set("limit", "100");
       if (search) params.set("search", search);
 
-      // Delegate to the same source and filter by active flag client-side.
       return apiClient
         .get<StoreProductsApiResponse>(`/store-products?${params.toString()}`)
         .then((res) => (res.data ?? []).map(mapStoreProduct).filter((item) => item.is_active));
     },
   });
+}
+
+interface LowStockApiPayload {
+  id: string;
+  product_id: string;
+  name: string;
+  sku_suffix?: string | null;
+  unit_id: string;
+  conversion_factor: number | string;
+  selling_price: number | string;
+  capital_price: number | string;
+  stock: number | string;
+  minimum_stock: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  unit?: { id: string; name: string } | null;
+  product?: {
+    id: string;
+    product_code: string;
+    name: string;
+    category?: { id: string; name: string } | null;
+    base_unit?: { id: string; name: string } | null;
+  } | null;
 }
 
 export function useLowStockProducts() {
@@ -239,8 +280,47 @@ export function useLowStockProducts() {
   return useQuery<Product[]>({
     queryKey: ["low-stock-products", storeId],
     queryFn: async () => {
-      const response = await apiClient.get<StoreProductApi[]>(`/store-products/low-stock?storeId=${storeId}`);
-      return (response ?? []).map(mapStoreProduct);
+      const response = await apiClient.get<LowStockApiPayload[]>(`/store-products/low-stock?storeId=${storeId}`);
+      return (response ?? []).map((v) => {
+        const p = v.product;
+        return {
+          id: p?.id || v.product_id,
+          store_product_id: p?.id || v.product_id,
+          name: `${p?.name || ""} (${v.name})`,
+          product_code: p?.product_code || "",
+          store_id: storeId || null,
+          category_id: p?.category?.id || null,
+          unit_id: v.unit_id,
+          selling_price: Number(v.selling_price),
+          capital_price: Number(v.capital_price),
+          minimum_stock: Number(v.minimum_stock),
+          current_stock: Number(v.stock),
+          is_active: v.is_active,
+          created_at: v.created_at,
+          updated_at: v.updated_at,
+          categories: p?.category,
+          units: v.unit || p?.base_unit,
+          category: p?.category,
+          unit: v.unit || p?.base_unit,
+          variant_id: v.id,
+          variants: [{
+            id: v.id,
+            product_id: v.product_id,
+            name: v.name,
+            sku_suffix: v.sku_suffix ?? null,
+            unit_id: v.unit_id,
+            conversion_factor: Number(v.conversion_factor),
+            selling_price: Number(v.selling_price),
+            capital_price: Number(v.capital_price),
+            stock: Number(v.stock),
+            minimum_stock: Number(v.minimum_stock),
+            is_active: v.is_active,
+            created_at: v.created_at,
+            updated_at: v.updated_at,
+            unit: v.unit ? { id: v.unit.id, name: v.unit.name } : null,
+          }]
+        };
+      });
     },
     enabled: !!storeId,
     staleTime: 1000 * 60 * 5,
@@ -265,11 +345,11 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: (product: ProductInsert) => {
       if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
-      return apiClient.post<{ product: { id: string }; storeProduct: { id: string } }>("/store-products/new", {
+      return apiClient.post<Product>("/store-products", {
         productCode: product.product_code,
         name: product.name,
         categoryId: product.category_id,
-        unitId: product.unit_id,
+        baseUnitId: product.unit_id,
         storeId: selectedStore.id,
         sellingPrice: product.selling_price,
         capitalPrice: product.capital_price,
@@ -289,12 +369,11 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: ({ id, ...updates }: ProductUpdate & { id: string }) =>
       apiClient.patch<Product>(`/store-products/${id}`, {
-        ...(updates.product_id ? { productId: updates.product_id } : {}),
-        ...(updates.store_id ? { storeId: updates.store_id } : {}),
-        ...(updates.selling_price !== undefined ? { sellingPrice: updates.selling_price } : {}),
-        ...(updates.capital_price !== undefined ? { capitalPrice: updates.capital_price } : {}),
-        ...(updates.current_stock !== undefined ? { stock: updates.current_stock } : {}),
-        ...(updates.minimum_stock !== undefined ? { minStock: updates.minimum_stock } : {}),
+        ...(updates.name !== undefined ? { name: updates.name } : {}),
+        ...(updates.product_code !== undefined ? { productCode: updates.product_code } : {}),
+        ...(updates.category_id !== undefined ? { categoryId: updates.category_id } : {}),
+        ...(updates.unit_id !== undefined ? { baseUnitId: updates.unit_id } : {}),
+        ...(updates.is_active !== undefined ? { isActive: updates.is_active } : {}),
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -321,9 +400,6 @@ export function useUnits() {
   });
 }
 
-// TODO: useAdjustStock and useInventoryMovements require inventory endpoints
-// that are not yet implemented in the backend (POST/GET /products/:id/stock).
-
 export function useAdjustStock() {
   const queryClient = useQueryClient();
   const { selectedStore } = useAuth();
@@ -331,6 +407,7 @@ export function useAdjustStock() {
   return useMutation({
     mutationFn: async (params: {
       product_id: string;
+      productVariantId: string;
       qty: number;
       type: "in" | "out";
       notes?: string;
@@ -338,18 +415,67 @@ export function useAdjustStock() {
     }) => {
       if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
 
-      return apiClient.post<{ storeProduct: { id: string }; movement: { id: string } }>(
+      return apiClient.post<{ variant: ProductVariant; mutation: unknown }>(
         "/store-products/adjustment",
         {
-          storeId: selectedStore.id,
-          productId: params.product_id,
+          productVariantId: params.productVariantId,
           type: params.type === "in" ? "ADD" : "SUBTRACT",
           quantity: params.qty,
           adjustmentReason: params.notes?.trim() || "Manual adjustment",
         },
       );
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      const updatedVariant = data?.variant;
+
+      // ── Immediately patch the paginated products list cache ──────────────
+      // Walk all cached ["products", ...] entries and update the matching variant's stock.
+      if (updatedVariant) {
+        queryClient.setQueriesData<PaginatedProducts>(
+          { queryKey: ["products"], exact: false },
+          (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              data: old.data.map((product) => {
+                if (product.id !== variables.product_id) return product;
+                const updatedVariants = (product.variants ?? []).map((v) =>
+                  v.id === updatedVariant.id
+                    ? { ...v, stock: Number(updatedVariant.stock) }
+                    : v,
+                );
+                // Also update current_stock if this is the default/first variant
+                const newCurrentStock =
+                  updatedVariants.find((v) => v.id === updatedVariant.id)?.stock
+                  ?? product.current_stock;
+                return {
+                  ...product,
+                  variants: updatedVariants,
+                  current_stock: newCurrentStock,
+                };
+              }),
+            };
+          },
+        );
+
+        // ── Immediately patch the single-product detail cache ────────────
+        if (variables.storeProductId) {
+          queryClient.setQueryData<Product>(
+            ["product", variables.storeProductId],
+            (old) => {
+              if (!old) return old;
+              const updatedVariants = (old.variants ?? []).map((v) =>
+                v.id === updatedVariant.id
+                  ? { ...v, stock: Number(updatedVariant.stock) }
+                  : v,
+              );
+              return { ...old, variants: updatedVariants };
+            },
+          );
+        }
+      }
+
+      // ── Background refetch to sync from server ───────────────────────────
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["active-products"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
@@ -370,17 +496,21 @@ export function useInventoryMovements(storeProductId: string | null) {
     enabled: !!storeProductId,
     queryFn: async () => {
       const response = await apiClient.get<StoreProductDetailResponse>(`/store-products/${storeProductId}`);
-      const currentStock = response.stock ?? 0;
-      const movements = response.InventoryMovement ?? [];
+      const product = responseDetailToProduct(response);
+      const currentStock = product.current_stock ?? 0;
+      const movements = response.stockMutations ?? [];
 
       let currentStockAccumulator = currentStock;
       const mapped = movements.map((m: BackendMovement) => {
+        const qty_in = m.qty_in !== undefined && m.qty_in !== null ? Number(m.qty_in) : (Number(m.quantity ?? 0) > 0 ? Number(m.quantity) : 0);
+        const qty_out = m.qty_out !== undefined && m.qty_out !== null ? Number(m.qty_out) : (Number(m.quantity ?? 0) < 0 ? -Number(m.quantity ?? 0) : 0);
+
         const stockAfter = currentStockAccumulator;
-        currentStockAccumulator = currentStockAccumulator - (m.qty_in ?? 0) + (m.qty_out ?? 0);
+        currentStockAccumulator = currentStockAccumulator - qty_in + qty_out;
 
         let movementType = "adjustment";
-        const typeUpper = (m.movement_type || "").toUpperCase();
-        if (typeUpper === "SALE" || typeUpper === "PURCHASE" || typeUpper === "OUT") {
+        const typeUpper = (m.movement_type || m.reference_type || "").toUpperCase();
+        if (typeUpper === "SALE" || typeUpper === "PENJUALAN" || typeUpper === "OUT") {
           movementType = "sale";
         }
 
@@ -388,9 +518,9 @@ export function useInventoryMovements(storeProductId: string | null) {
           id: m.id,
           product_id: m.product_id,
           movement_type: movementType,
-          reference_id: m.reference_id,
-          qty_in: m.qty_in ?? 0,
-          qty_out: m.qty_out ?? 0,
+          reference_id: m.reference_id ?? null,
+          qty_in,
+          qty_out,
           notes: m.notes,
           store_id: m.store_id,
           created_at: m.created_at,
@@ -404,7 +534,97 @@ export function useInventoryMovements(storeProductId: string | null) {
   });
 }
 
-/** No-op — Supabase realtime is removed. Re-queries happen via React Query invalidation. */
 export function useRealtimeStock() {
   return;
+}
+
+// ── Product Variants ──────────────────────────────────────────────────────────
+
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  sku_suffix?: string | null;
+  unit_id: string;
+  conversion_factor: number;
+  selling_price: number;
+  capital_price: number;
+  stock: number;
+  minimum_stock: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  unit?: { id: string; name: string } | null;
+  product?: { id: string; product_code: string; name: string; store_id: string } | null;
+}
+
+export function useProductVariants(productId: string | null, storeId?: string | null) {
+  return useQuery<ProductVariant[]>({
+    queryKey: ["product-variants", productId, storeId],
+    enabled: !!productId,
+    queryFn: async () => {
+      const p = new URLSearchParams();
+      if (productId) p.set("productId", productId);
+      return apiClient.get<ProductVariant[]>(`/product-variants?${p.toString()}`);
+    },
+  });
+}
+
+export function useCreateVariant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      productId: string;
+      name: string;
+      skuSuffix?: string;
+      unitId: string;
+      conversionFactor: number;
+      sellingPrice: number;
+      capitalPrice: number;
+      stock: number;
+      minimumStock?: number;
+    }) => apiClient.post<ProductVariant>("/product-variants", payload),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useUpdateVariant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, productId, ...rest }: {
+      id: string;
+      productId: string;
+      name?: string;
+      skuSuffix?: string;
+      unitId?: string;
+      conversionFactor?: number;
+      isActive?: boolean;
+      sellingPrice?: number;
+      capitalPrice?: number;
+      stock?: number;
+      minimumStock?: number;
+    }) => apiClient.patch<ProductVariant>(`/product-variants/${id}`, rest),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeleteVariant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; productId: string }) =>
+      apiClient.delete<{ id: string; is_active: boolean }>(`/product-variants/${id}`),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
 }

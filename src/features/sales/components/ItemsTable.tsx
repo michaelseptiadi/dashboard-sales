@@ -17,7 +17,7 @@ import type { Product } from "@/hooks/useProducts";
 interface ItemsTableProps {
   items: SalesItem[];
   addItem: (product: Product) => void;
-  updateItem: (index: number, field: keyof SalesItem, value: number) => void;
+  updateItem: (index: number, field: keyof SalesItem, value: string | number | boolean | null | undefined | import("@/hooks/useProducts").ProductUnit[] | import("@/hooks/useProducts").ProductVariant[]) => void;
   toggleItemSelfPickup: (index: number) => void;
   removeItem: (index: number) => void;
   productSearch: string;
@@ -151,7 +151,31 @@ export function ItemsTable({
                     <TableCell className="py-3">
                       <div className="flex flex-col gap-0.5">
                         <div className="font-bold text-sm text-foreground leading-normal">{item.product_name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{item.product_code}</div>
+                        <div className="text-xs text-muted-foreground font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span>{item.product_code}</span>
+                          {item.product_unit_name && (
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-normal font-sans">
+                              {item.product_unit_name}
+                            </span>
+                          )}
+                        </div>
+                        {item.product_variants && item.product_variants.length > 1 && (
+                          <div className="mt-1">
+                            <select
+                              value={item.product_variant_id || ""}
+                              onChange={(e) => updateItem(index, "product_variant_id", e.target.value || null)}
+                              className="text-xs bg-violet-50/80 hover:bg-violet-100/70 border border-violet-200 rounded px-1.5 py-0.5 font-medium cursor-pointer text-violet-700 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 focus:outline-none"
+                            >
+                              {item.product_variants
+                                .filter((v) => v.is_active)
+                                .map((v) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.name} ({formatCurrency(Number(v.selling_price))})
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="py-3">

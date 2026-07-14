@@ -278,6 +278,11 @@ export default function Sales() {
         toast({ title: "Produk sudah ditambahkan", variant: "destructive" });
         return;
       }
+      const defaultVariant = product.variants?.find((v) => v.name.toLowerCase() === "default") || product.variants?.[0];
+      const initialPrice = defaultVariant ? Number(defaultVariant.selling_price) : product.selling_price;
+      const initialUnitId = defaultVariant ? defaultVariant.unit_id : null;
+      const initialUnitName = defaultVariant?.unit?.name || "";
+
       setItems((prev) => [
         ...prev,
         {
@@ -285,10 +290,16 @@ export default function Sales() {
           product_name: product.name,
           product_code: product.product_code,
           qty: 1,
-          price: product.selling_price,
+          price: initialPrice,
           discount: 0,
-          subtotal: product.selling_price,
+          subtotal: initialPrice,
           self_pickup: true,
+          product_unit_id: initialUnitId,
+          product_unit_name: initialUnitName,
+          product_units: null,
+          product_variant_id: defaultVariant?.id || null,
+          product_variant_name: defaultVariant?.name || null,
+          product_variants: product.variants || null,
         },
       ]);
       setProductSearch("");
@@ -297,13 +308,29 @@ export default function Sales() {
     [items, toast]
   );
 
-  const updateItem = (index: number, field: keyof SalesItem, value: number) => {
+  const updateItem = (index: number, field: keyof SalesItem, value: string | number | boolean | null | undefined | import("@/hooks/useProducts").ProductUnit[] | import("@/hooks/useProducts").ProductVariant[]) => {
     setItems((prev) => {
       const updated = [...prev];
       const item = { ...updated[index] };
-      if (field === "qty" || field === "price" || field === "discount" || field === "subtotal") {
-        item[field] = value;
+
+      if (field === "qty" && typeof value === "number") item.qty = value;
+      else if (field === "price" && typeof value === "number") item.price = value;
+      else if (field === "discount" && typeof value === "number") item.discount = value;
+      else if (field === "subtotal" && typeof value === "number") item.subtotal = value;
+      else if (field === "self_pickup" && typeof value === "boolean") item.self_pickup = value;
+      else if (field === "product_variant_id" && (typeof value === "string" || value === null)) {
+        item.product_variant_id = value as string | null;
+        const selectedVariant = item.product_variants?.find((v) => v.id === value);
+        if (selectedVariant) {
+          item.product_variant_name = selectedVariant.name;
+          item.price = Number(selectedVariant.selling_price);
+          item.product_unit_name = selectedVariant.unit?.name || "";
+          item.product_unit_id = selectedVariant.unit_id;
+        } else {
+          item.product_variant_name = null;
+        }
       }
+
       updated[index] = item;
       updated[index].subtotal =
         updated[index].qty * updated[index].price - updated[index].discount;
@@ -361,6 +388,10 @@ export default function Sales() {
       toast({ title: "Tambahkan minimal 1 produk", variant: "destructive" });
       return;
     }
+    if (items.some((i) => !i.product_variant_id)) {
+      toast({ title: "Pilih varian untuk semua produk", variant: "destructive" });
+      return;
+    }
     try {
       // If salesDate is unchanged from the cart creation date, we treat it as default
       // and use the current saving time. Otherwise, we respect the user's manual override.
@@ -383,6 +414,8 @@ export default function Sales() {
         p_delivery_fee: deliveryFee > 0 ? deliveryFee : undefined,
         p_items: items.map((i) => ({
           product_id: i.product_id,
+          product_unit_id: i.product_unit_id || undefined,
+          product_variant_id: i.product_variant_id || undefined,
           qty: i.qty,
           price: i.price,
           discount: i.discount,
