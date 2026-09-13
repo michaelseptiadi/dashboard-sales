@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useDashboardStats } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
   TrendingUp,
   Calendar,
@@ -19,7 +19,26 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate, Link } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function Dashboard() {
+function CustomTooltip({ active, payload, label, metric }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-xl border border-border/50 bg-background/95 p-3 shadow-xl backdrop-blur-sm dark:bg-slate-900/95">
+        <p className="mb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-[hsl(221,83%,53%)]" />
+          <span className="text-sm font-bold text-foreground">
+            {metric === 'revenue' 
+              ? formatCurrency(payload[0].value) 
+              : `${payload[0].value} transaksi`}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+export default function Index() {
   const [range, setRange] = useState<'7d' | '30d' | '12m'>('7d');
   const [metric, setMetric] = useState<'revenue' | 'orders'>('revenue');
   const [ranking, setRanking] = useState<'products' | 'customers'>('products');
@@ -244,44 +263,50 @@ export default function Dashboard() {
             ) : (
               <div className="h-[210px] w-full md:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
+                  <AreaChart
                     data={data?.sales_trend || []}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 5 }}
+                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-slate-100 dark:stroke-slate-800" />
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-slate-200/50 dark:stroke-slate-800/50" />
                     <XAxis
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
+                      tickMargin={12}
                       interval="preserveStartEnd"
-                      className="text-[11px] font-medium text-muted-foreground"
+                      className="text-[11px] font-semibold text-muted-foreground"
                     />
                     <YAxis
-                      tickFormatter={formatYAxis}
+                      tickFormatter={(val: number) => {
+                        if (metric === 'revenue') {
+                          if (val >= 1000000) return `Rp ${(val / 1000000).toFixed(1)}M`;
+                          if (val >= 1000) return `Rp ${(val / 1000).toFixed(0)}K`;
+                          return `Rp ${val}`;
+                        }
+                        return val.toString();
+                      }}
                       tickLine={false}
                       axisLine={false}
-                      className="text-[11px] font-medium text-muted-foreground"
+                      tickMargin={12}
+                      className="text-[11px] font-semibold text-muted-foreground"
                     />
-                    <Tooltip
-                      formatter={(val: number) => [
-                        metric === 'revenue' ? formatCurrency(val) : `${val} transaksi`,
-                        metric === 'revenue' ? "Omzet" : "Total Transaksi"
-                      ]}
-                      contentStyle={{
-                        borderRadius: "8px",
-                        border: "0",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                      }}
-                    />
-                    <Line
+                    <Tooltip content={<CustomTooltip metric={metric} />} cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.2 }} />
+                    <Area
                       type="monotone"
                       dataKey="value"
                       stroke="hsl(221, 83%, 53%)"
                       strokeWidth={3}
-                      dot={false}
-                      activeDot={{ r: 6 }}
+                      fillOpacity={1}
+                      fill="url(#colorValue)"
+                      activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))", fill: "hsl(221, 83%, 53%)" }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
