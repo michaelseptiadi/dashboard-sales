@@ -127,8 +127,8 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
                     aria-label="Profil pengguna"
                   >
                     <div className="flex min-w-0 flex-col text-right">
-                      <span className="truncate text-xs font-medium leading-none text-foreground max-w-[75px] sm:max-w-[130px] md:max-w-[160px]">
-                        Hi, <span className="font-bold text-primary">{user?.name ? user.name.split(' ')[0] : user?.email?.split('@')[0] || "User"}</span>
+                      <span className="truncate text-xs font-medium leading-none text-foreground max-w-[120px] sm:max-w-[160px] md:max-w-[200px]">
+                        Hi, <span className="font-bold text-primary">{user?.name || user?.email?.split('@')[0] || "User"}</span>
                       </span>
                       <span className="hidden text-[10px] text-muted-foreground leading-tight mt-0.5 sm:block truncate">
                         {roleLabel}
