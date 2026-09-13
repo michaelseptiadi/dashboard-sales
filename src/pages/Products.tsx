@@ -18,7 +18,8 @@ import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
-import { Plus, PackagePlus, AlertTriangle, Eye } from "lucide-react";
+import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface ProductFormData {
   product_code: string;
@@ -62,6 +63,7 @@ export default function Products() {
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("limit", String(value)); p.set("page", "1"); return p; }, { replace: true });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number; store_product_id?: string; variants: import("@/hooks/useProducts").ProductVariant[] } | null>(null);
@@ -81,6 +83,21 @@ export default function Products() {
 
   const products = productsResponse?.data ?? [];
   const productsMeta = productsResponse?.meta;
+  const stockOf = (product: import("@/hooks/useProducts").Product) =>
+    product.variants?.length
+      ? product.variants.filter((variant) => variant.is_active).reduce((sum, variant) => sum + Number(variant.stock), 0)
+      : Number(product.current_stock || 0);
+  const isLow = (product: import("@/hooks/useProducts").Product) =>
+    product.variants?.length
+      ? product.variants.some((variant) => variant.is_active && Number(variant.stock) <= Number(variant.minimum_stock))
+      : stockOf(product) <= Number(product.minimum_stock);
+  // ponytail: Stock chips filter the fetched page; move filters server-side when the API supports stock status.
+  const mobileProducts = products.filter((product) => {
+    const stock = stockOf(product);
+    if (stockFilter === "out") return stock <= 0;
+    if (stockFilter === "low") return stock > 0 && isLow(product);
+    return true;
+  });
 
 
 
@@ -169,9 +186,16 @@ export default function Products() {
 
   return (
     <DashboardLayout title="Manajemen Produk">
+      <div className="mb-5 md:hidden">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Katalog toko</p>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <div><h1 className="text-2xl font-extrabold">Produk</h1><p className="mt-1 text-sm text-muted-foreground">Cari barang dan pantau stok dengan cepat.</p></div>
+          <div className="flex h-11 min-w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Boxes className="h-5 w-5" /></div>
+        </div>
+      </div>
       {/* Low stock alert */}
       {lowStockItems && lowStockItems.length > 0 && (
-        <Card className="mb-5 border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30">
+        <Card className="mb-5 hidden border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30 md:block">
           <CardHeader className="px-5 pb-2 pt-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400">
@@ -210,33 +234,35 @@ export default function Products() {
           </CardContent>
         </Card>
       )}
-      {/* Products Table */}
-      <Card>
-        <CardHeader className="px-6 pb-4 pt-5">
+      {/* Products */}
+      <Card className="border-0 bg-transparent shadow-none md:border md:bg-card md:shadow-sm">
+        <CardHeader className="px-0 pb-4 pt-0 md:px-6 md:pt-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2.5">
-              <CardTitle className="text-base">Daftar Produk</CardTitle>
+              <CardTitle className="hidden text-base md:block">Daftar Produk</CardTitle>
               {productsMeta && (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                <span className="hidden rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground md:inline-flex">
                   {productsMeta.total}
                 </span>
               )}
             </div>
             {isAdmin && (
-              <Button size="sm" onClick={openCreate}>
+              <Button size="sm" onClick={openCreate} className="h-11 rounded-full px-4 shadow-sm md:h-9 md:rounded-md md:px-3">
                 <Plus className="mr-1.5 h-4 w-4" /> Tambah Produk
               </Button>
             )}
           </div>
           <div className="flex flex-wrap gap-3 pt-1">
             <SearchInput
-              containerClassName="flex-1 min-w-[200px]"
+              aria-label="Cari produk"
+              containerClassName="w-full flex-1 min-w-[200px] [&_svg]:top-4 md:[&_svg]:top-2.5"
+              className="h-12 rounded-2xl border-slate-300 bg-card pl-10 shadow-sm md:h-10 md:rounded-md md:shadow-none"
               placeholder="Cari nama atau kode produk..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <Select value={categoryFilter || "all"} onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger aria-label="Filter kategori" className="h-11 flex-1 rounded-xl bg-card md:h-10 md:w-[180px] md:flex-none md:rounded-md">
                 <SelectValue placeholder="Semua Kategori" />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +273,7 @@ export default function Products() {
               </SelectContent>
             </Select>
             <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
-              <SelectTrigger className="w-[110px]">
+              <SelectTrigger aria-label="Jumlah per halaman" className="hidden w-[110px] md:flex">
                 <SelectValue placeholder="Limit" />
               </SelectTrigger>
               <SelectContent>
@@ -258,8 +284,61 @@ export default function Products() {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 pt-1 md:hidden" aria-label="Filter stok">
+            {([['all', 'Semua'], ['low', 'Stok rendah'], ['out', 'Stok habis']] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setStockFilter(value)} aria-pressed={stockFilter === value} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition active:scale-95 ${stockFilter === value ? 'bg-foreground text-background shadow-sm' : 'border bg-card text-muted-foreground'}`}>{label}</button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
+          <section aria-label="Daftar produk mobile" className="space-y-3 md:hidden">
+            {isLoading ? (
+              Array.from({ length: 4 }, (_, index) => <div key={index} className="h-36 animate-pulse rounded-2xl border bg-card" />)
+            ) : mobileProducts.length === 0 ? (
+              <div className="rounded-2xl border bg-card px-5 py-10 text-center shadow-sm">
+                <PackagePlus className="mx-auto mb-3 h-9 w-9 text-muted-foreground/40" />
+                <p className="font-bold">Tidak ada produk ditemukan</p>
+                <p className="mt-1 text-sm text-muted-foreground">Coba ubah pencarian atau filter stok.</p>
+              </div>
+            ) : mobileProducts.map((product) => {
+              const stock = stockOf(product);
+              const lowStock = isLow(product);
+              const status = stock <= 0 ? "Stok habis" : lowStock ? "Stok rendah" : "Stok aman";
+              return (
+                <article key={product.id} className="overflow-hidden rounded-2xl border bg-card shadow-sm transition active:scale-[0.995]">
+                  <div className="flex gap-3 p-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${stock <= 0 ? 'bg-rose-100 text-rose-700' : lowStock ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'}`}>
+                      <Boxes className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-extrabold">{product.name}</p>
+                          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{product.product_code}</p>
+                        </div>
+                        <Badge variant="outline" className={`shrink-0 text-[10px] ${stock <= 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : lowStock ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{status}</Badge>
+                      </div>
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Harga jual</p>
+                          <p className="mt-0.5 text-sm font-extrabold">{formatCurrency(Number(product.selling_price || 0))}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stok</p>
+                          <p className={`mt-0.5 text-xl font-black tabular-nums ${stock <= 0 ? 'text-rose-600' : lowStock ? 'text-amber-700' : ''}`}>{stock} <span className="text-xs font-semibold text-muted-foreground">{product.units?.name || product.unit?.name || ''}</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex border-t bg-muted/20">
+                    {isAdmin && product.variants?.length ? <button type="button" onClick={() => openStockDialog(product)} className="flex min-h-12 flex-1 items-center justify-center gap-2 border-r text-xs font-bold text-primary active:bg-primary/5"><SlidersHorizontal className="h-4 w-4" /> Sesuaikan stok</button> : null}
+                    <button type="button" aria-label={`Lihat detail ${product.name}`} onClick={() => navigate(`/produk/${product.id}`)} className="flex min-h-12 flex-1 items-center justify-center gap-1 text-xs font-bold active:bg-muted">Lihat detail <ChevronRight className="h-4 w-4" /></button>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+          <div className="hidden md:block">
           {isLoading ? (
             <div className="px-6 pb-6"><TableSkeleton /></div>
           ) : (
@@ -322,15 +401,17 @@ export default function Products() {
               </TableBody>
             </Table>
           )}
+          </div>
           {productsMeta && productsMeta.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t px-6 py-4">
-              <div className="text-xs text-muted-foreground">
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border bg-card px-4 py-3 md:mt-0 md:flex-row md:items-center md:justify-between md:rounded-none md:border-x-0 md:border-b-0 md:px-6 md:py-4">
+              <div className="text-center text-xs text-muted-foreground md:text-left">
                 Menampilkan {(page - 1) * limit + 1} - {Math.min(page * limit, productsMeta.total)} dari {productsMeta.total} produk
               </div>
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-11 rounded-xl md:h-9 md:rounded-md"
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page <= 1}
                 >
@@ -342,6 +423,7 @@ export default function Products() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-11 rounded-xl md:h-9 md:rounded-md"
                   onClick={() => setPage(Math.min(productsMeta.totalPages, page + 1))}
                   disabled={page >= productsMeta.totalPages}
                 >
@@ -355,7 +437,7 @@ export default function Products() {
 
       {/* Stock Adjustment Dialog */}
       <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-base">Sesuaikan Stok</DialogTitle>
             <p className="text-sm text-muted-foreground">{stockProduct?.name}</p>
@@ -437,12 +519,12 @@ export default function Products() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah Produk</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Kode Produk</Label>
                 <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" disabled/>
@@ -452,7 +534,7 @@ export default function Products() {
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Kategori <span className="text-destructive">*</span></Label>
                 <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
@@ -476,7 +558,7 @@ export default function Products() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>Harga Jual <span className="text-destructive">*</span></Label>
                 <CurrencyInput value={form.selling_price} onChange={(v) => setForm({ ...form, selling_price: v })} />
