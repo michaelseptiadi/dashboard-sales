@@ -60,7 +60,7 @@ export default function Products() {
     setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("limit", String(value)); p.delete("page"); return p; }, { replace: true });
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "active" | "inactive" | "low" | "out">("all");
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number; store_product_id?: string; variants: import("@/hooks/useProducts").ProductVariant[] } | null>(null);
@@ -69,7 +69,8 @@ export default function Products() {
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
-  const { data: productsResponse, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteProducts(search, categoryFilter || undefined, limit);
+  const apiActiveParam = stockFilter === "active" ? "true" : stockFilter === "inactive" ? "false" : undefined;
+  const { data: productsResponse, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteProducts(search, categoryFilter || undefined, limit, apiActiveParam);
   const { data: lowStockItems, isLoading: isLowStockLoading } = useLowStockProducts();
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
@@ -84,7 +85,7 @@ export default function Products() {
 
   useEffect(() => {
     const target = loadMoreRef.current;
-    if (stockFilter !== "all" || !target || !hasNextPage) return;
+    if ((stockFilter === "low" || stockFilter === "out") || !target || !hasNextPage) return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting && !isFetchingNextPage) fetchNextPage(); },
       { rootMargin: "200px" },
@@ -101,13 +102,19 @@ export default function Products() {
       ? product.variants.some((variant) => variant.is_active && Number(variant.stock) <= Number(variant.minimum_stock))
       : stockOf(product) <= Number(product.minimum_stock);
   const normalizedSearch = search.trim().toLowerCase();
-  const mobileProducts = stockFilter === "all" ? products : (lowStockItems ?? []).filter((product) => {
-    const matchesSearch = !normalizedSearch || product.name.toLowerCase().includes(normalizedSearch) || product.product_code.toLowerCase().includes(normalizedSearch);
-    const matchesCategory = !categoryFilter || product.category_id === categoryFilter;
-    const stock = stockOf(product);
-    return matchesSearch && matchesCategory && (stockFilter === "out" ? stock <= 0 : stock > 0);
-  });
-  const isMobileLoading = stockFilter === "all" ? isLoading : isLowStockLoading;
+  const mobileProducts = (stockFilter === "low" || stockFilter === "out")
+    ? (lowStockItems ?? []).filter((product) => {
+        const matchesSearch = !normalizedSearch || product.name.toLowerCase().includes(normalizedSearch) || product.product_code.toLowerCase().includes(normalizedSearch);
+        const matchesCategory = !categoryFilter || product.category_id === categoryFilter;
+        const stock = stockOf(product);
+        return matchesSearch && matchesCategory && (stockFilter === "out" ? stock <= 0 : stock > 0);
+      })
+    : stockFilter === "inactive"
+    ? products.filter((p) => !p.is_active)
+    : stockFilter === "active"
+    ? products.filter((p) => p.is_active)
+    : products;
+  const isMobileLoading = (stockFilter === "low" || stockFilter === "out") ? isLowStockLoading : isLoading;
 
 
 
@@ -184,8 +191,8 @@ export default function Products() {
 
   const handleToggleActive = async (id: string, currentActive: boolean) => {
     try {
-      // Store-products API doesn't expose is_active toggling; keep current behavior by blocking this action.
-      throw new Error("Ubah status aktif produk belum tersedia di endpoint store-products");
+      await updateProduct.mutateAsync({ id, is_active: !currentActive });
+      toast({ title: `Status produk diubah menjadi ${!currentActive ? "Aktif" : "Nonaktif"}` });
     } catch (error: unknown) {
       toast({ title: "Gagal mengubah status", description: (error as Error).message, variant: "destructive" });
     }
@@ -282,6 +289,18 @@ export default function Products() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as any)}>
+              <SelectTrigger aria-label="Filter status produk" className="hidden w-[140px] md:flex rounded-xl bg-card md:h-10 md:rounded-md">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="active">Hanya Aktif</SelectItem>
+                <SelectItem value="inactive">Hanya Nonaktif</SelectItem>
+                <SelectItem value="low">Stok Rendah</SelectItem>
+                <SelectItem value="out">Stok Habis</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
               <SelectTrigger aria-label="Jumlah per halaman" className="hidden w-[110px] md:flex">
                 <SelectValue placeholder="Limit" />
@@ -295,7 +314,7 @@ export default function Products() {
             </Select>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 pt-1 md:hidden" aria-label="Filter stok">
-            {([['all', 'Semua'], ['low', 'Stok rendah'], ['out', 'Stok habis']] as const).map(([value, label]) => (
+            {([['all', 'Semua'], ['active', 'Aktif'], ['inactive', 'Nonaktif'], ['low', 'Stok rendah'], ['out', 'Stok habis']] as const).map(([value, label]) => (
               <button key={value} type="button" onClick={() => setStockFilter(value)} aria-pressed={stockFilter === value} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition active:scale-95 ${stockFilter === value ? 'bg-foreground text-background shadow-sm' : 'border bg-card text-muted-foreground'}`}>{label}</button>
             ))}
           </div>
@@ -308,14 +327,14 @@ export default function Products() {
               <div className="rounded-2xl border bg-card px-5 py-10 text-center shadow-sm">
                 <PackagePlus className="mx-auto mb-3 h-9 w-9 text-muted-foreground/40" />
                 <p className="font-bold">Tidak ada produk ditemukan</p>
-                <p className="mt-1 text-sm text-muted-foreground">Coba ubah pencarian atau filter stok.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Coba ubah pencarian atau filter status/stok.</p>
               </div>
             ) : mobileProducts.map((product) => {
               const stock = stockOf(product);
               const lowStock = isLow(product);
               const status = stock <= 0 ? "Stok habis" : lowStock ? "Stok rendah" : "Stok aman";
               return (
-                <article key={product.id} className="overflow-hidden rounded-2xl border bg-card shadow-sm transition active:scale-[0.995]">
+                <article key={product.id} className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition active:scale-[0.995] ${!product.is_active ? 'opacity-75 border-dashed' : ''}`}>
                   <div className="flex gap-3 p-4">
                     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${stock <= 0 ? 'bg-rose-100 text-rose-700' : lowStock ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'}`}>
                       <Boxes className="h-5 w-5" />
@@ -326,7 +345,19 @@ export default function Products() {
                           <p className="truncate font-extrabold">{product.name}</p>
                           <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{product.product_code}</p>
                         </div>
-                        <Badge variant="outline" className={`shrink-0 text-[10px] ${stock <= 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : lowStock ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{status}</Badge>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-bold ${
+                              product.is_active
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                : "border-slate-300 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                            }`}
+                          >
+                            {product.is_active ? "Aktif" : "Nonaktif"}
+                          </Badge>
+                          <Badge variant="outline" className={`text-[10px] ${stock <= 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : lowStock ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{status}</Badge>
+                        </div>
                       </div>
                       <div className="mt-3 flex items-end justify-between gap-3">
                         <div>
@@ -341,6 +372,17 @@ export default function Products() {
                     </div>
                   </div>
                   <div className="flex border-t bg-muted/20">
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(product.id, !!product.is_active)}
+                        className={`flex min-h-12 flex-1 items-center justify-center gap-1 border-r text-xs font-bold transition-colors ${
+                          product.is_active ? "text-muted-foreground hover:text-foreground" : "text-emerald-600 hover:text-emerald-700 font-extrabold"
+                        }`}
+                      >
+                        {product.is_active ? "Nonaktifkan" : "Aktifkan"}
+                      </button>
+                    )}
                     {isAdmin && product.variants?.length ? <button type="button" onClick={() => openStockDialog(product)} className="flex min-h-12 flex-1 items-center justify-center gap-2 border-r text-xs font-bold text-primary active:bg-primary/5"><SlidersHorizontal className="h-4 w-4" /> Sesuaikan stok</button> : null}
                     <button type="button" aria-label={`Lihat detail ${product.name}`} onClick={() => navigate(`/produk/${product.id}`)} className="flex min-h-12 flex-1 items-center justify-center gap-1 text-xs font-bold active:bg-muted">Lihat detail <ChevronRight className="h-4 w-4" /></button>
                   </div>

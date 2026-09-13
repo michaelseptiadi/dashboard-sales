@@ -204,18 +204,19 @@ function responseDetailToProduct(res: StoreProductDetailResponse): Product {
   return mapStoreProduct(res);
 }
 
-export function useInfiniteProducts(search?: string, categoryId?: string, limit = 10) {
+export function useInfiniteProducts(search?: string, categoryId?: string, limit = 10, isActive?: string) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
 
   return useInfiniteQuery({
-    queryKey: ["products", storeId, search, categoryId, limit],
+    queryKey: ["products", storeId, search, categoryId, limit, isActive],
     initialPageParam: 1,
     queryFn: ({ pageParam }): Promise<PaginatedProducts> => {
       const p = new URLSearchParams();
       if (storeId) p.set("storeId", storeId);
       if (search) p.set("search", search);
       if (categoryId) p.set("categoryId", categoryId);
+      if (isActive && isActive !== "all") p.set("isActive", isActive);
       p.set("page", String(pageParam));
       p.set("limit", String(limit));
       return apiClient

@@ -53,6 +53,7 @@ describe("Products mobile presentation", () => {
 
     const list = screen.getByRole("region", { name: "Daftar produk mobile" });
     expect(list).toHaveTextContent("Semen Tiga Roda");
+    expect(list).toHaveTextContent("Aktif");
     expect(list).toHaveTextContent("Stok rendah");
     expect(list).toHaveTextContent("Rp 72.000");
     expect(screen.getByRole("button", { name: "Lihat detail Semen Tiga Roda" })).toBeInTheDocument();
@@ -75,5 +76,12 @@ describe("Products mobile presentation", () => {
     const list = screen.getByRole("region", { name: "Daftar produk mobile" });
     expect(list).toHaveTextContent("Cat Tembok (Putih)");
     expect(list).not.toHaveTextContent("Semen Tiga Roda");
+  });
+
+  it("provides filter buttons for active and inactive status", () => {
+    render(<MemoryRouter><Products /></MemoryRouter>);
+
+    expect(screen.getByRole("button", { name: "Aktif" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nonaktif" })).toBeInTheDocument();
   });
 });
