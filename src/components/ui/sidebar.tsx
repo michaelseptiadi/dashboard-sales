@@ -167,7 +167,7 @@ const Sidebar = React.forwardRef<
         <SheetContent
           data-sidebar="sidebar"
           data-mobile="true"
-          className="w-[--sidebar-width] bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl backdrop-saturate-200 p-0 text-sidebar-foreground [&>button]:hidden border-r border-white/40 dark:border-white/10 shadow-[inset_-1px_0_0_rgba(255,255,255,0.2),4px_0_24px_rgba(0,0,0,0.08)]"
+          className="w-[--sidebar-width] bg-white/20 dark:bg-slate-950/30 backdrop-blur-xl backdrop-saturate-150 p-0 text-sidebar-foreground [&>button]:hidden border-r border-white/30 dark:border-white/10 shadow-[inset_-1px_0_0_rgba(255,255,255,0.2),inset_0_1px_1px_rgba(255,255,255,0.4),4px_0_24px_rgba(0,0,0,0.06)]"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
