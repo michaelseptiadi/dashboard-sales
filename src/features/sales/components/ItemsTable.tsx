@@ -120,10 +120,11 @@ export function ItemsTable({
             </Popover>
           </div>
         </CardHeader>
-        <CardContent className="pt-4 overflow-x-auto">
-          <Table className="min-w-[650px]">
-            <TableHeader>
-              <TableRow className="text-xs border-b border-muted/20 hover:bg-transparent">
+        <CardContent className="pt-4">
+          <div className="hidden md:block overflow-x-auto">
+            <Table className="min-w-[650px]">
+              <TableHeader>
+                <TableRow className="text-xs border-b border-muted/20 hover:bg-transparent">
                 <TableHead className="font-semibold text-muted-foreground">Produk</TableHead>
                 <TableHead className="w-20 font-semibold text-muted-foreground">Qty</TableHead>
                 <TableHead className="w-28 font-semibold text-muted-foreground">Diskon</TableHead>
@@ -267,6 +268,138 @@ export function ItemsTable({
               )}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="md:hidden space-y-4">
+            {items.length === 0 ? (
+              <div className="py-12 text-center flex flex-col items-center gap-2 text-muted-foreground border rounded-xl border-dashed">
+                <div className="p-3 rounded-full bg-muted/40 text-muted-foreground/40 mb-1">
+                  <Package className="h-8 w-8" />
+                </div>
+                <p className="text-sm font-semibold">Belum ada produk</p>
+                <p className="text-xs">Klik "Tambah Produk" di atas.</p>
+              </div>
+            ) : (
+              items.map((item, index) => (
+                <div key={`${item.product_id}-${index}`} className="flex flex-col gap-3 p-3 border rounded-xl bg-card shadow-sm">
+                  {/* Row 1: Header / Title */}
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="font-bold text-sm text-foreground leading-tight">{item.product_name}</div>
+                      <div className="text-xs text-muted-foreground font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <span>{item.product_code}</span>
+                        {item.product_unit_name && (
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-normal font-sans">
+                            {item.product_unit_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
+                      onClick={() => removeItem(index)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  {/* Row 2: Variant selector (if any) */}
+                  {item.product_variants && item.product_variants.length > 1 && (
+                    <div>
+                      <select
+                        value={item.product_variant_id || ""}
+                        onChange={(e) => updateItem(index, "product_variant_id", e.target.value || null)}
+                        className="w-full text-xs bg-violet-50/80 hover:bg-violet-100/70 border border-violet-200 rounded px-2 py-1.5 font-medium text-violet-700 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 focus:outline-none"
+                      >
+                        {item.product_variants
+                          .filter((v) => v.is_active)
+                          .map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name} ({formatCurrency(Number(v.selling_price))})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Row 3: Qty & Discount Inputs */}
+                  <div className="flex gap-2">
+                    <div className="w-24">
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Qty</Label>
+                      <Input
+                        type="number"
+                        value={item.qty === 0 ? "" : item.qty}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          updateItem(index, "qty", val);
+                        }}
+                        onBlur={() => {
+                          if (item.qty <= 0) updateItem(index, "qty", 1);
+                        }}
+                        className="h-8 rounded-lg text-xs text-center"
+                        min={1}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Diskon / Item</Label>
+                      <CurrencyInput
+                        value={item.discount}
+                        onChange={(v) => updateItem(index, "discount", v)}
+                        className="h-8 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 4: Subtotal & Self Pickup Toggle */}
+                  <div className="flex items-center justify-between border-t pt-2 mt-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="flex items-center gap-1.5 focus:outline-none hover:opacity-85 transition-opacity py-1">
+                          {item.self_pickup ? (
+                            <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50/70 text-blue-700 font-semibold cursor-pointer hover:bg-blue-100/80 rounded py-1 px-2 text-[10px] whitespace-nowrap">
+                              <User className="h-3 w-3" /> Ambil Sendiri
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 border-emerald-200 bg-emerald-50/70 text-emerald-700 font-semibold cursor-pointer hover:bg-emerald-100/80 rounded py-1 px-2 text-[10px] whitespace-nowrap">
+                              <Truck className="h-3 w-3" /> Dikirim
+                            </Badge>
+                          )}
+                          <ChevronDown className="h-3 w-3 text-muted-foreground/60" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="rounded-xl shadow-md border-muted/40">
+                        <DropdownMenuItem onClick={() => item.self_pickup && toggleItemSelfPickup(index)} className="gap-2 rounded-lg text-xs">
+                          <Truck className="h-3.5 w-3.5 text-emerald-600" /> Dikirim
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => !item.self_pickup && toggleItemSelfPickup(index)} className="gap-2 rounded-lg text-xs">
+                          <User className="h-3.5 w-3.5 text-blue-600" /> Ambil Sendiri
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className="text-right">
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider block">Subtotal</Label>
+                      {item.qty * item.price > item.subtotal ? (
+                        <div className="flex flex-col items-end leading-tight">
+                          <span className="text-[10px] text-muted-foreground line-through">
+                            {formatCurrency(item.qty * item.price)}
+                          </span>
+                          <span className="text-sm text-foreground font-bold font-mono">
+                            {formatCurrency(item.subtotal)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-foreground font-bold font-mono leading-tight">{formatCurrency(item.subtotal)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </div>
 
