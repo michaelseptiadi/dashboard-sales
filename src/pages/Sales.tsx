@@ -110,6 +110,30 @@ export default function Sales() {
   // Modal and Step states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [maxStep, setMaxStep] = useState(1);
+
+  useEffect(() => {
+    setMaxStep((prev) => Math.max(prev, currentStep));
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setMaxStep(1);
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    if (items.length > 0) {
+      setMaxStep((prev) => Math.max(prev, 2));
+    }
+  }, [items.length]);
+
+  const canNavigateToStep = (targetStep: number) => {
+    if (targetStep === 1) return true;
+    if (targetStep === 2) return maxStep >= 2;
+    if (targetStep === 3) return maxStep >= 3 && items.length > 0;
+    return false;
+  };
 
   // prevent auto-save from firing when we're loading a different cart
   const loadingCartRef = useRef(false);
@@ -731,31 +755,64 @@ export default function Sales() {
             {/* Steps Tracker */}
             <div className="flex flex-row md:flex-col border-b md:border-b-0 md:border-r pb-4 md:pb-0 mb-4 md:mb-0 md:pr-6 justify-between md:justify-center items-center h-auto md:h-full gap-2 md:gap-8 overflow-x-auto hide-scrollbar shrink-0">
               {/* Step 1 */}
-              <div className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none ${currentStep !== 1 && 'opacity-60 md:opacity-100'}`}>
-                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
+              <button
+                type="button"
+                disabled={!canNavigateToStep(1)}
+                onClick={() => setCurrentStep(1)}
+                className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none transition-all ${
+                  currentStep === 1
+                    ? 'opacity-100 font-bold'
+                    : canNavigateToStep(1)
+                    ? 'opacity-60 hover:opacity-100 cursor-pointer active:scale-95'
+                    : 'opacity-30 cursor-not-allowed'
+                }`}
+              >
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 1 ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground'}`}>1</div>
                 <div className="min-w-0">
                   <h4 className="font-bold md:font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground/80 hidden md:block">Pelanggan</h4>
                   <p className="text-[10px] md:text-xs text-foreground font-medium md:mt-0.5 truncate max-w-[80px] md:max-w-[120px]">{customerName || "Umum"}</p>
                 </div>
-              </div>
+              </button>
               {/* Step 2 */}
-              <div className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none ${currentStep !== 2 && 'opacity-60 md:opacity-100'}`}>
-                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
+              <button
+                type="button"
+                disabled={!canNavigateToStep(2)}
+                onClick={() => setCurrentStep(2)}
+                className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none transition-all ${
+                  currentStep === 2
+                    ? 'opacity-100 font-bold'
+                    : canNavigateToStep(2)
+                    ? 'opacity-60 hover:opacity-100 cursor-pointer active:scale-95'
+                    : 'opacity-30 cursor-not-allowed'
+                }`}
+              >
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 2 ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground'}`}>2</div>
                 <div className="min-w-0">
                   <h4 className="font-bold md:font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground/80 hidden md:block">Item</h4>
                   <p className="text-[10px] md:text-xs text-foreground font-medium md:mt-0.5 truncate max-w-[80px] md:max-w-[120px]">{items.length} produk</p>
                 </div>
-              </div>
+              </button>
               {/* Step 3 */}
-              <div className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none ${currentStep !== 3 && 'opacity-60 md:opacity-100'}`}>
-                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
+              <button
+                type="button"
+                disabled={!canNavigateToStep(3)}
+                onClick={() => setCurrentStep(3)}
+                className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none transition-all ${
+                  currentStep === 3
+                    ? 'opacity-100 font-bold'
+                    : canNavigateToStep(3)
+                    ? 'opacity-60 hover:opacity-100 cursor-pointer active:scale-95'
+                    : 'opacity-30 cursor-not-allowed'
+                }`}
+              >
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 3 ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground'}`}>3</div>
                 <div className="min-w-0">
                   <h4 className="font-bold md:font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground/80 hidden md:block">Bayar</h4>
                   <p className="text-[10px] md:text-xs text-foreground font-medium md:mt-0.5 truncate max-w-[80px] md:max-w-[120px]">
                     {paymentMethodId ? (paymentMethods?.find(p => p.id === paymentMethodId)?.name || "Dipilih") : "Pilih metode"}
                   </p>
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Center Content Form (Scrollable) */}
