@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { StoreSelectModal } from "@/components/StoreSelectModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/AppSidebar";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
@@ -67,9 +69,20 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const PersistentMobileSidebar = () => {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <div className="md:hidden">
+      <AppSidebar />
+    </div>
+  );
+};
+
 const AppRoutes = () => (
   <>
     <StoreSelectModal />
+    <PersistentMobileSidebar />
     <Routes>
       <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
@@ -99,7 +112,9 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AppRoutes />
+            <SidebarProvider defaultOpen={false}>
+              <AppRoutes />
+            </SidebarProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
