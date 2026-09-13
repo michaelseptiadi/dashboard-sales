@@ -126,17 +126,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
+      <SidebarHeader className="border-b border-sidebar-border/40 px-3 py-3 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-3">
         <div className="flex items-center gap-3 mb-2 group-data-[collapsible=icon]:mb-0 group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 shadow-md">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-blue-600 shadow-md shadow-blue-500/20 ring-1 ring-white/30">
             <Building2 className="h-4 w-4 text-white" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground leading-tight">
+              <span className="text-sm font-bold text-sidebar-foreground leading-tight tracking-tight">
                 {selectedStore?.store_name ?? "Toko Bangunan"}
               </span>
-              <span className="text-[11px] text-sidebar-foreground/50 mt-0.5">
+              <span className="text-[10px] font-medium text-sidebar-foreground/50 mt-0.5">
                 Dashboard Penjualan
               </span>
             </div>
@@ -146,11 +146,11 @@ export function AppSidebar() {
           <SidebarMenuButton
             tooltip={selectedStore?.store_name ?? "Pilih Toko"}
             onClick={() => setStoreModalOpen(true)}
-            className="w-full justify-between rounded-lg border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            className="w-full justify-between rounded-xl border border-sidebar-border/50 bg-white/40 dark:bg-white/[0.04] backdrop-blur-md px-3 py-2 text-sidebar-foreground/85 hover:bg-white/70 dark:hover:bg-white/[0.08] hover:text-sidebar-foreground transition-all duration-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_1px_3px_rgba(0,0,0,0.02)]"
           >
-            <Building2 className="h-4 w-4 shrink-0" />
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
             <div className="ml-2 flex flex-1 flex-col items-start overflow-hidden">
-              <span className="truncate text-xs font-medium leading-tight">
+              <span className="truncate text-xs font-semibold leading-tight">
                 {selectedStore?.store_name ?? "Pilih Toko"}
               </span>
               <span className="text-[10px] text-sidebar-foreground/50 leading-tight">Ganti Toko</span>
@@ -164,11 +164,11 @@ export function AppSidebar() {
         {visibleGroups.map((group, gi) => (
           <div key={gi}>
             {gi > 0 && (
-              <div className="mx-3.5 my-1.5 border-t border-sidebar-border/20" />
+              <div className="mx-3.5 my-1.5 border-t border-sidebar-border/25" />
             )}
             <SidebarGroup className="px-2.5 py-1">
               {group.label && (
-                <SidebarGroupLabel className="text-[10px] font-bold text-sidebar-foreground/40 uppercase tracking-widest px-2.5 mb-1.5 select-none">
+                <SidebarGroupLabel className="text-[10px] font-bold text-sidebar-foreground/40 uppercase tracking-widest px-2.5 mb-1 select-none">
                   {group.label}
                 </SidebarGroupLabel>
               )}
@@ -181,11 +181,11 @@ export function AppSidebar() {
                         tooltip={item.title}
                         isActive={isActive(item.url, item.end)}
                       >
-                        <Link to={item.url}>
-                          <item.icon />
+                        <Link to={item.url} className="flex items-center gap-2.5">
+                          <item.icon className="h-4 w-4 shrink-0 transition-transform group-hover/menu-item:scale-105" />
                           <span className="flex-1">{item.title}</span>
                           {item.url === "/produk" && lowStockCount > 0 && (
-                            <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] leading-none bg-destructive hover:bg-destructive text-white">
+                            <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] leading-none bg-destructive hover:bg-destructive text-white shadow-xs">
                               {lowStockCount}
                             </Badge>
                           )}
@@ -200,10 +200,10 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
+      <SidebarFooter className="border-t border-sidebar-border/40 px-3 py-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
         {!collapsed && (
-          <div className="mb-2 flex items-center gap-2 px-2">
-            <p className="truncate text-xs text-sidebar-foreground/50 flex-1">{user?.email}</p>
+          <div className="mb-2 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/40 dark:bg-white/[0.04] backdrop-blur-md border border-sidebar-border/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]">
+            <p className="truncate text-xs font-medium text-sidebar-foreground/70 flex-1">{user?.email}</p>
             {isSuperAdmin ? (
               <Badge className="shrink-0 text-[10px] px-1.5 py-0 bg-amber-500 hover:bg-amber-500">
                 Superadmin
@@ -220,10 +220,10 @@ export function AppSidebar() {
             <SidebarMenuButton
               tooltip="Keluar"
               onClick={() => signOut()}
-              className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+              className="text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Keluar</span>}
+              {!collapsed && <span className="font-medium">Keluar</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
