@@ -160,8 +160,35 @@ export default function Supir() {
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/60 overflow-hidden">
-              <Table>
+            <>
+              <div className="space-y-3 md:hidden">
+                {filteredDrivers.map((driver) => (
+                  <div key={driver.id} className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{driver.driver_name}</p>
+                        {driver.phone_number && (
+                          <a href={`tel:${driver.phone_number}`} className="truncate text-xs text-blue-600 flex items-center gap-1 mt-0.5 hover:underline">
+                            <Phone className="h-3 w-3 shrink-0" />
+                            {driver.phone_number}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <span className="truncate">Dibuat oleh: {driver.created_by || "—"}</span>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex gap-2 border-t pt-3 mt-1">
+                        <Button variant="outline" size="sm" className="flex-1 h-9 text-xs" onClick={() => openEdit(driver)}>Edit</Button>
+                        <Button variant="outline" size="sm" className="flex-1 h-9 text-xs text-destructive hover:text-destructive" onClick={() => setDeleteTarget(driver)}>Hapus</Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block rounded-xl border border-border/60 overflow-hidden">
+                <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama Supir</TableHead>
@@ -207,6 +234,7 @@ export default function Supir() {
                 </TableBody>
               </Table>
             </div>
+          </>
           )}
         </CardContent>
       </Card>

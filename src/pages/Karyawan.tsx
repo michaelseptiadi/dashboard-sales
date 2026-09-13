@@ -248,8 +248,34 @@ export default function Karyawan() {
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/60 overflow-hidden">
-              <Table>
+            <>
+              <div className="space-y-3 md:hidden">
+                {filteredEmployees.map((emp) => (
+                  <div key={emp.id} className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{emp.user.name || <span className="text-muted-foreground/50 italic">Tanpa Nama</span>}</p>
+                        <p className="truncate text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><Mail className="h-3 w-3 shrink-0" />{emp.user.email}</p>
+                      </div>
+                      <Badge variant={emp.role.name === "manager" ? "default" : "secondary"} className="shrink-0 capitalize">
+                        {getStoreRoleLabel(emp.role.name)}
+                      </Badge>
+                    </div>
+                    {emp.user.phone_number && (
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Phone className="h-3 w-3 shrink-0" />
+                        {emp.user.phone_number}
+                      </p>
+                    )}
+                    <div className="flex gap-2 border-t pt-3 mt-1">
+                      <Button variant="outline" size="sm" className="flex-1 h-9 text-xs" onClick={() => openEditRole(emp)}>Edit Role</Button>
+                      <Button variant="outline" size="sm" className="flex-1 h-9 text-xs text-destructive hover:text-destructive" onClick={() => setDeleteTarget(emp)}>Hapus</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block rounded-xl border border-border/60 overflow-hidden">
+                <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama</TableHead>
@@ -314,6 +340,7 @@ export default function Karyawan() {
                 </TableBody>
               </Table>
             </div>
+          </>
           )}
         </CardContent>
       </Card>
