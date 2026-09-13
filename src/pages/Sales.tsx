@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useActiveProducts } from "@/hooks/useProducts";
+import { useActiveProducts, useInfiniteActiveProducts } from "@/hooks/useProducts";
 import { usePaymentMethods, useCreateSalesTransaction, useAddPaymentLog, useMarkSelfPickupItems } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
 import { TransactionInfoCard } from "@/features/sales/components/TransactionInfoCard";
@@ -103,7 +103,8 @@ export default function Sales() {
   } | null>(null);
 
   const [productSearch, setProductSearch] = useState("");
-  const { data: searchProducts } = useActiveProducts(productSearch);
+  const { data: searchProductsInfinite, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteActiveProducts(productSearch);
+  const searchProducts = searchProductsInfinite?.pages.flatMap(p => p.data) || [];
   const [productSearchOpen, setProductSearchOpen] = useState(false);
 
   // Modal and Step states
@@ -802,6 +803,9 @@ export default function Sales() {
                     productSearch={productSearch}
                     setProductSearch={setProductSearch}
                     searchProducts={searchProducts}
+                    fetchNextPage={fetchNextPage}
+                    hasNextPage={hasNextPage}
+                    isFetchingNextPage={isFetchingNextPage}
                     productSearchOpen={productSearchOpen}
                     setProductSearchOpen={setProductSearchOpen}
                     totalAmount={totalAmount}

@@ -1,4 +1,5 @@
-import { Plus, Trash2, Search, Package, Truck, User, ChevronDown, Coins, Check } from "lucide-react";
+import { Plus, Trash2, Search, Package, Truck, User, ChevronDown, Coins, Check, Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
@@ -23,6 +24,9 @@ interface ItemsTableProps {
   productSearch: string;
   setProductSearch: (v: string) => void;
   searchProducts?: Product[];
+  fetchNextPage?: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
   productSearchOpen: boolean;
   setProductSearchOpen: (v: boolean) => void;
   totalAmount: number;
@@ -46,6 +50,9 @@ export function ItemsTable({
   productSearch,
   setProductSearch,
   searchProducts,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage,
   productSearchOpen,
   setProductSearchOpen,
   totalAmount,
@@ -60,6 +67,26 @@ export function ItemsTable({
   showSummary = true,
 }: ItemsTableProps) {
   const kembalian = paymentAmount > grandTotal ? paymentAmount - grandTotal : 0;
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+          fetchNextPage();
+        }
+      },
+      { root: scrollContainerRef.current, threshold: 0.1, rootMargin: "100px" }
+    );
+
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <Card className="min-h-[500px] border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md flex flex-col justify-between">
@@ -73,51 +100,69 @@ export function ItemsTable({
               <span>Daftar Produk</span>
               <span className="text-destructive font-bold">*</span>
             </CardTitle>
-            <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen} modal={true}>
-              <PopoverTrigger asChild>
+            <Dialog open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+              <DialogTrigger asChild>
                 <Button size="sm" className="rounded-xl font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                   <Plus className="mr-1 h-4 w-4" /> Tambah Produk
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-80 p-2.5 rounded-xl shadow-lg border-muted/40" 
-                align="end"
-                onOpenAutoFocus={(e) => e.preventDefault()}
+              </DialogTrigger>
+              <DialogContent 
+                className="w-full h-[100dvh] sm:h-auto sm:max-w-md p-4 sm:p-5 rounded-none sm:rounded-2xl shadow-xl border-muted/40 z-[100] flex flex-col gap-0"
               >
-                <div className="relative mb-2">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/60" />
+                <DialogHeader className="mb-4 text-left">
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                    <Search className="h-5 w-5 text-muted-foreground" />
+                    Cari Produk
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="relative mb-3 flex-shrink-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                   <Input
-                    placeholder="Cari produk..."
+                    placeholder="Ketik nama atau kode produk..."
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    className="pl-8.5 h-9 rounded-lg hover:border-muted-foreground/35"
+                    className="pl-9 h-11 rounded-xl bg-muted/20 border-muted/40 hover:border-muted-foreground/35 focus:ring-primary/20 text-[16px] shadow-sm"
                   />
                 </div>
-                <div className="max-h-60 overflow-auto overscroll-contain touch-pan-y space-y-1 pr-1">
+                
+                <div 
+                  ref={scrollContainerRef} 
+                  className="flex-1 overflow-y-auto overscroll-contain touch-pan-y space-y-1.5 pr-1 -mx-1 px-1"
+                >
                   {searchProducts?.length === 0 ? (
-                    <p className="py-6 text-center text-sm text-muted-foreground">
+                    <p className="py-12 text-center text-sm text-muted-foreground">
                       Produk tidak ditemukan
                     </p>
                   ) : (
-                    searchProducts?.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => addItem(p)}
-                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm hover:bg-accent/60 transition-colors text-left"
-                      >
-                        <div className="min-w-0 pr-2 flex flex-col gap-0.5">
-                          <div className="font-semibold truncate leading-normal">{p.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono truncate">{p.product_code}</div>
-                        </div>
-                        <span className="text-sm font-semibold shrink-0 text-primary">
-                          {formatCurrency(p.selling_price)}
-                        </span>
-                      </button>
-                    ))
+                    <>
+                      {searchProducts?.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            addItem(p);
+                            setProductSearchOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm hover:bg-accent/60 active:bg-accent/80 transition-colors text-left border border-transparent hover:border-border/50"
+                        >
+                          <div className="min-w-0 pr-2 flex flex-col gap-1">
+                            <div className="font-semibold truncate leading-tight">{p.name}</div>
+                            <div className="text-xs text-muted-foreground font-mono truncate">{p.product_code}</div>
+                          </div>
+                          <span className="text-sm font-bold shrink-0 text-primary">
+                            {formatCurrency(p.selling_price)}
+                          </span>
+                        </button>
+                      ))}
+                      {/* Infinite Scroll Sentinel */}
+                      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                        {isFetchingNextPage && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+                      </div>
+                    </>
                   )}
                 </div>
-              </PopoverContent>
-            </Popover>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent className="pt-4">

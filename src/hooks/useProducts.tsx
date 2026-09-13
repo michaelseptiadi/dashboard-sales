@@ -231,6 +231,33 @@ export function useInfiniteProducts(search?: string, categoryId?: string, limit 
   });
 }
 
+export function useInfiniteActiveProducts(search?: string) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
+
+  return useInfiniteQuery({
+    queryKey: ["active-products-infinite", storeId, search],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam = 1 }) => {
+      const params = new URLSearchParams();
+      params.set("storeId", storeId!);
+      params.set("page", pageParam.toString());
+      params.set("limit", "20");
+      if (search) params.set("search", search);
+
+      const res = await apiClient.get<StoreProductsApiResponse>(`/store-products?${params.toString()}`);
+      
+      const items = (res.data ?? []).map(mapStoreProduct).filter((item) => item.is_active);
+      return {
+        data: items,
+        nextPage: res.meta?.page < res.meta?.totalPages ? res.meta.page + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    enabled: !!storeId,
+  });
+}
+
 export function useActiveProducts(search?: string) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
