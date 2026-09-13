@@ -609,7 +609,7 @@ export default function Sales() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card border rounded-3xl p-6 shadow-sm">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Point of Sale (POS)</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Transaksi</h1>
             <p className="text-sm text-muted-foreground">Kelola antrean transaksi penjualan toko aktif Anda secara realtime.</p>
           </div>
           <Button
@@ -714,53 +714,51 @@ export default function Sales() {
           className="max-w-[1380px] w-[96vw] h-[90vh] md:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border bg-card"
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-muted/20 bg-muted/5 flex items-center justify-between">
+          <div className="px-4 md:px-6 py-3 md:py-4 border-b border-muted/20 bg-muted/5 flex items-center justify-between">
             <div>
-              <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-primary" />
-                <span>Proses Transaksi POS</span>
+              <DialogTitle className="text-base md:text-lg font-bold flex items-center gap-2">
+                <Receipt className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                <span>Proses Transaksi</span>
               </DialogTitle>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">Invoice: {invoiceNumber}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground font-mono mt-0.5">Invoice: {invoiceNumber}</p>
             </div>
           </div>
 
           {/* Grid Container */}
-          <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 p-6">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col md:grid md:grid-cols-[160px_1fr] md:gap-6 p-4 md:p-6">
             
-            {/* Left Sidebar Steps Tracker (Centered & Compact) */}
-            <div className="flex flex-col border-r pr-6 justify-center items-center h-full">
-              <div className="space-y-8 flex flex-col items-center">
-                {/* Step 1 */}
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
-                  <div className="min-w-0">
-                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/80">Pelanggan</h4>
-                    <p className="text-[10px] text-foreground font-medium mt-0.5 truncate max-w-[120px]">{customerName || "Umum"}</p>
-                  </div>
+            {/* Steps Tracker */}
+            <div className="flex flex-row md:flex-col border-b md:border-b-0 md:border-r pb-4 md:pb-0 mb-4 md:mb-0 md:pr-6 justify-between md:justify-center items-center h-auto md:h-full gap-2 md:gap-8 overflow-x-auto hide-scrollbar shrink-0">
+              {/* Step 1 */}
+              <div className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none ${currentStep !== 1 && 'opacity-60 md:opacity-100'}`}>
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>1</div>
+                <div className="min-w-0">
+                  <h4 className="font-bold md:font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground/80 hidden md:block">Pelanggan</h4>
+                  <p className="text-[10px] md:text-xs text-foreground font-medium md:mt-0.5 truncate max-w-[80px] md:max-w-[120px]">{customerName || "Umum"}</p>
                 </div>
-                {/* Step 2 */}
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
-                  <div className="min-w-0">
-                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/80">Item</h4>
-                    <p className="text-[10px] text-foreground font-medium mt-0.5 truncate max-w-[120px]">{items.length} produk</p>
-                  </div>
+              </div>
+              {/* Step 2 */}
+              <div className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none ${currentStep !== 2 && 'opacity-60 md:opacity-100'}`}>
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>2</div>
+                <div className="min-w-0">
+                  <h4 className="font-bold md:font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground/80 hidden md:block">Item</h4>
+                  <p className="text-[10px] md:text-xs text-foreground font-medium md:mt-0.5 truncate max-w-[80px] md:max-w-[120px]">{items.length} produk</p>
                 </div>
-                {/* Step 3 */}
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${currentStep === 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
-                  <div className="min-w-0">
-                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground/80">Bayar</h4>
-                    <p className="text-[10px] text-foreground font-medium mt-0.5 truncate max-w-[120px]">
-                      {paymentMethodId ? (paymentMethods?.find(p => p.id === paymentMethodId)?.name || "Dipilih") : "Pilih metode"}
-                    </p>
-                  </div>
+              </div>
+              {/* Step 3 */}
+              <div className={`flex flex-col items-center text-center gap-1.5 md:gap-2 flex-1 md:flex-none ${currentStep !== 3 && 'opacity-60 md:opacity-100'}`}>
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm shrink-0 transition-colors ${currentStep === 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>3</div>
+                <div className="min-w-0">
+                  <h4 className="font-bold md:font-semibold text-[10px] md:text-xs uppercase tracking-wider text-muted-foreground/80 hidden md:block">Bayar</h4>
+                  <p className="text-[10px] md:text-xs text-foreground font-medium md:mt-0.5 truncate max-w-[80px] md:max-w-[120px]">
+                    {paymentMethodId ? (paymentMethods?.find(p => p.id === paymentMethodId)?.name || "Dipilih") : "Pilih metode"}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Center Content Form (Scrollable) */}
-            <div className="min-h-0 overflow-y-auto pr-2 space-y-6">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1 md:pr-2 space-y-4 md:space-y-6">
               {currentStep === 1 && (
                 <div className="space-y-6">
                   <TransactionInfoCard
@@ -935,12 +933,12 @@ export default function Sales() {
           </div>
 
           {/* Footer Navigation Buttons */}
-          <div className="px-6 py-4 border-t border-muted/20 bg-muted/5 flex justify-end items-center gap-3 shrink-0">
-            <div className="mr-auto flex items-center gap-4 text-sm font-semibold">
+          <div className="px-4 md:px-6 py-3 md:py-4 border-t border-muted/20 bg-muted/5 flex flex-col md:flex-row justify-end items-stretch md:items-center gap-3 shrink-0">
+            <div className="mr-auto flex justify-between w-full md:w-auto items-center gap-4 text-xs md:text-sm font-semibold mb-1 md:mb-0">
               <span className="text-muted-foreground">Item: <strong className="text-foreground font-bold font-mono">{items.length}</strong></span>
               <span className="text-muted-foreground">Total: <strong className="text-primary font-bold font-mono">{formatCurrency(grandTotal)}</strong></span>
             </div>
-            <div className="flex gap-2 min-w-[280px]">
+            <div className="flex gap-2 w-full md:w-auto md:min-w-[280px]">
               <Button
                 type="button"
                 variant="outline"
