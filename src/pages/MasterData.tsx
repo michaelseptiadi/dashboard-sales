@@ -123,50 +123,69 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
               <p className="text-xs text-muted-foreground/60 mt-1">Klik "Tambah" untuk menambah data baru</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/60 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama</TableHead>
-                    <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows?.map((row, idx) => (
-                    <TableRow key={row.id} className={idx % 2 === 0 ? "bg-white hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"}>
-                      <TableCell className="font-medium text-sm py-2.5">{row.name}</TableCell>
-                      <TableCell className="text-right py-2.5">
-                        <div className="flex justify-end gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => openEdit(row)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <>
+              {/* Mobile list */}
+              <div className="space-y-2 md:hidden">
+                {rows?.map((row) => (
+                  <div key={row.id} className="flex items-center justify-between rounded-xl bg-muted/30 px-4 py-3">
+                    <span className="text-sm font-medium truncate mr-3">{row.name}</span>
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={() => openEdit(row)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(row)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden md:block rounded-xl border border-border/60 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nama</TableHead>
+                      <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {rows?.map((row, idx) => (
+                      <TableRow key={row.id} className={idx % 2 === 0 ? "bg-white hover:bg-muted/30" : "bg-muted/10 hover:bg-muted/30"}>
+                        <TableCell className="font-medium text-sm py-2.5">{row.name}</TableCell>
+                        <TableCell className="text-right py-2.5">
+                          <div className="flex justify-end gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => openEdit(row)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
       {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] rounded-2xl sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{editId ? `Edit ${singularLabel}` : `Tambah ${singularLabel}`}</DialogTitle>
             <DialogDescription>

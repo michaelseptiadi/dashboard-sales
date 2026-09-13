@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -204,18 +204,19 @@ function responseDetailToProduct(res: StoreProductDetailResponse): Product {
   return mapStoreProduct(res);
 }
 
-export function useProducts(search?: string, categoryId?: string, page = 1, limit = 10) {
+export function useInfiniteProducts(search?: string, categoryId?: string, limit = 10) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;
 
-  return useQuery<PaginatedProducts>({
-    queryKey: ["products", storeId, search, categoryId, page, limit],
-    queryFn: () => {
+  return useInfiniteQuery({
+    queryKey: ["products", storeId, search, categoryId, limit],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }): Promise<PaginatedProducts> => {
       const p = new URLSearchParams();
       if (storeId) p.set("storeId", storeId);
       if (search) p.set("search", search);
       if (categoryId) p.set("categoryId", categoryId);
-      p.set("page", String(page));
+      p.set("page", String(pageParam));
       p.set("limit", String(limit));
       return apiClient
         .get<StoreProductsApiResponse>(`/store-products?${p.toString()}`)
@@ -224,6 +225,8 @@ export function useProducts(search?: string, categoryId?: string, page = 1, limi
           meta: res.meta,
         }));
     },
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.page < lastPage.meta.totalPages ? lastPage.meta.page + 1 : undefined,
     enabled: !!storeId,
   });
 }
@@ -431,31 +434,26 @@ export function useAdjustStock() {
       // ── Immediately patch the paginated products list cache ──────────────
       // Walk all cached ["products", ...] entries and update the matching variant's stock.
       if (updatedVariant) {
-        queryClient.setQueriesData<PaginatedProducts>(
+        queryClient.setQueriesData<InfiniteData<PaginatedProducts>>(
           { queryKey: ["products"], exact: false },
-          (old) => {
-            if (!old) return old;
-            return {
-              ...old,
-              data: old.data.map((product) => {
+          (old) => old && ({
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              data: page.data.map((product) => {
                 if (product.id !== variables.product_id) return product;
                 const updatedVariants = (product.variants ?? []).map((v) =>
                   v.id === updatedVariant.id
                     ? { ...v, stock: Number(updatedVariant.stock) }
                     : v,
                 );
-                // Also update current_stock if this is the default/first variant
                 const newCurrentStock =
                   updatedVariants.find((v) => v.id === updatedVariant.id)?.stock
                   ?? product.current_stock;
-                return {
-                  ...product,
-                  variants: updatedVariants,
-                  current_stock: newCurrentStock,
-                };
+                return { ...product, variants: updatedVariants, current_stock: newCurrentStock };
               }),
-            };
-          },
+            })),
+          }),
         );
 
         // ── Immediately patch the single-product detail cache ────────────

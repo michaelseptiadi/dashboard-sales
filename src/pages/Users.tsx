@@ -80,20 +80,58 @@ export default function Users() {
   return (
     <DashboardLayout title="Manajemen User">
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
             <h2 className="text-lg font-semibold">Daftar User</h2>
             <p className="text-sm text-muted-foreground">
               Kelola akun user, edit profil, dan atur akses toko mereka.
             </p>
           </div>
-          <Button onClick={() => setCreateOpen(true)} disabled={!canAccessUsers}>
+          <Button onClick={() => setCreateOpen(true)} disabled={!canAccessUsers} className="w-full sm:w-auto">
             <UserPlus className="mr-2 h-4 w-4" />
             Tambah User
           </Button>
         </div>
 
-        <div className="rounded-lg border bg-card">
+        {/* Mobile card view */}
+        <div className="space-y-3 md:hidden">
+          {usersLoading ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">Memuat data...</div>
+          ) : users.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">Belum ada user.</div>
+          ) : (
+            users.map((user: UserRecord) => (
+              <div key={user.id} className="rounded-xl border bg-card p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold truncate">{user.email}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{user.phone_number ?? "-"}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {user.user_store_roles.length === 0 ? (
+                    <span className="text-xs italic text-muted-foreground">Tidak ada akses</span>
+                  ) : (
+                    user.user_store_roles.map((assignment) => (
+                      <Badge key={assignment.id} variant={roleBadgeVariant(assignment.role.name)} className="text-xs">
+                        {assignment.store?.store_name ?? assignment.store_id}: {getStoreRoleLabel(assignment.role.name)}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => setManageUserId(user.id)} disabled={!canAccessUsers}>
+                    Kelola Akses
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setEditUserId(user.id)} disabled={!canAccessUsers}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>

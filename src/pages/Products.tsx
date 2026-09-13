@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
+import { useInfiniteProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
 import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
@@ -50,17 +50,14 @@ export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("q") ?? "";
   const categoryFilter = searchParams.get("cat") ?? "";
-  const page = Number(searchParams.get("page") ?? "1");
   const limit = Number(searchParams.get("limit") ?? "10");
 
   const setSearch = (value: string) =>
-    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("q", value); p.set("page", "1"); return p; }, { replace: true });
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("q", value); p.delete("page"); return p; }, { replace: true });
   const setCategoryFilter = (value: string) =>
-    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("cat", value); p.set("page", "1"); return p; }, { replace: true });
-  const setPage = (value: number) =>
-    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("page", String(value)); return p; }, { replace: true });
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("cat", value); p.delete("page"); return p; }, { replace: true });
   const setLimit = (value: number) =>
-    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("limit", String(value)); p.set("page", "1"); return p; }, { replace: true });
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set("limit", String(value)); p.delete("page"); return p; }, { replace: true });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
@@ -72,17 +69,29 @@ export default function Products() {
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
 
-  const { data: productsResponse, isLoading } = useProducts(search, categoryFilter || undefined, page, limit);
-  const { data: lowStockItems } = useLowStockProducts();
+  const { data: productsResponse, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteProducts(search, categoryFilter || undefined, limit);
+  const { data: lowStockItems, isLoading: isLowStockLoading } = useLowStockProducts();
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   useRealtimeStock();
 
-  const products = productsResponse?.data ?? [];
-  const productsMeta = productsResponse?.meta;
+  const products = productsResponse?.pages.flatMap((result) => result.data) ?? [];
+  const productsMeta = productsResponse?.pages[0]?.meta;
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (stockFilter !== "all" || !target || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && !isFetchingNextPage) fetchNextPage(); },
+      { rootMargin: "200px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, stockFilter]);
   const stockOf = (product: import("@/hooks/useProducts").Product) =>
     product.variants?.length
       ? product.variants.filter((variant) => variant.is_active).reduce((sum, variant) => sum + Number(variant.stock), 0)
@@ -91,13 +100,14 @@ export default function Products() {
     product.variants?.length
       ? product.variants.some((variant) => variant.is_active && Number(variant.stock) <= Number(variant.minimum_stock))
       : stockOf(product) <= Number(product.minimum_stock);
-  // ponytail: Stock chips filter the fetched page; move filters server-side when the API supports stock status.
-  const mobileProducts = products.filter((product) => {
+  const normalizedSearch = search.trim().toLowerCase();
+  const mobileProducts = stockFilter === "all" ? products : (lowStockItems ?? []).filter((product) => {
+    const matchesSearch = !normalizedSearch || product.name.toLowerCase().includes(normalizedSearch) || product.product_code.toLowerCase().includes(normalizedSearch);
+    const matchesCategory = !categoryFilter || product.category_id === categoryFilter;
     const stock = stockOf(product);
-    if (stockFilter === "out") return stock <= 0;
-    if (stockFilter === "low") return stock > 0 && isLow(product);
-    return true;
+    return matchesSearch && matchesCategory && (stockFilter === "out" ? stock <= 0 : stock > 0);
   });
+  const isMobileLoading = stockFilter === "all" ? isLoading : isLowStockLoading;
 
 
 
@@ -292,7 +302,7 @@ export default function Products() {
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <section aria-label="Daftar produk mobile" className="space-y-3 md:hidden">
-            {isLoading ? (
+            {isMobileLoading ? (
               Array.from({ length: 4 }, (_, index) => <div key={index} className="h-36 animate-pulse rounded-2xl border bg-card" />)
             ) : mobileProducts.length === 0 ? (
               <div className="rounded-2xl border bg-card px-5 py-10 text-center shadow-sm">
@@ -402,34 +412,9 @@ export default function Products() {
             </Table>
           )}
           </div>
-          {productsMeta && productsMeta.totalPages > 1 && (
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl border bg-card px-4 py-3 md:mt-0 md:flex-row md:items-center md:justify-between md:rounded-none md:border-x-0 md:border-b-0 md:px-6 md:py-4">
-              <div className="text-center text-xs text-muted-foreground md:text-left">
-                Menampilkan {(page - 1) * limit + 1} - {Math.min(page * limit, productsMeta.total)} dari {productsMeta.total} produk
-              </div>
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-11 rounded-xl md:h-9 md:rounded-md"
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page <= 1}
-                >
-                  Sebelumnya
-                </Button>
-                <div className="min-w-24 text-center text-sm text-muted-foreground">
-                  Halaman {productsMeta.page} / {productsMeta.totalPages}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-11 rounded-xl md:h-9 md:rounded-md"
-                  onClick={() => setPage(Math.min(productsMeta.totalPages, page + 1))}
-                  disabled={page >= productsMeta.totalPages}
-                >
-                  Berikutnya
-                </Button>
-              </div>
+          {stockFilter === "all" && (
+            <div ref={loadMoreRef} className="py-5 text-center text-xs text-muted-foreground" aria-live="polite">
+              {isFetchingNextPage ? "Memuat produk berikutnya..." : hasNextPage ? "Gulir untuk memuat lebih banyak" : products.length ? `Semua ${productsMeta?.total ?? products.length} produk sudah dimuat` : null}
             </div>
           )}
         </CardContent>
