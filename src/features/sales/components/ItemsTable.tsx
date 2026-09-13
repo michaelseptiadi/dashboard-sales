@@ -71,22 +71,29 @@ export function ItemsTable({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!productSearchOpen) return;
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage && fetchNextPage) {
           fetchNextPage();
         }
       },
-      { root: scrollContainerRef.current, threshold: 0.1, rootMargin: "100px" }
+      { root: scrollContainerRef.current, threshold: 0.05, rootMargin: "200px" }
     );
 
-    const el = loadMoreRef.current;
-    if (el) observer.observe(el);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [productSearchOpen, hasNextPage, isFetchingNextPage, fetchNextPage, searchProducts?.length]);
 
-    return () => {
-      if (el) observer.unobserve(el);
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const handleContainerScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 250 && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+      fetchNextPage();
+    }
+  };
 
   return (
     <Card className="min-h-[500px] border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md flex flex-col justify-between">
@@ -128,6 +135,7 @@ export function ItemsTable({
                 
                 <div 
                   ref={scrollContainerRef} 
+                  onScroll={handleContainerScroll}
                   className="flex-1 overflow-y-auto overscroll-contain touch-pan-y space-y-1.5 pr-1 -mx-1 px-1"
                 >
                   {searchProducts?.length === 0 ? (
@@ -154,9 +162,26 @@ export function ItemsTable({
                           </span>
                         </button>
                       ))}
-                      {/* Infinite Scroll Sentinel */}
-                      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-                        {isFetchingNextPage && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+                      {/* Infinite Scroll Sentinel & Status */}
+                      <div ref={loadMoreRef} className="py-3 flex flex-col items-center justify-center min-h-[44px]">
+                        {isFetchingNextPage ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span>Memuat produk lainnya...</span>
+                          </div>
+                        ) : hasNextPage ? (
+                          <button
+                            type="button"
+                            onClick={() => fetchNextPage?.()}
+                            className="text-xs font-semibold text-primary hover:underline py-1.5 px-3 rounded-lg hover:bg-primary/5 transition-colors"
+                          >
+                            Muat lebih banyak...
+                          </button>
+                        ) : searchProducts.length > 20 ? (
+                          <span className="text-[11px] text-muted-foreground/60 py-1">
+                            Semua produk telah ditampilkan
+                          </span>
+                        ) : null}
                       </div>
                     </>
                   )}

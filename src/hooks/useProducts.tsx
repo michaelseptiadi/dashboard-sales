@@ -248,9 +248,11 @@ export function useInfiniteActiveProducts(search?: string) {
       const res = await apiClient.get<StoreProductsApiResponse>(`/store-products?${params.toString()}`);
       
       const items = (res.data ?? []).map(mapStoreProduct).filter((item) => item.is_active);
+      const currentPage = Number(res.meta?.page ?? pageParam);
+      const totalPages = Number(res.meta?.totalPages ?? 1);
       return {
         data: items,
-        nextPage: res.meta?.page < res.meta?.totalPages ? res.meta.page + 1 : undefined,
+        nextPage: currentPage < totalPages ? currentPage + 1 : undefined,
       };
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,

@@ -123,38 +123,31 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-2.5 rounded-full p-1 pl-1.5 pr-2 md:rounded-xl md:p-1.5 md:px-2.5 text-left transition-all hover:bg-muted/60 active:scale-[0.98] outline-none border border-transparent hover:border-border/40"
+                    className="flex items-center gap-2 rounded-full p-1 pl-2.5 pr-1 md:rounded-xl md:p-1.5 md:px-2.5 text-left transition-all hover:bg-muted/60 active:scale-[0.98] outline-none border border-border/40 hover:border-border/70"
                     aria-label="Profil pengguna"
                   >
-                    <Avatar className="h-8 w-8 md:h-8 md:w-8 border border-border/60 bg-primary/10 text-primary font-bold shadow-xs">
+                    <div className="flex min-w-0 flex-col text-right">
+                      <span className="truncate text-xs font-medium leading-none text-foreground max-w-[85px] sm:max-w-[130px] md:max-w-[160px]">
+                        Hi, <span className="font-bold text-primary">{user?.name ? user.name.split(' ')[0] : user?.email?.split('@')[0] || "User"}</span>
+                      </span>
+                      <span className="hidden text-[10px] text-muted-foreground truncate leading-tight mt-0.5 sm:block">
+                        {roleLabel}
+                      </span>
+                    </div>
+                    <Avatar className="h-8 w-8 md:h-8 md:w-8 border border-border/60 bg-primary/10 text-primary font-bold shadow-xs shrink-0">
                       <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                         {getInitials(user?.name, user?.email)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="hidden min-w-0 flex-col md:flex">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-xs font-bold leading-none text-foreground max-w-[130px]">
-                          {user?.name || user?.email?.split('@')[0] || "User"}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] px-1 py-0 font-semibold leading-tight border ${roleBadgeClass}`}
-                        >
-                          {roleLabel}
-                        </Badge>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
-                        {user?.email}
-                      </span>
-                    </div>
                     <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground md:block" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 p-2 rounded-xl shadow-lg border-muted/40">
                   <DropdownMenuLabel className="font-normal p-2">
                     <div className="flex flex-col space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium">Masuk sebagai</p>
                       <p className="text-sm font-bold leading-none text-foreground">
-                        {user?.name || "User"}
+                        {user?.name || user?.email?.split('@')[0] || "User"}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground truncate">
                         {user?.email}
