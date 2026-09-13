@@ -167,7 +167,7 @@ const Sidebar = React.forwardRef<
         <SheetContent
           data-sidebar="sidebar"
           data-mobile="true"
-          className="w-[--sidebar-width] bg-sidebar/85 backdrop-blur-2xl backdrop-saturate-150 p-0 text-sidebar-foreground [&>button]:hidden border-r border-sidebar-border/50 shadow-[inset_-1px_0_0_rgba(255,255,255,0.15)]"
+          className="w-[--sidebar-width] bg-sidebar/60 dark:bg-sidebar/40 backdrop-blur-3xl backdrop-saturate-200 p-0 text-sidebar-foreground [&>button]:hidden border-r border-sidebar-border/40 shadow-[inset_-1px_0_0_rgba(255,255,255,0.2)]"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -217,7 +217,7 @@ const Sidebar = React.forwardRef<
       >
         <div
           data-sidebar="sidebar"
-          className="flex h-full w-full flex-col bg-sidebar/80 backdrop-blur-2xl backdrop-saturate-150 border-r border-sidebar-border/50 shadow-[inset_-1px_0_0_rgba(255,255,255,0.15),inset_0_1px_1px_rgba(255,255,255,0.1),2px_0_16px_rgba(0,0,0,0.02)] group-data-[variant=floating]:rounded-2xl group-data-[variant=floating]:border group-data-[variant=floating]:border-white/30 dark:group-data-[variant=floating]:border-white/10 group-data-[variant=floating]:shadow-2xl"
+          className="flex h-full w-full flex-col bg-sidebar/45 dark:bg-sidebar/35 backdrop-blur-3xl backdrop-saturate-200 border-r border-sidebar-border/40 shadow-[inset_-1px_0_0_rgba(255,255,255,0.2),inset_0_1px_1px_rgba(255,255,255,0.15),2px_0_20px_rgba(0,0,0,0.03)] group-data-[variant=floating]:rounded-2xl group-data-[variant=floating]:border group-data-[variant=floating]:border-white/30 dark:group-data-[variant=floating]:border-white/10 group-data-[variant=floating]:shadow-2xl"
         >
           {children}
         </div>

@@ -94,7 +94,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="flex h-screen h-dvh w-full overflow-hidden bg-background">
+      <div className="flex h-screen h-dvh w-full overflow-hidden bg-background bg-[radial-gradient(ellipse_80%_80%_at_0%_0%,rgba(59,130,246,0.06),transparent_60%)]">
         <AppSidebar />
         <main className="h-full flex-1 overflow-auto overscroll-contain">
           <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b bg-card/90 px-4 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl md:h-14 md:px-6 md:pt-0">
