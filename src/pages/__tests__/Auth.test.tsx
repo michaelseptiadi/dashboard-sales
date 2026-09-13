@@ -34,14 +34,21 @@ describe("Auth Component - Forgot Password Flow", () => {
     vi.clearAllMocks();
   });
 
-  it("should render Login form by default and switch to Forgot Password request on click", () => {
+  it("should render an accessible mobile-friendly login form", () => {
     render(<Auth />);
-    
-    // Check login form elements
+
+    const emailInput = screen.getByLabelText("Email");
+    const passwordInput = screen.getByLabelText("Password");
+
     expect(screen.getByText("Toko Bahan Bangunan")).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    
+    expect(emailInput).toHaveAttribute("autocomplete", "email");
+    expect(passwordInput).toHaveAttribute("autocomplete", "current-password");
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Tampilkan password" }));
+    expect(passwordInput).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Sembunyikan password" })).toBeInTheDocument();
+
     const forgotPasswordBtn = screen.getByText("Lupa Password?");
     expect(forgotPasswordBtn).toBeInTheDocument();
 
