@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { StoreSelectModal } from "@/components/StoreSelectModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
@@ -71,12 +71,9 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 const PersistentMobileSidebar = () => {
   const { user } = useAuth();
-  if (!user) return null;
-  return (
-    <div className="md:hidden">
-      <AppSidebar />
-    </div>
-  );
+  const { isMobile } = useSidebar();
+  if (!user || !isMobile) return null;
+  return <AppSidebar />;
 };
 
 const AppRoutes = () => (
