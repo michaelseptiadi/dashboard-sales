@@ -22,11 +22,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 function CustomTooltip({ active, payload, label, metric }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-xl border border-border/50 bg-background/95 p-3 shadow-xl backdrop-blur-sm dark:bg-slate-900/95">
-        <p className="mb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-[hsl(221,83%,53%)]" />
-          <span className="text-sm font-bold text-foreground">
+      <div className="rounded-xl border border-border/80 bg-background/95 px-3 py-2 shadow-xl backdrop-blur-md">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <div className="mt-1 flex items-center gap-2">
+          <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-tr from-cyan-400 via-blue-500 to-fuchsia-500 shadow-xs" />
+          <span className="text-sm font-extrabold text-foreground">
             {metric === 'revenue' 
               ? formatCurrency(payload[0].value) 
               : `${payload[0].value} transaksi`}
@@ -220,91 +220,108 @@ export default function Index() {
         </div>
 
         {/* Sales Trend Chart */}
-        <Card className="shadow-sm border-0 ring-1 ring-border/60">
-          <CardHeader className="flex flex-col gap-3 border-b border-border/50 pb-3 pt-4 sm:flex-row sm:items-center sm:justify-between md:gap-4 md:pt-5">
-            <div>
-              <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Grafik Tren Penjualan
+        <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden min-w-0">
+          <CardHeader className="flex flex-col gap-3 pb-2 pt-4 px-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between border-b border-border/40">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+              <CardTitle className="text-base font-bold text-foreground">
+                Tren Penjualan
               </CardTitle>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
               {/* Range Tabs */}
-              <div className="inline-flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
+              <div className="inline-flex rounded-xl bg-muted/60 p-1 border border-border/40">
                 {(['7d', '30d', '12m'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setRange(r)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
                       range === r
-                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-950 dark:text-slate-50"
+                        ? "bg-background text-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {r === '7d' ? '7 Hari' : r === '30d' ? '30 Hari' : '12 Bulan'}
+                    {r === '7d' ? '7 Hari' : r === '30d' ? '30 Hari' : '1 Tahun'}
                   </button>
                 ))}
               </div>
 
               {/* Metric Select */}
               <Select value={metric} onValueChange={(val: 'revenue' | 'orders') => setMetric(val)}>
-                <SelectTrigger className="w-[140px] h-9 text-xs font-semibold">
+                <SelectTrigger className="w-[125px] h-8 text-xs font-semibold rounded-xl border-border/50">
                   <SelectValue placeholder="Pilih Metrik" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent align="end" className="rounded-xl">
                   <SelectItem value="revenue">Omzet (Rp)</SelectItem>
                   <SelectItem value="orders">Transaksi</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="p-2 sm:p-4 pt-4 sm:pt-6">
             {isLoading ? (
-              <Skeleton className="h-[300px] w-full" />
+              <Skeleton className="h-[220px] md:h-[300px] w-full rounded-xl" />
             ) : (
-              <div className="h-[210px] w-full md:h-[300px]">
+              <div className="h-[220px] w-full sm:h-[260px] md:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={data?.sales_trend || []}
-                    margin={{ top: 20, right: 20, left: -20, bottom: 5 }}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   >
                     <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0} />
+                      <linearGradient id="vibrantGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.42} />
+                        <stop offset="35%" stopColor="#3b82f6" stopOpacity={0.25} />
+                        <stop offset="70%" stopColor="#06b6d4" stopOpacity={0.10} />
+                        <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.0} />
+                      </linearGradient>
+                      <linearGradient id="vibrantStroke" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#06b6d4" />
+                        <stop offset="30%" stopColor="#3b82f6" />
+                        <stop offset="65%" stopColor="#8b5cf6" />
+                        <stop offset="100%" stopColor="#ec4899" />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-slate-200/50 dark:stroke-slate-800/50" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
                     <XAxis
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      tickMargin={12}
-                      interval="preserveStartEnd"
-                      className="text-[11px] font-semibold text-muted-foreground"
+                      tickMargin={8}
+                      interval={range === '30d' ? 4 : range === '12m' ? 1 : 0}
+                      tickFormatter={(val: string) => {
+                        if (range === '30d') return val.split(' ')[0];
+                        if (range === '12m') return val.split(' ')[0];
+                        return val;
+                      }}
+                      className="text-[10px] font-medium fill-muted-foreground"
                     />
                     <YAxis
                       tickFormatter={(val: number) => {
                         if (metric === 'revenue') {
-                          if (val >= 1000000) return `Rp ${(val / 1000000).toFixed(1)}M`;
-                          if (val >= 1000) return `Rp ${(val / 1000).toFixed(0)}K`;
-                          return `Rp ${val}`;
+                          if (val >= 1000000) return `${(val / 1000000).toFixed(val % 1000000 === 0 ? 0 : 1)}jt`;
+                          if (val >= 1000) return `${(val / 1000).toFixed(0)}rb`;
+                          return `${val}`;
                         }
                         return val.toString();
                       }}
                       tickLine={false}
                       axisLine={false}
-                      tickMargin={12}
-                      className="text-[11px] font-semibold text-muted-foreground"
+                      tickMargin={4}
+                      className="text-[10px] font-medium fill-muted-foreground"
                     />
-                    <Tooltip content={<CustomTooltip metric={metric} />} cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.2 }} />
+                    <Tooltip content={<CustomTooltip metric={metric} />} cursor={{ stroke: '#8b5cf6', strokeWidth: 1.5, strokeDasharray: '4 4', opacity: 0.4 }} />
                     <Area
                       type="monotone"
                       dataKey="value"
-                      stroke="hsl(221, 83%, 53%)"
+                      stroke="url(#vibrantStroke)"
                       strokeWidth={3}
                       fillOpacity={1}
-                      fill="url(#colorValue)"
-                      activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))", fill: "hsl(221, 83%, 53%)" }}
+                      fill="url(#vibrantGradient)"
+                      activeDot={{ r: 6, strokeWidth: 2.5, stroke: "#ffffff", fill: "#ec4899" }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

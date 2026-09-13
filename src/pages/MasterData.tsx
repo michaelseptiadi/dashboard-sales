@@ -85,33 +85,33 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
 
   return (
     <>
-      <Card className="shadow-sm border-0 ring-1 ring-border/60 flex flex-col">
+      <Card className="shadow-sm border-0 ring-1 ring-border/60 flex flex-col min-w-0 max-w-full overflow-hidden">
         {/* Card header */}
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBgClass}`}>
+        <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconBgClass}`}>
                 {icon}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-semibold">{title}</CardTitle>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CardTitle className="text-sm sm:text-base font-semibold truncate">{title}</CardTitle>
                   {!isLoading && (
-                    <Badge variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium">
+                    <Badge variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium shrink-0">
                       {rows?.length ?? 0}
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
               </div>
             </div>
-            <Button size="sm" onClick={openCreate} className={`shrink-0 ${accentClass}`}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah
+            <Button size="sm" onClick={openCreate} className={`shrink-0 h-8 px-3 rounded-xl text-xs font-semibold ${accentClass}`}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Tambah
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="pt-0 flex-1">
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0 flex-1 min-w-0 overflow-hidden">
           {isLoading ? (
             <TableSkeleton rows={5} rowClassName="h-10 w-full rounded-lg" />
           ) : rows?.length === 0 ? (
@@ -125,16 +125,16 @@ function MasterTable({ title, description, table, singularLabel, icon, accentCla
           ) : (
             <>
               {/* Mobile list */}
-              <div className="space-y-2 md:hidden">
+              <div className="space-y-1.5 md:hidden">
                 {rows?.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between rounded-xl bg-muted/30 px-4 py-3">
-                    <span className="text-sm font-medium truncate mr-3">{row.name}</span>
-                    <div className="flex shrink-0 gap-1">
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground" onClick={() => openEdit(row)}>
-                        <Pencil className="h-4 w-4" />
+                  <div key={row.id} className="flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2 min-w-0 gap-2">
+                    <span className="text-sm font-medium truncate min-w-0 flex-1">{row.name}</span>
+                    <div className="flex shrink-0 gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(row)}>
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(row)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(row)}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -248,7 +248,7 @@ export default function MasterData() {
           Kelola kategori dan satuan yang digunakan dalam operasional toko.
         </p>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 mb-6">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 mb-6 min-w-0 max-w-full">
         <MasterTable
           title="Kategori Produk"
           description="Pengelompokan jenis produk yang dijual"

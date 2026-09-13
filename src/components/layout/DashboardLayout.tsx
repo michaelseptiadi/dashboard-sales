@@ -96,45 +96,45 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen h-dvh w-full overflow-hidden bg-background bg-[radial-gradient(ellipse_80%_80%_at_0%_0%,rgba(59,130,246,0.06),transparent_60%)]">
       {!isMobile && <AppSidebar />}
-      <main className="h-full flex-1 overflow-auto overscroll-contain">
-          <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b bg-card/90 px-4 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl md:h-14 md:px-6 md:pt-0">
+      <main className="h-full flex-1 overflow-y-auto overflow-x-hidden min-w-0 w-full overscroll-contain">
+          <header className="sticky top-0 z-30 flex min-h-14 items-center gap-2 sm:gap-3 border-b bg-card/90 px-3 sm:px-4 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl md:h-14 md:px-6 md:pt-0">
             <SidebarTrigger className="hidden text-muted-foreground hover:text-foreground md:inline-flex" />
             <Separator orientation="vertical" className="hidden h-5 md:block" />
             <h1 className="hidden text-sm font-semibold tracking-tight md:block">{title}</h1>
             <button
               type="button"
               onClick={() => setStoreModalOpen(true)}
-              className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl pr-2 text-left active:scale-[0.98] md:hidden"
+              className="flex min-h-11 min-w-0 max-w-[150px] sm:max-w-[220px] items-center gap-1.5 sm:gap-2 rounded-xl pr-1 text-left active:scale-[0.98] md:hidden"
               aria-label="Ganti toko"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <span className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Building2 className="h-4 w-4" />
               </span>
-              <span className="min-w-0">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Toko aktif</span>
-                <span className="block truncate text-sm font-bold max-w-[130px]">{selectedStore?.store_name ?? "Pilih toko"}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Toko aktif</span>
+                <span className="block truncate text-xs sm:text-sm font-bold">{selectedStore?.store_name ?? "Pilih toko"}</span>
               </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </button>
 
             {/* Profile Dropdown on top right */}
-            <div className="ml-auto flex items-center gap-2 md:gap-3">
+            <div className="ml-auto flex items-center gap-2 md:gap-3 shrink-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-2 rounded-full p-1 pl-2.5 pr-1 md:rounded-xl md:p-1.5 md:px-2.5 text-left transition-all hover:bg-muted/60 active:scale-[0.98] outline-none border border-border/40 hover:border-border/70"
+                    className="flex min-w-0 items-center gap-1.5 sm:gap-2 rounded-full p-1 pl-2 pr-1 md:rounded-xl md:p-1.5 md:px-2.5 text-left transition-all hover:bg-muted/60 active:scale-[0.98] outline-none border border-border/40 hover:border-border/70 shrink-0"
                     aria-label="Profil pengguna"
                   >
                     <div className="flex min-w-0 flex-col text-right">
-                      <span className="truncate text-xs font-medium leading-none text-foreground max-w-[85px] sm:max-w-[130px] md:max-w-[160px]">
+                      <span className="truncate text-xs font-medium leading-none text-foreground max-w-[75px] sm:max-w-[130px] md:max-w-[160px]">
                         Hi, <span className="font-bold text-primary">{user?.name ? user.name.split(' ')[0] : user?.email?.split('@')[0] || "User"}</span>
                       </span>
-                      <span className="hidden text-[10px] text-muted-foreground truncate leading-tight mt-0.5 sm:block">
+                      <span className="hidden text-[10px] text-muted-foreground leading-tight mt-0.5 sm:block truncate">
                         {roleLabel}
                       </span>
                     </div>
-                    <Avatar className="h-8 w-8 md:h-8 md:w-8 border border-border/60 bg-primary/10 text-primary font-bold shadow-xs shrink-0">
+                    <Avatar className="h-8 w-8 border border-border/60 bg-primary/10 text-primary font-bold shadow-xs shrink-0">
                       <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                         {getInitials(user?.name, user?.email)}
                       </AvatarFallback>
@@ -145,7 +145,6 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
                 <DropdownMenuContent align="end" className="w-56 p-2 rounded-xl shadow-lg border-muted/40">
                   <DropdownMenuLabel className="font-normal p-2">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-xs text-muted-foreground font-medium">Masuk sebagai</p>
                       <p className="text-sm font-bold leading-none text-foreground">
                         {user?.name || user?.email?.split('@')[0] || "User"}
                       </p>
@@ -206,7 +205,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
               </DropdownMenu>
             </div>
           </header>
-          <div className="max-w-[1600px] p-4 pb-24 md:p-6">{children}</div>
+          <div className="max-w-[1600px] min-w-0 w-full p-3.5 sm:p-4 pb-44 md:p-6 md:pb-8">{children}</div>
         </main>
         <MobileTabBar />
       </div>
