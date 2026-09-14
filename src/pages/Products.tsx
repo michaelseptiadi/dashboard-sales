@@ -28,7 +28,7 @@ interface ProductFormData {
   unit_id: string;
   selling_price: number;
   capital_price: number;
-  minimum_stock: number;
+  minimum_stock: number | "";
 }
 
 const emptyForm: ProductFormData = {
@@ -38,7 +38,7 @@ const emptyForm: ProductFormData = {
   unit_id: "",
   selling_price: 0,
   capital_price: 0,
-  minimum_stock: 0,
+  minimum_stock: "",
 };
 
 export default function Products() {
@@ -142,6 +142,7 @@ export default function Products() {
         ...form,
         category_id: form.category_id || null,
         unit_id: form.unit_id || null,
+        minimum_stock: form.minimum_stock === "" ? 0 : form.minimum_stock,
       });
       toast({ title: "Produk berhasil ditambahkan" });
       setDialogOpen(false);
@@ -295,10 +296,9 @@ export default function Products() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="active">Hanya Aktif</SelectItem>
-                <SelectItem value="inactive">Hanya Nonaktif</SelectItem>
                 <SelectItem value="low">Stok Rendah</SelectItem>
                 <SelectItem value="out">Stok Habis</SelectItem>
+                <SelectItem value="inactive">Hanya Nonaktif</SelectItem>
               </SelectContent>
             </Select>
             <Select value={String(limit)} onValueChange={(v) => setLimit(Number(v))}>
@@ -314,9 +314,28 @@ export default function Products() {
             </Select>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 pt-1 md:hidden" aria-label="Filter stok">
-            {([['all', 'Semua'], ['active', 'Aktif'], ['inactive', 'Nonaktif'], ['low', 'Stok rendah'], ['out', 'Stok habis']] as const).map(([value, label]) => (
-              <button key={value} type="button" onClick={() => setStockFilter(value)} aria-pressed={stockFilter === value} className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition active:scale-95 ${stockFilter === value ? 'bg-foreground text-background shadow-sm' : 'border bg-card text-muted-foreground'}`}>{label}</button>
-            ))}
+            {[
+              { value: "all", label: "Semua", dot: null, active: "bg-foreground text-background shadow-xs" },
+              { value: "low", label: "Stok rendah", dot: "bg-amber-500", active: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700 shadow-xs font-bold" },
+              { value: "out", label: "Stok habis", dot: "bg-rose-500", active: "bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700 shadow-xs font-bold" },
+              { value: "inactive", label: "Nonaktif", dot: "bg-zinc-400 dark:bg-zinc-500", active: "bg-zinc-200 text-zinc-900 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 shadow-xs font-bold" },
+            ].map(({ value, label, dot, active }) => {
+              const isSelected = stockFilter === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStockFilter(value as any)}
+                  aria-pressed={isSelected}
+                  className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition active:scale-95 border ${
+                    isSelected ? active : "border-border/70 bg-card text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  {dot && <span className={`h-2 w-2 rounded-full ${dot} shrink-0`} />}
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -596,7 +615,7 @@ export default function Products() {
               </div>
               <div className="space-y-2">
                 <Label>Stok Minimum</Label>
-                <Input type="number" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: Number(e.target.value) })} min={0} />
+                <Input type="number" value={form.minimum_stock === "" ? "" : form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: e.target.value === "" ? "" : Number(e.target.value) })} min={0} />
               </div>
             </div>
             <DialogFormActions
