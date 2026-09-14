@@ -45,6 +45,7 @@ export default function Index() {
   const [metric, setMetric] = useState<'revenue' | 'orders'>('revenue');
   const [ranking, setRanking] = useState<'products' | 'customers'>('products');
   const [attention, setAttention] = useState<'stock' | 'receivables'>('stock');
+  const [capitalPeriod, setCapitalPeriod] = useState<'today' | 'month'>('month');
   const { data, isLoading } = useDashboardStats(range, metric);
   const { currentRole, isSuperAdmin, selectedStore } = useAuth();
 
@@ -220,31 +221,30 @@ export default function Index() {
             </CardContent>
           </Card>
 
-          {/* Card 5: Total Modal */}
-          <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
-            <CardContent className="p-4 md:pb-5 md:pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Modal</p>
-                  {isLoading ? <Skeleton className="h-9 w-36" /> : <p className="text-lg font-bold tracking-tight text-amber-600 dark:text-amber-400 sm:text-2xl">{formatCurrency(data?.cards.total_capital || 0)}</p>}
+          {/* Card 5+6: Modal & Profit with shared toggle */}
+          <Card className="col-span-2 relative overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
+            <CardContent className="p-4 md:pb-5 md:pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400"><CircleDollarSign className="h-4 w-4" /></div>
+                <div className="inline-flex rounded-lg bg-muted/60 p-0.5 border border-border/40">
+                  <button type="button" onClick={() => setCapitalPeriod('today')} className={`rounded-md px-2 py-0.5 text-[10px] font-bold transition-all ${capitalPeriod === 'today' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground'}`}>Hari ini</button>
+                  <button type="button" onClick={() => setCapitalPeriod('month')} className={`rounded-md px-2 py-0.5 text-[10px] font-bold transition-all ${capitalPeriod === 'month' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground'}`}>Bulan ini</button>
                 </div>
-                <div className="hidden h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400 md:flex"><CircleDollarSign className="h-5.5 w-5.5" /></div>
               </div>
-              <div className="mt-3 flex items-center justify-between text-xs font-medium md:mt-4"><span className="text-muted-foreground">Bulan ini</span><span className="font-bold text-amber-600 dark:text-amber-400">biaya pokok</span></div>
-            </CardContent>
-          </Card>
-
-          {/* Card 6: Profit */}
-          <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
-            <CardContent className="p-4 md:pb-5 md:pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Profit</p>
-                  {isLoading ? <Skeleton className="h-9 w-36" /> : <p className={`text-lg font-bold tracking-tight sm:text-2xl ${(data?.cards.total_profit ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatCurrency(data?.cards.total_profit || 0)}</p>}
+              {isLoading ? (
+                <div className="space-y-3"><Skeleton className="h-8 w-32" /><Skeleton className="h-8 w-32" /></div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Modal</p>
+                    <p className="text-sm font-extrabold tracking-tight text-amber-600 dark:text-amber-400 sm:text-lg">{formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_capital || 0) : (data?.cards.total_capital || 0))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
+                    <p className={`text-sm font-extrabold tracking-tight sm:text-lg ${(capitalPeriod === 'today' ? (data?.cards.today_profit ?? 0) : (data?.cards.total_profit ?? 0)) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_profit || 0) : (data?.cards.total_profit || 0))}</p>
+                  </div>
                 </div>
-                <div className={`hidden h-11 w-11 items-center justify-center rounded-xl md:flex ${(data?.cards.total_profit ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400'}`}>{(data?.cards.total_profit ?? 0) >= 0 ? <TrendingUp className="h-5.5 w-5.5" /> : <TrendingDown className="h-5.5 w-5.5" />}</div>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs font-medium md:mt-4"><span className="text-muted-foreground">Bulan ini</span><span className={`font-bold ${(data?.cards.total_profit ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{(data?.cards.total_profit ?? 0) >= 0 ? 'untung' : 'rugi'}</span></div>
+              )}
             </CardContent>
           </Card>
         </div>
