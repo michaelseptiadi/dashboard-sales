@@ -13,6 +13,8 @@ import {
   Wallet,
   ArrowRight,
   AlertTriangle,
+  TrendingDown,
+  CircleDollarSign,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useAuth } from "@/hooks/useAuth";
@@ -83,9 +85,9 @@ export default function Index() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-6">
           {/* Card 1: Omzet Hari Ini */}
-          <Card className="relative col-span-2 overflow-hidden border-0 bg-gradient-to-br from-primary to-blue-700 text-primary-foreground shadow-lg shadow-primary/15 ring-0 lg:col-span-1">
+          <Card className="relative col-span-2 overflow-hidden border-0 bg-gradient-to-br from-primary to-blue-700 text-primary-foreground shadow-lg shadow-primary/15 ring-0">
             <CardContent className="pb-5 pt-5 md:pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -217,9 +219,35 @@ export default function Index() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Sales Trend Chart */}
+          {/* Card 5: Total Modal */}
+          <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
+            <CardContent className="p-4 md:pb-5 md:pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Modal</p>
+                  {isLoading ? <Skeleton className="h-9 w-36" /> : <p className="text-lg font-bold tracking-tight text-amber-600 dark:text-amber-400 sm:text-2xl">{formatCurrency(data?.cards.total_capital || 0)}</p>}
+                </div>
+                <div className="hidden h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400 md:flex"><CircleDollarSign className="h-5.5 w-5.5" /></div>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs font-medium md:mt-4"><span className="text-muted-foreground">Bulan ini</span><span className="font-bold text-amber-600 dark:text-amber-400">biaya pokok</span></div>
+            </CardContent>
+          </Card>
+
+          {/* Card 6: Profit */}
+          <Card className="relative overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
+            <CardContent className="p-4 md:pb-5 md:pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Profit</p>
+                  {isLoading ? <Skeleton className="h-9 w-36" /> : <p className={`text-lg font-bold tracking-tight sm:text-2xl ${(data?.cards.total_profit ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatCurrency(data?.cards.total_profit || 0)}</p>}
+                </div>
+                <div className={`hidden h-11 w-11 items-center justify-center rounded-xl md:flex ${(data?.cards.total_profit ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400'}`}>{(data?.cards.total_profit ?? 0) >= 0 ? <TrendingUp className="h-5.5 w-5.5" /> : <TrendingDown className="h-5.5 w-5.5" />}</div>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs font-medium md:mt-4"><span className="text-muted-foreground">Bulan ini</span><span className={`font-bold ${(data?.cards.total_profit ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{(data?.cards.total_profit ?? 0) >= 0 ? 'untung' : 'rugi'}</span></div>
+            </CardContent>
+          </Card>
+        </div>
         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden min-w-0">
           <CardHeader className="flex flex-col gap-3 pb-2 pt-4 px-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between border-b border-border/40">
             <div className="flex items-center gap-2.5">

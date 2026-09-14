@@ -14,6 +14,8 @@ export interface DashboardData {
     today_avg_transaction: number;
     receivables_amount: number;
     debtor_count: number;
+    total_capital: number;
+    total_profit: number;
   };
   sales_trend: { label: string; value: number }[];
   top_products: { name: string; qty: number; unit: string }[];
