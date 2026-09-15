@@ -189,11 +189,9 @@ export function ItemsTable({
                               <div className="font-semibold truncate leading-tight">{p.name}</div>
                               <div className="text-xs text-muted-foreground font-mono truncate">{p.product_code}</div>
                             </button>
-                            {onEditProduct && (
                             <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openInlineEdit(p); }} className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit produk">
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                            )}
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                           {p.variants?.length === 1 ? (
                             <button
