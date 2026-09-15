@@ -15,6 +15,7 @@ import { formatCurrency } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
 import type { Product } from "@/hooks/useProducts";
 import { useCategories, useUnits, useUpdateProduct, useUpdateVariant } from "@/hooks/useProducts";
+import { useToast } from "@/hooks/use-toast";
 
 interface ItemsTableProps {
   items: SalesItem[];
@@ -71,6 +72,7 @@ export function ItemsTable({
   isPending,
   showSummary = true,
 }: ItemsTableProps) {
+  const { toast } = useToast();
   const kembalian = paymentAmount > grandTotal ? paymentAmount - grandTotal : 0;
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -124,13 +126,18 @@ export function ItemsTable({
   const saveInlineEdit = async () => {
     if (!editProduct) return;
     try {
+      if (!editName.trim() || !editCategoryId || !editUnitId || (editVariantId && editVariantPrice < 0)) {
+        toast({ title: "Lengkapi data produk dan harga yang valid", variant: "destructive" });
+        return;
+      }
       if (editVariantId) {
         await updateVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
         onProductUpdated?.(editProduct.id, editVariantId, editVariantPrice);
       }
       await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId, unit_id: editUnitId });
       setEditProduct(null);
-    } catch {
+    } catch (error) {
+      toast({ title: "Gagal menyimpan perubahan", description: error instanceof Error ? error.message : "Silakan coba lagi.", variant: "destructive" });
       // Keep the dialog open so the user can correct or retry the update.
     }
   };
@@ -558,7 +565,7 @@ export function ItemsTable({
                 <div className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 text-violet-500" /> Varian utama</div>
                 <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><Label>Nama Varian</Label><Input value={editVariantName} onChange={(e) => setEditVariantName(e.target.value)} /></div><div className="space-y-1.5"><Label>Harga Jual</Label><CurrencyInput value={editVariantPrice} onChange={setEditVariantPrice} /></div></div>
               </div>
-              <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setEditProduct(null)}>Kembali</Button><Button type="button" onClick={saveInlineEdit} disabled={editProductMutation.isPending || updateVariantMutation.isPending}>Simpan</Button></div>
+              <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setEditProduct(null)}>Kembali</Button><Button type="button" onClick={saveInlineEdit} disabled={editProductMutation.isPending || updateVariantMutation.isPending} className="min-w-20">{editProductMutation.isPending || updateVariantMutation.isPending ? "Menyimpan..." : "Simpan"}</Button></div>
             </div>
           </DialogContent>
         </Dialog>
