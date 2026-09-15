@@ -1,5 +1,5 @@
 import { Plus, Trash2, Search, Package, Truck, User, ChevronDown, Coins, Check, Loader2, Pencil, Layers } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import type { SalesItem } from "@/features/sales/types";
 import type { Product } from "@/hooks/useProducts";
+import { useCategories, useUnits, useUpdateProduct, useUpdateVariant } from "@/hooks/useProducts";
 
 interface ItemsTableProps {
   items: SalesItem[];
@@ -92,9 +93,37 @@ export function ItemsTable({
 
   const handleContainerScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollHeight - scrollTop - clientHeight < 250 && hasNextPage && !isFetchingNextPage && fetchNextPage) {
-      fetchNextPage();
-    }
+    if (scrollHeight - scrollTop - clientHeight < 250 && hasNextPage && !isFetchingNextPage && fetchNextPage) fetchNextPage();
+  };
+
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editUnitId, setEditUnitId] = useState("");
+  const [editVariantId, setEditVariantId] = useState("");
+  const [editVariantName, setEditVariantName] = useState("");
+  const [editVariantPrice, setEditVariantPrice] = useState(0);
+  const editProductMutation = useUpdateProduct();
+  const editVariantMutation = useUpdateVariant();
+  const { data: editCategories } = useCategories();
+  const { data: editUnits } = useUnits();
+
+  const openInlineEdit = (product: Product) => {
+    setEditProduct(product);
+    setEditName(product.name);
+    setEditCategoryId(product.category_id ?? "");
+    setEditUnitId(product.unit_id ?? "");
+    const variant = product.variants?.[0];
+    setEditVariantId(variant?.id ?? "");
+    setEditVariantName(variant?.name ?? "Default");
+    setEditVariantPrice(Number(variant?.selling_price ?? product.selling_price));
+  };
+
+  const saveInlineEdit = async () => {
+    if (!editProduct) return;
+    await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId, unit_id: editUnitId });
+    if (editVariantId) await editVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
+    setEditProduct(null);
   };
 
   return (
@@ -161,7 +190,7 @@ export function ItemsTable({
                               <div className="text-xs text-muted-foreground font-mono truncate">{p.product_code}</div>
                             </button>
                             {onEditProduct && (
-                              <button type="button" onClick={() => onEditProduct(p)} className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit produk">
+                              <button type="button" onClick={() => openInlineEdit(p)} className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit produk">
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                             )}
@@ -507,6 +536,26 @@ export function ItemsTable({
             )}
           </div>
         </div>
+
+      {editProduct && (
+        <Dialog open onOpenChange={(open) => !open && setEditProduct(null)}>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl sm:max-w-md">
+            <DialogHeader><DialogTitle>Edit Produk</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5"><Label>Nama Produk</Label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>Kategori</Label><select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Pilih kategori</option>{editCategories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <div className="space-y-1.5"><Label>Satuan</Label><select value={editUnitId} onChange={(e) => setEditUnitId(e.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Pilih satuan</option>{editUnits?.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+              </div>
+              <div className="rounded-xl border bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 text-violet-500" /> Varian utama</div>
+                <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><Label>Nama Varian</Label><Input value={editVariantName} onChange={(e) => setEditVariantName(e.target.value)} /></div><div className="space-y-1.5"><Label>Harga Jual</Label><CurrencyInput value={editVariantPrice} onChange={setEditVariantPrice} /></div></div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setEditProduct(null)}>Kembali</Button><Button type="button" onClick={saveInlineEdit} disabled={editProductMutation.isPending || editVariantMutation.isPending}>Simpan</Button></div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {items.length > 0 && showSummary && (
         <div className="p-6 border-t border-muted/20 bg-muted/10 space-y-4">
