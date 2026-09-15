@@ -123,12 +123,16 @@ export function ItemsTable({
 
   const saveInlineEdit = async () => {
     if (!editProduct) return;
-    await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId, unit_id: editUnitId });
-    if (editVariantId) {
-      await editVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
-      onProductUpdated?.(editProduct.id, editVariantId, editVariantPrice);
+    try {
+      if (editVariantId) {
+        await updateVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
+        onProductUpdated?.(editProduct.id, editVariantId, editVariantPrice);
+      }
+      await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId, unit_id: editUnitId });
+      setEditProduct(null);
+    } catch {
+      // Keep the dialog open so the user can correct or retry the update.
     }
-    setEditProduct(null);
   };
 
   return (
