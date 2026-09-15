@@ -166,7 +166,15 @@ export function ItemsTable({
                               </button>
                             )}
                           </div>
-                          {p.variants?.length ? (
+                          {p.variants?.length === 1 ? (
+                            <button
+                              type="button"
+                              onClick={() => { addItem({ ...p, variants: [p.variants![0]], selling_price: Number(p.variants![0].selling_price) }); setProductSearchOpen(false); }}
+                              className="mt-1 w-full rounded-lg border border-primary/20 bg-primary/5 px-2 py-1.5 text-left text-xs font-semibold text-primary hover:bg-primary/10"
+                            >
+                              {p.variants[0].name} · {formatCurrency(Number(p.variants[0].selling_price))}
+                            </button>
+                          ) : p.variants?.length ? (
                             <div className="border-t border-border/30 px-3 py-1.5">
                               <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                                 <Layers className="h-3 w-3" /> Pilih varian & harga

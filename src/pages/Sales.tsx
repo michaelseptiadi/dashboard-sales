@@ -109,6 +109,24 @@ export default function Sales() {
   const searchProducts = searchProductsInfinite?.pages.flatMap(p => p.data) || [];
   const [productSearchOpen, setProductSearchOpen] = useState(false);
 
+  const handleEditProduct = (product: Product) => {
+    sessionStorage.setItem("sales:return_to_product_search", JSON.stringify({ search: productSearch }));
+    navigate(`/produk/${product.id}`);
+  };
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("sales:return_to_product_search");
+    if (!raw) return;
+    sessionStorage.removeItem("sales:return_to_product_search");
+    try {
+      const state = JSON.parse(raw) as { search?: string };
+      setProductSearch(state.search ?? "");
+      setProductSearchOpen(true);
+    } catch {
+      setProductSearchOpen(true);
+    }
+  }, []);
+
   // Modal and Step states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -857,7 +875,7 @@ export default function Sales() {
                   <ItemsTable
                     items={items}
                     addItem={addItem}
-                    onEditProduct={(product) => navigate(`/produk/${product.id}`)}
+                    onEditProduct={handleEditProduct}
                     updateItem={updateItem}
                     toggleItemSelfPickup={toggleItemSelfPickup}
                     removeItem={removeItem}
