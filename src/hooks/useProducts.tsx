@@ -408,11 +408,12 @@ export function useUpdateProduct() {
         ...(updates.unit_id !== undefined ? { baseUnitId: updates.unit_id } : {}),
         ...(updates.is_active !== undefined ? { isActive: updates.is_active } : {}),
       }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product"] });
+    onSuccess: (updatedProduct, vars) => {
+      const merge = (product: Product) => product.id === vars.id ? { ...product, ...updatedProduct, variants: product.variants } : product;
+      queryClient.setQueriesData<InfiniteData<PaginatedProducts>>({ queryKey: ["products"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(merge) })) } : cached);
+      queryClient.setQueriesData<InfiniteData<{ data: Product[]; nextPage?: number }>>({ queryKey: ["active-products-infinite"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(merge) })) } : cached);
+      queryClient.invalidateQueries({ queryKey: ["product", vars.id] });
       queryClient.invalidateQueries({ queryKey: ["active-products"] });
-      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
       queryClient.invalidateQueries({ queryKey: ["product-variants"] });
     },
@@ -640,12 +641,18 @@ export function useUpdateVariant() {
       stock?: number;
       minimumStock?: number;
     }) => apiClient.patch<ProductVariant>(`/product-variants/${id}`, rest),
-    onSuccess: (_, vars) => {
+    onSuccess: (updatedVariant, vars) => {
+      const updateProduct = (product: Product) => {
+        if (product.id !== vars.productId) return product;
+        const variants = product.variants?.map((variant) => variant.id === vars.id ? { ...variant, ...updatedVariant } : variant);
+        const selected = variants?.find((variant) => variant.id === vars.id);
+        return selected ? { ...product, variants, selling_price: Number(selected.selling_price), capital_price: Number(selected.capital_price) } : product;
+      };
+      queryClient.setQueriesData<InfiniteData<PaginatedProducts>>({ queryKey: ["products"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(updateProduct) })) } : cached);
+      queryClient.setQueriesData<InfiniteData<{ data: Product[]; nextPage?: number }>>({ queryKey: ["active-products-infinite"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(updateProduct) })) } : cached);
       queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
-      queryClient.invalidateQueries({ queryKey: ["product"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["active-products"] });
-      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["product", vars.productId] });
+      queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
     },
   });
 }
