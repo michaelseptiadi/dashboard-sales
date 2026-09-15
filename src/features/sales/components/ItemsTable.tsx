@@ -537,7 +537,7 @@ export function ItemsTable({
 
       {editProduct && (
         <Dialog open onOpenChange={(open) => !open && setEditProduct(null)}>
-          <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl sm:max-w-md">
+          <DialogContent className="z-[200] max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl bg-background shadow-2xl sm:max-w-md">
             <DialogHeader><DialogTitle>Edit Produk</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1.5"><Label>Nama Produk</Label><Input value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
