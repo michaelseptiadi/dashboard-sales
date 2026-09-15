@@ -409,9 +409,8 @@ export function useUpdateProduct() {
         ...(updates.is_active !== undefined ? { isActive: updates.is_active } : {}),
       }),
     onSuccess: (updatedProduct, vars) => {
-      const merge = (product: Product) => product.id === vars.id ? { ...product, ...updatedProduct, variants: product.variants } : product;
-      queryClient.setQueriesData<InfiniteData<PaginatedProducts>>({ queryKey: ["products"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(merge) })) } : cached);
-      queryClient.setQueriesData<InfiniteData<{ data: Product[]; nextPage?: number }>>({ queryKey: ["active-products-infinite"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(merge) })) } : cached);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["product", vars.id] });
       queryClient.invalidateQueries({ queryKey: ["active-products"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
@@ -652,6 +651,9 @@ export function useUpdateVariant() {
       queryClient.setQueriesData<InfiniteData<{ data: Product[]; nextPage?: number }>>({ queryKey: ["active-products-infinite"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(updateProduct) })) } : cached);
       queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
       queryClient.invalidateQueries({ queryKey: ["product", vars.productId] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
     },
   });

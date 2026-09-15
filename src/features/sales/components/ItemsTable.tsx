@@ -20,6 +20,7 @@ interface ItemsTableProps {
   items: SalesItem[];
   addItem: (product: Product) => void;
   onEditProduct?: (product: Product) => void;
+  onProductUpdated?: (productId: string, variantId: string, price: number) => void;
   updateItem: (index: number, field: keyof SalesItem, value: string | number | boolean | null | undefined | import("@/hooks/useProducts").ProductUnit[] | import("@/hooks/useProducts").ProductVariant[]) => void;
   toggleItemSelfPickup: (index: number) => void;
   removeItem: (index: number) => void;
@@ -47,6 +48,7 @@ export function ItemsTable({
   items,
   addItem,
   onEditProduct,
+  onProductUpdated,
   updateItem,
   toggleItemSelfPickup,
   removeItem,
@@ -104,7 +106,7 @@ export function ItemsTable({
   const [editVariantName, setEditVariantName] = useState("");
   const [editVariantPrice, setEditVariantPrice] = useState(0);
   const editProductMutation = useUpdateProduct();
-  const editVariantMutation = useUpdateVariant();
+  const updateVariantMutation = useUpdateVariant();
   const { data: editCategories } = useCategories();
   const { data: editUnits } = useUnits();
 
@@ -122,7 +124,10 @@ export function ItemsTable({
   const saveInlineEdit = async () => {
     if (!editProduct) return;
     await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId, unit_id: editUnitId });
-    if (editVariantId) await editVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
+    if (editVariantId) {
+      await editVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
+      onProductUpdated?.(editProduct.id, editVariantId, editVariantPrice);
+    }
     setEditProduct(null);
   };
 
@@ -549,7 +554,7 @@ export function ItemsTable({
                 <div className="flex items-center gap-2 text-sm font-bold"><Layers className="h-4 w-4 text-violet-500" /> Varian utama</div>
                 <div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><Label>Nama Varian</Label><Input value={editVariantName} onChange={(e) => setEditVariantName(e.target.value)} /></div><div className="space-y-1.5"><Label>Harga Jual</Label><CurrencyInput value={editVariantPrice} onChange={setEditVariantPrice} /></div></div>
               </div>
-              <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setEditProduct(null)}>Kembali</Button><Button type="button" onClick={saveInlineEdit} disabled={editProductMutation.isPending || editVariantMutation.isPending}>Simpan</Button></div>
+              <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setEditProduct(null)}>Kembali</Button><Button type="button" onClick={saveInlineEdit} disabled={editProductMutation.isPending || updateVariantMutation.isPending}>Simpan</Button></div>
             </div>
           </DialogContent>
         </Dialog>
