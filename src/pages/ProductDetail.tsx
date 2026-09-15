@@ -106,8 +106,8 @@ export default function ProductDetail() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.product_code || !form.category_id || !form.unit_id) {
-      toast({ title: "Semua field wajib diisi", variant: "destructive" });
+    if (!form.name || !form.product_code) {
+      toast({ title: "Nama dan kode produk wajib diisi", variant: "destructive" });
       return;
     }
 
@@ -120,8 +120,8 @@ export default function ProductDetail() {
         id: product.id,
         name: form.name,
         product_code: form.product_code,
-        category_id: form.category_id,
-        unit_id: form.unit_id,
+        category_id: form.category_id || undefined,
+        unit_id: form.unit_id || undefined,
       });
       toast({ title: "Produk berhasil diperbarui" });
       setEditOpen(false);
@@ -217,8 +217,8 @@ export default function ProductDetail() {
   };
 
   const handleSaveVariant = async () => {
-    if (!variantForm.name.trim() || !variantForm.unitId) {
-      toast({ title: "Nama varian dan satuan wajib diisi", variant: "destructive" });
+    if (!variantForm.name.trim()) {
+      toast({ title: "Nama varian wajib diisi", variant: "destructive" });
       return;
     }
     if (!product) return;
@@ -232,7 +232,7 @@ export default function ProductDetail() {
           productId: product.id,
           name: variantForm.name,
           skuSuffix: variantForm.skuSuffix || undefined,
-          unitId: variantForm.unitId,
+          unitId: variantForm.unitId || undefined,
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
@@ -430,9 +430,9 @@ export default function ProductDetail() {
 
         {/* Product Variants Card */}
         {!productLoading && product && isAdmin && (
-          <Card>
-            <CardHeader className="px-6 pb-3 pt-5">
-              <div className="flex items-center justify-between">
+          <Card className="border-muted/30 shadow-sm overflow-hidden bg-card/65 backdrop-blur-xl">
+            <CardHeader className="px-6 pb-4 pt-6 border-b border-muted/20 bg-muted/5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Layers className="h-5 w-5 text-violet-500" />
                   Varian Produk
@@ -442,26 +442,50 @@ export default function ProductDetail() {
                     </span>
                   )}
                 </CardTitle>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={openCreateVariant}>
+                <Button size="sm" variant="outline" className="gap-1.5 rounded-xl" onClick={openCreateVariant}>
                   <Plus className="h-3.5 w-3.5" /> Tambah Varian
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="px-6 pb-5">
-              {variantsLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : !variants || variants.length === 0 ? (
+            {variantsLoading ? (
+              <div className="space-y-2 px-4 pb-4 sm:px-6">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+              </div>
+            ) : !variants || variants.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <Layers className="h-8 w-8 text-muted-foreground/25 mb-2" />
                   <p className="text-sm text-muted-foreground">Belum ada varian.</p>
                   <p className="text-xs text-muted-foreground/70 mt-0.5">Tambahkan varian seperti ukuran, warna, atau kemasan.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <> 
+                <div className="md:hidden space-y-3">
+                  {variants.map((v) => {
+                    const stock = Number(v.stock);
+                    const low = v.is_active && stock <= Number(v.minimum_stock);
+                    const out = stock <= 0;
+                    return (
+                      <article key={v.id} className={`rounded-3xl border shadow-sm backdrop-blur-xl p-4 ${!v.is_active ? "border-dashed bg-muted/30 opacity-75" : out ? "border-rose-200/50 bg-rose-50/60 dark:border-rose-900/50 dark:bg-rose-950/40" : low ? "border-amber-200/50 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/40" : "bg-white/60 dark:bg-black/40 border-white/20 dark:border-white/10"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2"><h3 className="truncate text-sm font-bold">{v.name}</h3><Badge variant="outline" className={`text-[10px] ${v.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}`}>{v.is_active ? "Aktif" : "Nonaktif"}</Badge></div>
+                            <p className="mt-1 font-mono text-[10px] text-muted-foreground">SKU {v.sku_suffix || "—"} · Faktor {Number(v.conversion_factor)}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditVariant(v)} aria-label={`Edit varian ${v.name}`}><Pencil className="h-3.5 w-3.5" /></Button>{variants.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive" onClick={() => handleDeleteVariant(v)} aria-label={`Hapus varian ${v.name}`}><Trash2 className="h-3.5 w-3.5" /></Button>}</div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Stok</p><p className={`text-sm font-black ${out ? "text-rose-600" : low ? "text-amber-600" : ""}`}>{stock} <span className="text-[10px] font-medium text-muted-foreground">{v.unit?.name || product.units?.name || "unit"}</span></p></div>
+                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Min. stok</p><p className="text-sm font-bold">{v.minimum_stock}</p></div>
+                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Harga jual</p><p className="text-xs font-bold text-primary">{formatCurrency(Number(v.selling_price))}</p></div>
+                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Margin</p><p className="text-xs font-bold text-violet-700 dark:text-violet-400">{formatCurrency(Number(v.selling_price) - Number(v.capital_price))}</p></div>
+                        </div>
+                        <button type="button" onClick={() => handleToggleVariant(v)} className={`mt-2 text-[11px] font-semibold ${out ? "text-rose-600" : low ? "text-amber-600" : "text-muted-foreground"}`}>{out ? "Stok habis" : low ? "Stok rendah" : "Stok aman"} · ubah status</button>
+                      </article>
+                    );
+                  })}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/30">
@@ -565,14 +589,15 @@ export default function ProductDetail() {
                     </TableBody>
                   </Table>
                 </div>
+                </>
               )}
             </CardContent>
           </Card>
         )}
 
         {/* Inventory movements table */}
-        <Card>
-          <CardHeader className="px-6 pb-3 pt-5">
+        <Card className="border-muted/30 shadow-sm overflow-hidden bg-card/65 backdrop-blur-xl mb-6">
+          <CardHeader className="px-6 pb-4 pt-6 border-b border-muted/20 bg-muted/5">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Riwayat Pergerakan Stok</CardTitle>
               {movements && movements.length > 0 && (
@@ -605,10 +630,22 @@ export default function ProductDetail() {
                 <p className="text-sm font-medium text-muted-foreground">Belum ada pergerakan stok</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-t bg-muted/30">
+              <>
+                <div className="space-y-3 px-4 md:hidden pb-4">
+                  {movements.map((m) => (
+                    <article key={m.id} className={`rounded-3xl border shadow-sm backdrop-blur-xl p-4 ${m.qty_in > 0 ? "border-emerald-200/50 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/40" : "border-rose-200/50 bg-rose-50/60 dark:border-rose-900/50 dark:bg-rose-950/40"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div><MovementTypeBadge type={m.movement_type} /><p className="mt-1 text-xs text-muted-foreground">{formatDateTime(m.created_at)}</p></div>
+                        <span className="text-sm font-bold">Stok {m.stockAfter}</span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs"><span className="truncate text-muted-foreground">{m.notes || m.reference_id || "Tanpa catatan"}</span><span className={m.qty_in > 0 ? "font-bold text-emerald-600" : "font-bold text-rose-600"}>{m.qty_in > 0 ? `+${m.qty_in}` : `-${m.qty_out}`}</span></div>
+                    </article>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-t bg-muted/30">
                       <TableHead className="pl-6 text-xs">Tanggal & Waktu</TableHead>
                       <TableHead className="text-xs">Tipe</TableHead>
                       <TableHead className="text-xs">Catatan</TableHead>
@@ -679,7 +716,8 @@ export default function ProductDetail() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -703,7 +741,7 @@ export default function ProductDetail() {
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {product.variants.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.name} (Stok: {v.stock})
@@ -784,7 +822,7 @@ export default function ProductDetail() {
                 <Label>Kategori <span className="text-destructive">*</span></Label>
                 <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {categories?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -793,7 +831,7 @@ export default function ProductDetail() {
                 <Label>Satuan Dasar <span className="text-destructive">*</span></Label>
                 <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Pilih satuan dasar" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {units?.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -844,7 +882,7 @@ export default function ProductDetail() {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Pilih satuan" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {units?.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.name}
@@ -890,11 +928,15 @@ export default function ProductDetail() {
               <div className="space-y-2">
                 <Label>Stok Minimum</Label>
                 <Input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="0"
                   value={variantForm.minimumStock === 0 ? "" : variantForm.minimumStock}
-                  onChange={(e) => setVariantForm({ ...variantForm, minimumStock: e.target.value === "" ? 0 : Number(e.target.value) })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    setVariantForm({ ...variantForm, minimumStock: val === "" ? 0 : Number(val) });
+                  }}
                 />
               </div>
             </div>
