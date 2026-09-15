@@ -1,4 +1,4 @@
-import { Plus, Trash2, Search, Package, Truck, User, ChevronDown, Coins, Check, Loader2 } from "lucide-react";
+import { Plus, Trash2, Search, Package, Truck, User, ChevronDown, Coins, Check, Loader2, Pencil, Layers } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import type { Product } from "@/hooks/useProducts";
 interface ItemsTableProps {
   items: SalesItem[];
   addItem: (product: Product) => void;
+  onEditProduct?: (product: Product) => void;
   updateItem: (index: number, field: keyof SalesItem, value: string | number | boolean | null | undefined | import("@/hooks/useProducts").ProductUnit[] | import("@/hooks/useProducts").ProductVariant[]) => void;
   toggleItemSelfPickup: (index: number) => void;
   removeItem: (index: number) => void;
@@ -44,6 +45,7 @@ interface ItemsTableProps {
 export function ItemsTable({
   items,
   addItem,
+  onEditProduct,
   updateItem,
   toggleItemSelfPickup,
   removeItem,
@@ -96,23 +98,26 @@ export function ItemsTable({
   };
 
   return (
-    <Card className="min-h-[500px] border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md flex flex-col justify-between">
+    <Card className="md:min-h-[500px] border-muted/50 shadow-sm hover:shadow-md/40 transition-all duration-300 rounded-2xl overflow-hidden bg-card/65 backdrop-blur-md flex flex-col justify-between">
       <div>
-        <CardHeader className="pb-4 border-b border-muted/20 bg-muted/10">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                <Package className="h-4 w-4" />
-              </div>
-              <span>Daftar Produk</span>
-              <span className="text-destructive font-bold">*</span>
-            </CardTitle>
-            <Dialog open={productSearchOpen} onOpenChange={setProductSearchOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="rounded-xl font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
-                  <Plus className="mr-1 h-4 w-4" /> Tambah Produk
-                </Button>
-              </DialogTrigger>
+        {/* Mobile Header: compact — no Card chrome */}
+        <div className="flex items-center justify-between pb-3 md:pb-4 border-b border-muted/20 md:bg-muted/10 px-0 md:px-0">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary hidden md:flex">
+              <Package className="h-4 w-4" />
+            </div>
+            <span className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-wider">Daftar Produk</span>
+            <span className="text-destructive font-bold hidden md:inline">*</span>
+            {items.length > 0 && (
+              <span className="text-[10px] font-bold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-full md:hidden">{items.length}</span>
+            )}
+          </div>
+          <Dialog open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="rounded-xl font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 h-8 md:h-9 text-xs px-3">
+                <Plus className="mr-1 h-3.5 w-3.5 md:h-4 md:w-4" /> <span className="hidden sm:inline">Tambah </span>Produk
+              </Button>
+            </DialogTrigger>
               <DialogContent 
                 className="w-full h-[100dvh] sm:h-auto sm:max-w-md p-4 sm:p-5 rounded-none sm:rounded-2xl shadow-xl border-muted/40 z-[100] flex flex-col gap-0"
               >
@@ -145,22 +150,46 @@ export function ItemsTable({
                   ) : (
                     <>
                       {searchProducts?.map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => {
-                            addItem(p);
-                            setProductSearchOpen(false);
-                          }}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm hover:bg-accent/60 active:bg-accent/80 transition-colors text-left border border-transparent hover:border-border/50"
-                        >
-                          <div className="min-w-0 pr-2 flex flex-col gap-1">
-                            <div className="font-semibold truncate leading-tight">{p.name}</div>
-                            <div className="text-xs text-muted-foreground font-mono truncate">{p.product_code}</div>
+                        <div key={p.id} className="rounded-xl border border-transparent hover:border-border/50 hover:bg-accent/40 transition-colors">
+                          <div className="flex items-center gap-2 px-3 py-2.5">
+                            <button
+                              type="button"
+                              onClick={() => { addItem(p); setProductSearchOpen(false); }}
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <div className="font-semibold truncate leading-tight">{p.name}</div>
+                              <div className="text-xs text-muted-foreground font-mono truncate">{p.product_code}</div>
+                            </button>
+                            {onEditProduct && (
+                              <button type="button" onClick={() => onEditProduct(p)} className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit produk">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
-                          <span className="text-sm font-bold shrink-0 text-primary">
-                            {formatCurrency(p.selling_price)}
-                          </span>
-                        </button>
+                          {p.variants?.length ? (
+                            <div className="border-t border-border/30 px-3 py-1.5">
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                <Layers className="h-3 w-3" /> Pilih varian & harga
+                              </div>
+                              <select
+                                defaultValue=""
+                                onChange={(e) => {
+                                  const selected = p.variants?.find((v) => v.id === e.target.value);
+                                  if (selected) {
+                                    addItem({ ...p, variants: [selected], selling_price: Number(selected.selling_price) });
+                                    setProductSearchOpen(false);
+                                  }
+                                }}
+                                className="w-full rounded-lg border border-primary/20 bg-primary/5 px-2 py-1.5 text-xs font-semibold text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              >
+                                <option value="">Pilih varian untuk menambahkan...</option>
+                                {p.variants.filter((v) => v.is_active).map((v) => (
+                                  <option key={v.id} value={v.id}>{v.name} · {formatCurrency(Number(v.selling_price))}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : null}
+                        </div>
                       ))}
                       {/* Infinite Scroll Sentinel & Status */}
                       <div ref={loadMoreRef} className="py-3 flex flex-col items-center justify-center min-h-[44px]">
@@ -189,8 +218,8 @@ export function ItemsTable({
               </DialogContent>
             </Dialog>
           </div>
-        </CardHeader>
-        <CardContent className="pt-4">
+        </div>
+        <div className="pt-3 md:pt-4">
           <div className="hidden md:block overflow-x-auto">
             <Table className="min-w-[650px]">
               <TableHeader>
@@ -341,7 +370,7 @@ export function ItemsTable({
           </div>
 
           {/* Mobile View */}
-          <div className="md:hidden space-y-4">
+          <div className="md:hidden space-y-3">
             {items.length === 0 ? (
               <div className="py-12 text-center flex flex-col items-center gap-2 text-muted-foreground border rounded-xl border-dashed">
                 <div className="p-3 rounded-full bg-muted/40 text-muted-foreground/40 mb-1">
@@ -352,7 +381,7 @@ export function ItemsTable({
               </div>
             ) : (
               items.map((item, index) => (
-                <div key={`${item.product_id}-${index}`} className="flex flex-col gap-3 p-3 border rounded-xl bg-card shadow-sm">
+                <div key={`${item.product_id}-${index}`} className="flex flex-col gap-2 p-3 border rounded-xl bg-card shadow-sm">
                   {/* Row 1: Header / Title */}
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex flex-col gap-0.5">
@@ -382,7 +411,7 @@ export function ItemsTable({
                       <select
                         value={item.product_variant_id || ""}
                         onChange={(e) => updateItem(index, "product_variant_id", e.target.value || null)}
-                        className="w-full text-xs bg-violet-50/80 hover:bg-violet-100/70 border border-violet-200 rounded px-2 py-1.5 font-medium text-violet-700 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 focus:outline-none"
+                        className="w-full text-[10px] bg-violet-50/80 hover:bg-violet-100/70 border border-violet-200 rounded px-2 py-1 font-medium text-violet-700 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 focus:outline-none"
                       >
                         {item.product_variants
                           .filter((v) => v.is_active)
@@ -395,10 +424,10 @@ export function ItemsTable({
                     </div>
                   )}
 
-                  {/* Row 3: Qty & Discount Inputs */}
-                  <div className="flex gap-2">
-                    <div className="w-24">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Qty</Label>
+                  {/* Row 3: Qty + Diskon + Subtotal — all in one line */}
+                  <div className="flex items-end gap-2">
+                    <div className="w-20">
+                      <Label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5 block">Qty</Label>
                       <Input
                         type="number"
                         value={item.qty === 0 ? "" : item.qty}
@@ -409,22 +438,37 @@ export function ItemsTable({
                         onBlur={() => {
                           if (item.qty <= 0) updateItem(index, "qty", 1);
                         }}
-                        className="h-8 rounded-lg text-xs text-center"
+                        className="h-7 rounded-lg text-[11px] text-center px-1"
                         min={1}
                       />
                     </div>
-                    <div className="flex-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Diskon / Item</Label>
+                    <div className="flex-1 min-w-0">
+                      <Label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5 block">Diskon</Label>
                       <CurrencyInput
                         value={item.discount}
                         onChange={(v) => updateItem(index, "discount", v)}
-                        className="h-8 rounded-lg text-xs"
+                        className="h-7 rounded-lg text-[11px] px-2"
                       />
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5 block">Subtotal</Label>
+                      {item.qty * item.price > item.subtotal ? (
+                        <div className="flex flex-col items-end leading-tight">
+                          <span className="text-[9px] text-muted-foreground line-through">
+                            {formatCurrency(item.qty * item.price)}
+                          </span>
+                          <span className="text-xs text-foreground font-bold font-mono">
+                            {formatCurrency(item.subtotal)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-foreground font-bold font-mono leading-tight">{formatCurrency(item.subtotal)}</span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Row 4: Subtotal & Self Pickup Toggle */}
-                  <div className="flex items-center justify-between border-t pt-2 mt-1">
+                  {/* Row 4: Self Pickup Toggle */}
+                  <div className="flex items-center justify-end border-t pt-1.5">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button type="button" className="flex items-center gap-1.5 focus:outline-none hover:opacity-85 transition-opacity py-1">
@@ -449,29 +493,12 @@ export function ItemsTable({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-
-                    <div className="text-right">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wider block">Subtotal</Label>
-                      {item.qty * item.price > item.subtotal ? (
-                        <div className="flex flex-col items-end leading-tight">
-                          <span className="text-[10px] text-muted-foreground line-through">
-                            {formatCurrency(item.qty * item.price)}
-                          </span>
-                          <span className="text-sm text-foreground font-bold font-mono">
-                            {formatCurrency(item.subtotal)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-foreground font-bold font-mono leading-tight">{formatCurrency(item.subtotal)}</span>
-                      )}
-                    </div>
                   </div>
                 </div>
               ))
             )}
           </div>
-        </CardContent>
-      </div>
+        </div>
 
       {items.length > 0 && showSummary && (
         <div className="p-6 border-t border-muted/20 bg-muted/10 space-y-4">

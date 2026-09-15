@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -44,6 +45,7 @@ const getLocalDatetimeString = (date: Date = new Date()) => {
 };
 
 export default function Sales() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { data: customers } = useCustomers();
   const { data: paymentMethods } = usePaymentMethods();
@@ -816,7 +818,8 @@ export default function Sales() {
             </div>
 
             {/* Center Content Form (Scrollable) */}
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1 md:pr-2 space-y-4 md:space-y-6">
+
+            <div className={`flex-1 min-h-0 overflow-y-auto pr-1 md:pr-2 ${currentStep === 1 ? "space-y-4 md:space-y-6" : "space-y-6"}`}>
               {currentStep === 1 && (
                 <div className="space-y-6">
                   <TransactionInfoCard
@@ -854,6 +857,7 @@ export default function Sales() {
                   <ItemsTable
                     items={items}
                     addItem={addItem}
+                    onEditProduct={(product) => navigate(`/produk/${product.id}`)}
                     updateItem={updateItem}
                     toggleItemSelfPickup={toggleItemSelfPickup}
                     removeItem={removeItem}
