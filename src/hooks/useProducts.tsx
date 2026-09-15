@@ -412,7 +412,9 @@ export function useUpdateProduct() {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
+      queryClient.invalidateQueries({ queryKey: ["product-variants"] });
     },
   });
 }
@@ -616,6 +618,8 @@ export function useCreateVariant() {
       queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
     },
   });
 }
@@ -640,6 +644,8 @@ export function useUpdateVariant() {
       queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
     },
   });
 }
@@ -653,6 +659,8 @@ export function useDeleteVariant() {
       queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
       queryClient.invalidateQueries({ queryKey: ["product"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
     },
   });
 }
