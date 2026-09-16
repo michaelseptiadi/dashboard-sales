@@ -61,6 +61,7 @@ export default function Products() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<"all" | "active" | "inactive" | "low" | "out">("all");
+  const [inventoryMode, setInventoryMode] = useState<"INDEPENDENT" | "SHARED_BASE">("INDEPENDENT");
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [stockProduct, setStockProduct] = useState<{ id: string; name: string; current_stock: number; store_product_id?: string; variants: import("@/hooks/useProducts").ProductVariant[] } | null>(null);
@@ -130,6 +131,7 @@ export default function Products() {
 
   const openCreate = () => {
     setForm({ ...emptyForm, product_code: nextProductCode() });
+    setInventoryMode("INDEPENDENT");
     setDialogOpen(true);
   };
 
@@ -144,6 +146,7 @@ export default function Products() {
         category_id: form.category_id || null,
         unit_id: form.unit_id || null,
         minimum_stock: form.minimum_stock === "" ? 0 : form.minimum_stock,
+        inventory_mode: inventoryMode,
       });
       toast({ title: "Produk berhasil ditambahkan" });
       setDialogOpen(false);
@@ -615,6 +618,21 @@ export default function Products() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <Label className="text-sm">Pengelolaan Stok</Label>
+              <Select value={inventoryMode} onValueChange={(v) => setInventoryMode(v as "INDEPENDENT" | "SHARED_BASE")}>
+                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INDEPENDENT">Stok per varian</SelectItem>
+                  <SelectItem value="SHARED_BASE">Stok bersama</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {inventoryMode === "SHARED_BASE"
+                  ? "Satu stok fisik dipakai bersama semua varian. Penjualan mengurangi stok sesuai faktor konversi."
+                  : "Setiap varian memiliki stok fisiknya sendiri. Gunakan ini untuk ukuran, warna, atau SKU yang berbeda."}
+              </p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-2">

@@ -50,6 +50,7 @@ export interface ProductInsert {
   selling_price: number;
   capital_price: number;
   minimum_stock: number;
+  inventory_mode?: "INDEPENDENT" | "SHARED_BASE";
   current_stock?: number;
 }
 
@@ -407,6 +408,7 @@ export function useCreateProduct() {
         capitalPrice: product.capital_price,
         stock: product.current_stock ?? 0,
         minStock: product.minimum_stock,
+        inventoryMode: product.inventory_mode ?? 'INDEPENDENT',
       });
     },
     onSuccess: () => {
