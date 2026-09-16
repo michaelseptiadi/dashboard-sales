@@ -28,6 +28,8 @@ export interface Product {
   capital_price: number;
   minimum_stock: number;
   current_stock: number;
+  inventory_mode: string;
+  shared_stock: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -110,7 +112,10 @@ interface ProductApiPayload {
   is_active: boolean;
   category_id: string | null;
   store_id: string;
+  inventory_mode: string;
+  shared_stock: number | string;
   base_unit_id: string | null;
+  minimum_stock: number;
   created_at: string;
   updated_at: string;
   category: { id: string; name: string } | null;
@@ -120,6 +125,8 @@ interface ProductApiPayload {
     product_id: string;
     name: string;
     sku_suffix?: string | null;
+    vehicle_type?: string | null;
+    load_size?: string | null;
     unit_id: string;
     conversion_factor: number | string;
     selling_price: number | string;
@@ -155,7 +162,7 @@ function mapStoreProduct(item: ProductApiPayload): Product {
 
   const sellingPrice = defaultVariant ? Number(defaultVariant.selling_price) : 0;
   const capitalPrice = defaultVariant ? Number(defaultVariant.capital_price) : 0;
-  const minimumStock = defaultVariant ? Number(defaultVariant.minimum_stock) : 0;
+  const minimumStock = defaultVariant ? Number(defaultVariant.minimum_stock) : Number(item.minimum_stock ?? 0);
   const currentStock = defaultVariant ? Number(defaultVariant.stock) : 0;
 
   const unitName = defaultVariant?.unit?.name || item.base_unit?.name || "";
@@ -171,8 +178,10 @@ function mapStoreProduct(item: ProductApiPayload): Product {
     unit_id: unitId,
     selling_price: sellingPrice,
     capital_price: capitalPrice,
+    inventory_mode: item.inventory_mode,
+    shared_stock: Number(item.shared_stock),
     minimum_stock: minimumStock,
-    current_stock: currentStock,
+    current_stock: item.inventory_mode === "SHARED_BASE" ? Number(item.shared_stock) : currentStock,
     is_active: item.is_active,
     created_at: item.created_at,
     updated_at: item.updated_at,
@@ -186,6 +195,8 @@ function mapStoreProduct(item: ProductApiPayload): Product {
       product_id: v.product_id,
       name: v.name,
       sku_suffix: v.sku_suffix ?? null,
+      vehicle_type: v.vehicle_type ?? null,
+      load_size: v.load_size ?? null,
       unit_id: v.unit_id,
       conversion_factor: Number(v.conversion_factor),
       selling_price: Number(v.selling_price),
@@ -287,6 +298,8 @@ interface LowStockApiPayload {
   product_id: string;
   name: string;
   sku_suffix?: string | null;
+  vehicle_type?: string | null;
+  load_size?: string | null;
   unit_id: string;
   conversion_factor: number | string;
   selling_price: number | string;
@@ -301,6 +314,8 @@ interface LowStockApiPayload {
     id: string;
     product_code: string;
     name: string;
+    inventory_mode?: string;
+    shared_stock?: number | string;
     category?: { id: string; name: string } | null;
     base_unit?: { id: string; name: string } | null;
   } | null;
@@ -327,7 +342,9 @@ export function useLowStockProducts() {
           selling_price: Number(v.selling_price),
           capital_price: Number(v.capital_price),
           minimum_stock: Number(v.minimum_stock),
-          current_stock: Number(v.stock),
+          current_stock: p?.inventory_mode === "SHARED_BASE" ? Number(p.shared_stock ?? 0) : Number(v.stock),
+          inventory_mode: p?.inventory_mode ?? "INDEPENDENT",
+          shared_stock: Number(p?.shared_stock ?? 0),
           is_active: v.is_active,
           created_at: v.created_at,
           updated_at: v.updated_at,
@@ -341,6 +358,8 @@ export function useLowStockProducts() {
             product_id: v.product_id,
             name: v.name,
             sku_suffix: v.sku_suffix ?? null,
+            vehicle_type: v.vehicle_type ?? null,
+            load_size: v.load_size ?? null,
             unit_id: v.unit_id,
             conversion_factor: Number(v.conversion_factor),
             selling_price: Number(v.selling_price),
@@ -575,6 +594,8 @@ export interface ProductVariant {
   product_id: string;
   name: string;
   sku_suffix?: string | null;
+  vehicle_type?: string | null;
+  load_size?: string | null;
   unit_id: string;
   conversion_factor: number;
   selling_price: number;
@@ -607,6 +628,8 @@ export function useCreateVariant() {
       productId: string;
       name: string;
       skuSuffix?: string;
+      vehicleType?: string;
+      loadSize?: string;
       unitId: string;
       conversionFactor: number;
       sellingPrice: number;
@@ -632,6 +655,8 @@ export function useUpdateVariant() {
       productId: string;
       name?: string;
       skuSuffix?: string;
+      vehicleType?: string;
+      loadSize?: string;
       unitId?: string;
       conversionFactor?: number;
       isActive?: boolean;
@@ -641,19 +666,11 @@ export function useUpdateVariant() {
       minimumStock?: number;
     }) => apiClient.patch<ProductVariant>(`/product-variants/${id}`, rest),
     onSuccess: (updatedVariant, vars) => {
-      const updateProduct = (product: Product) => {
-        if (product.id !== vars.productId) return product;
-        const variants = product.variants?.map((variant) => variant.id === vars.id ? { ...variant, ...updatedVariant } : variant);
-        const selected = variants?.find((variant) => variant.id === vars.id);
-        return selected ? { ...product, variants, selling_price: Number(selected.selling_price), capital_price: Number(selected.capital_price) } : product;
-      };
-      queryClient.setQueriesData<InfiniteData<PaginatedProducts>>({ queryKey: ["products"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(updateProduct) })) } : cached);
-      queryClient.setQueriesData<InfiniteData<{ data: Product[]; nextPage?: number }>>({ queryKey: ["active-products-infinite"] }, (cached) => cached ? { ...cached, pages: cached.pages.map((page) => ({ ...page, data: page.data.map(updateProduct) })) } : cached);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
       queryClient.invalidateQueries({ queryKey: ["product-variants", vars.productId] });
       queryClient.invalidateQueries({ queryKey: ["product", vars.productId] });
-      queryClient.invalidateQueries({ queryKey: ["active-products"] });
-      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
     },
   });
