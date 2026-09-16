@@ -32,6 +32,7 @@ vi.mock("@/hooks/useProducts", () => ({
     hasNextPage: true,
     fetchNextPage,
   }),
+  useActiveProducts: () => ({ data: [] }),
   useLowStockProducts: () => ({ data: [{
     id: "p2", store_product_id: "sp2", name: "Cat Tembok (Putih)", product_code: "BRG-0002",
     store_id: "s1", category_id: "c2", unit_id: "u2", selling_price: 95000, capital_price: 80000,
@@ -78,10 +79,10 @@ describe("Products mobile presentation", () => {
     expect(list).not.toHaveTextContent("Semen Tiga Roda");
   });
 
-  it("provides filter buttons for active and inactive status", () => {
+  it("provides filter button for inactive status and excludes redundant active filter", () => {
     render(<MemoryRouter><Products /></MemoryRouter>);
 
-    expect(screen.getByRole("button", { name: "Aktif" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aktif" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Nonaktif" })).toBeInTheDocument();
   });
 });

@@ -17,7 +17,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useInfiniteProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
+import { useInfiniteProducts, useActiveProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
 import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
@@ -74,6 +74,7 @@ export default function Products() {
   const { data: lowStockItems, isLoading: isLowStockLoading } = useLowStockProducts();
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
+  const { data: allProducts } = useActiveProducts();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const adjustStock = useAdjustStock();
@@ -119,7 +120,7 @@ export default function Products() {
 
 
   const nextProductCode = () => {
-    const existing = (products ?? [])
+    const existing = (allProducts ?? products ?? [])
       .map((p) => p.product_code)
       .filter((code) => /^BRG-\d+$/.test(code))
       .map((code) => parseInt(code.replace("BRG-", ""), 10));
@@ -573,7 +574,18 @@ export default function Products() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Kode Produk</Label>
-                <Input value={form.product_code} onChange={(e) => setForm({ ...form, product_code: e.target.value })} placeholder="PRD-001" disabled/>
+                <div className="relative">
+                  <Input
+                    value={form.product_code}
+                    readOnly
+                    aria-readonly="true"
+                    className="h-10 border-dashed border-slate-300 bg-slate-100/80 pr-24 font-mono text-sm font-semibold tracking-wide text-slate-600 shadow-inner dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Otomatis
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Dibuat otomatis oleh sistem.</p>
               </div>
               <div className="space-y-2">
                 <Label>Nama Produk <span className="text-destructive">*</span></Label>
@@ -585,7 +597,7 @@ export default function Products() {
                 <Label>Kategori <span className="text-destructive">*</span></Label>
                 <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {categories?.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
@@ -596,7 +608,7 @@ export default function Products() {
                 <Label>Satuan <span className="text-destructive">*</span></Label>
                 <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Pilih satuan" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60 overflow-y-auto">
                     {units?.map((u) => (
                       <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                     ))}
@@ -615,7 +627,17 @@ export default function Products() {
               </div>
               <div className="space-y-2">
                 <Label>Stok Minimum</Label>
-                <Input type="number" value={form.minimum_stock === "" ? "" : form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: e.target.value === "" ? "" : Number(e.target.value) })} min={0} />
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={form.minimum_stock === "" ? "" : form.minimum_stock}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, "");
+                    setForm({ ...form, minimum_stock: val === "" ? "" : Number(val) });
+                  }}
+                  placeholder="0"
+                />
               </div>
             </div>
             <DialogFormActions
