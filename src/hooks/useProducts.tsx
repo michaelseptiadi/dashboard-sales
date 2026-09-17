@@ -618,6 +618,7 @@ export function useCreateVariant() {
       conversionFactor: number;
       sellingPrice: number;
       capitalPrice: number;
+      capitalPriceVerified: boolean;
       stock: number;
       minimumStock?: number;
     }) => apiClient.post<ProductVariant>("/product-variants", payload),
@@ -644,6 +645,7 @@ export function useUpdateVariant() {
       isActive?: boolean;
       sellingPrice?: number;
       capitalPrice?: number;
+      capitalPriceVerified?: boolean;
       stock?: number;
       minimumStock?: number;
     }) => apiClient.patch<ProductVariant>(`/product-variants/${id}`, rest),

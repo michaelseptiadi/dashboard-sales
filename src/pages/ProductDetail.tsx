@@ -230,6 +230,7 @@ export default function ProductDetail() {
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
+          capitalPriceVerified: false,
         });
         toast({ title: "Varian berhasil diperbarui" });
       } else {
@@ -241,6 +242,7 @@ export default function ProductDetail() {
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
+          capitalPriceVerified: false,
           stock: 0,
         });
         toast({ title: "Varian berhasil ditambahkan" });
@@ -519,7 +521,7 @@ export default function ProductDetail() {
                             {isAdmin && (
                               <>
                                 <TableCell className="text-right text-sm text-muted-foreground">
-                                  {formatCurrency(Number(v.capital_price))}
+                                  {v.capital_price_verified ? "Terkonfirmasi" : "Belum dikonfirmasi"}
                                 </TableCell>
                                 <TableCell className="text-right text-sm font-semibold text-violet-700 dark:text-violet-400">
                                   {formatCurrency(Number(v.selling_price) - Number(v.capital_price))}
