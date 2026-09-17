@@ -477,51 +477,37 @@ export function useAdjustStock() {
       );
     },
     onSuccess: (data, variables) => {
+      const updatedProduct = data?.product;
       const updatedVariant = data?.variant;
 
-      // ── Immediately patch the paginated products list cache ──────────────
-      // Walk all cached ["products", ...] entries and update the matching variant's stock.
-      if (updatedVariant) {
-        queryClient.setQueriesData<InfiniteData<PaginatedProducts>>(
-          { queryKey: ["products"], exact: false },
-          (old) => old && ({
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              data: page.data.map((product) => {
-                if (product.id !== variables.product_id) return product;
-                const updatedVariants = (product.variants ?? []).map((v) =>
-                  v.id === updatedVariant.id
-                    ? { ...v, stock: Number(updatedVariant.stock) }
-                    : v,
-                );
-                const newCurrentStock =
-                  updatedVariants.find((v) => v.id === updatedVariant.id)?.stock
-                  ?? product.current_stock;
-                return { ...product, variants: updatedVariants, current_stock: newCurrentStock };
-              }),
-            })),
-          }),
-        );
+      queryClient.setQueriesData<InfiniteData<PaginatedProducts>>(
+        { queryKey: ["products"], exact: false },
+        (old) => old && ({
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data.map((product) => {
+              if (product.id !== variables.product_id) return product;
+              const updatedVariants = updatedVariant
+                ? (product.variants ?? []).map((v) => v.id === updatedVariant.id ? { ...v, stock: Number(updatedVariant.stock) } : v)
+                : product.variants;
+              const currentStock = product.inventory_mode === "SHARED_BASE" && updatedProduct
+                ? Number(updatedProduct.shared_stock)
+                : updatedVariants?.reduce((sum, v) => sum + Number(v.stock), 0) ?? product.current_stock;
+              return { ...product, variants: updatedVariants, current_stock: currentStock, shared_stock: updatedProduct ? Number(updatedProduct.shared_stock) : product.shared_stock };
+            }),
+          })),
+        }),
+      );
 
-        // ── Immediately patch the single-product detail cache ────────────
-        if (variables.storeProductId) {
-          queryClient.setQueryData<Product>(
-            ["product", variables.storeProductId],
-            (old) => {
-              if (!old) return old;
-              const updatedVariants = (old.variants ?? []).map((v) =>
-                v.id === updatedVariant.id
-                  ? { ...v, stock: Number(updatedVariant.stock) }
-                  : v,
-              );
-              return { ...old, variants: updatedVariants };
-            },
-          );
-        }
+      if (variables.storeProductId) {
+        queryClient.setQueryData<Product>(["product", variables.storeProductId], (old) => {
+          if (!old) return old;
+          const variants = updatedVariant ? (old.variants ?? []).map((v) => v.id === updatedVariant.id ? { ...v, stock: Number(updatedVariant.stock) } : v) : old.variants;
+          return { ...old, variants, current_stock: updatedProduct ? Number(updatedProduct.shared_stock) : variants?.reduce((sum, v) => sum + Number(v.stock), 0) ?? old.current_stock, shared_stock: updatedProduct ? Number(updatedProduct.shared_stock) : old.shared_stock };
+        });
       }
 
-      // ── Background refetch to sync from server ───────────────────────────
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["active-products"] });
       queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
