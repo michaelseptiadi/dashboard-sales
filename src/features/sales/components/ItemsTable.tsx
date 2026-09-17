@@ -126,7 +126,7 @@ export function ItemsTable({
   const saveInlineEdit = async () => {
     if (!editProduct) return;
     try {
-      if (!editName.trim() || !editCategoryId || !editUnitId || (editVariantId && editVariantPrice < 0)) {
+      if (!editName.trim() || (editVariantId && editVariantPrice < 0)) {
         toast({ title: "Lengkapi data produk dan harga yang valid", variant: "destructive" });
         return;
       }
@@ -134,7 +134,7 @@ export function ItemsTable({
         await updateVariantMutation.mutateAsync({ id: editVariantId, productId: editProduct.id, name: editVariantName, sellingPrice: editVariantPrice });
         onProductUpdated?.(editProduct.id, editVariantId, editVariantPrice);
       }
-      await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId, unit_id: editUnitId });
+      await editProductMutation.mutateAsync({ id: editProduct.id, name: editName, category_id: editCategoryId || undefined, unit_id: editUnitId || undefined });
       setEditProduct(null);
     } catch (error) {
       toast({ title: "Gagal menyimpan perubahan", description: error instanceof Error ? error.message : "Silakan coba lagi.", variant: "destructive" });
@@ -208,6 +208,10 @@ export function ItemsTable({
                             <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openInlineEdit(p); }} className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Edit produk">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
+                            <div className="text-right shrink-0">
+                              <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Harga jual</p>
+                              <p className="text-sm font-bold text-primary">{formatCurrency(Number(p.selling_price || 0))}</p>
+                            </div>
                           </div>
                           {p.variants?.length === 1 ? (
                             <button
@@ -235,7 +239,7 @@ export function ItemsTable({
                               >
                                 <option value="">Pilih varian untuk menambahkan...</option>
                                 {p.variants.filter((v) => v.is_active).map((v) => (
-                                  <option key={v.id} value={v.id}>{v.name} · {formatCurrency(Number(v.selling_price))}</option>
+                                  <option key={v.id} value={v.id}>{v.name}{' · '}{formatCurrency(Number(v.selling_price))}</option>
                                 ))}
                               </select>
                             </div>

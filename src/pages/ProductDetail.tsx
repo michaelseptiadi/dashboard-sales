@@ -491,6 +491,7 @@ export default function ProductDetail() {
                       <TableRow className="bg-muted/30">
                         <TableHead className="text-xs">Nama Varian</TableHead>
                         <TableHead className="text-xs">SKU Suffix</TableHead>
+                        <TableHead className="text-xs">Atribut</TableHead>
                         <TableHead className="text-xs text-right">Faktor Konversi</TableHead>
                         <TableHead className="text-xs text-right">Stok</TableHead>
                         <TableHead className="text-xs text-right">Stok Min.</TableHead>
@@ -521,6 +522,7 @@ export default function ProductDetail() {
                           >
                             <TableCell className="font-semibold text-sm">{v.name}</TableCell>
                             <TableCell className="font-mono text-xs text-muted-foreground">{v.sku_suffix ?? "—"}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{Number(v.conversion_factor)}</TableCell>
                             <TableCell className="text-right text-sm tabular-nums">
                               {Number(v.conversion_factor)}
                             </TableCell>
@@ -874,22 +876,8 @@ export default function ProductDetail() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Satuan <span className="text-destructive">*</span></Label>
-                <Select
-                  value={variantForm.unitId}
-                  onValueChange={(v) => setVariantForm({ ...variantForm, unitId: v })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Pilih satuan" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {units?.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Satuan mengikuti produk</Label>
+                <Input value={product?.units?.name || ""} readOnly className="bg-muted" />
               </div>
               <div className="space-y-2">
                 <Label>Faktor Konversi <span className="text-destructive">*</span></Label>

@@ -126,8 +126,6 @@ interface ProductApiPayload {
     product_id: string;
     name: string;
     sku_suffix?: string | null;
-    vehicle_type?: string | null;
-    load_size?: string | null;
     unit_id: string;
     conversion_factor: number | string;
     selling_price: number | string;
@@ -198,8 +196,6 @@ function mapStoreProduct(item: ProductApiPayload): Product {
       product_id: v.product_id,
       name: v.name,
       sku_suffix: v.sku_suffix ?? null,
-      vehicle_type: v.vehicle_type ?? null,
-      load_size: v.load_size ?? null,
       unit_id: v.unit_id,
       conversion_factor: Number(v.conversion_factor),
       selling_price: Number(v.selling_price),
@@ -301,8 +297,6 @@ interface LowStockApiPayload {
   product_id: string;
   name: string;
   sku_suffix?: string | null;
-  vehicle_type?: string | null;
-  load_size?: string | null;
   unit_id: string;
   conversion_factor: number | string;
   selling_price: number | string;
@@ -362,8 +356,6 @@ export function useLowStockProducts() {
             product_id: v.product_id,
             name: v.name,
             sku_suffix: v.sku_suffix ?? null,
-            vehicle_type: v.vehicle_type ?? null,
-            load_size: v.load_size ?? null,
             unit_id: v.unit_id,
             conversion_factor: Number(v.conversion_factor),
             selling_price: Number(v.selling_price),
@@ -599,8 +591,6 @@ export interface ProductVariant {
   product_id: string;
   name: string;
   sku_suffix?: string | null;
-  vehicle_type?: string | null;
-  load_size?: string | null;
   unit_id: string;
   conversion_factor: number;
   selling_price: number;
@@ -633,8 +623,6 @@ export function useCreateVariant() {
       productId: string;
       name: string;
       skuSuffix?: string;
-      vehicleType?: string;
-      loadSize?: string;
       unitId: string;
       conversionFactor: number;
       sellingPrice: number;
@@ -660,8 +648,6 @@ export function useUpdateVariant() {
       productId: string;
       name?: string;
       skuSuffix?: string;
-      vehicleType?: string;
-      loadSize?: string;
       unitId?: string;
       conversionFactor?: number;
       isActive?: boolean;
