@@ -36,7 +36,7 @@ import {
   ArrowLeft, ArrowDownToLine, ArrowUpFromLine, PackagePlus,
   Pencil, ExternalLink, Boxes,
   Plus, Trash2, Layers, ToggleLeft, ToggleRight,
-  QrCode, Folder, Scale, Power, AlertTriangle,
+  Folder, Scale, Power, AlertTriangle,
 } from "lucide-react";
 
 interface ProductFormData {
@@ -381,9 +381,12 @@ export default function ProductDetail() {
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="rounded-xl px-4 py-3 border bg-muted/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                      <QrCode className="h-3.5 w-3.5" /> Product Code
+                      <Boxes className="h-3.5 w-3.5" /> Product Pool Stock
                     </p>
-                    <p className="text-sm font-semibold truncate font-mono mt-1">{product.product_code}</p>
+                    <p className={`text-sm font-bold mt-1 ${isLowStock ? "text-amber-600" : "text-foreground"}`}>
+                      {product.current_stock} {product.units?.name ?? "unit"}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">Minimum: {product.minimum_stock} {product.units?.name ?? "unit"}</p>
                   </div>
                   <div className="rounded-xl px-4 py-3 border bg-muted/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
@@ -479,8 +482,6 @@ export default function ProductDetail() {
                         <TableHead className="text-xs">SKU Suffix</TableHead>
                         <TableHead className="text-xs">Atribut</TableHead>
                         <TableHead className="text-xs text-right">Faktor Konversi</TableHead>
-                        <TableHead className="text-xs text-right">Stok</TableHead>
-                        <TableHead className="text-xs text-right">Stok Min.</TableHead>
                         <TableHead className="text-xs text-right">Harga Jual</TableHead>
                         {isAdmin && (
                           <>
@@ -511,12 +512,6 @@ export default function ProductDetail() {
                             <TableCell className="text-xs text-muted-foreground">{Number(v.conversion_factor)}</TableCell>
                             <TableCell className="text-right text-sm tabular-nums">
                               {Number(v.conversion_factor)}
-                            </TableCell>
-                            <TableCell className="text-right text-sm font-medium tabular-nums">
-                              {product.current_stock}
-                            </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                              {product.minimum_stock}
                             </TableCell>
                             <TableCell className="text-right text-sm font-bold text-primary">
                               {formatCurrency(Number(v.selling_price))}

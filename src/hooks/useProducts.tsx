@@ -130,6 +130,7 @@ interface ProductApiPayload {
     conversion_factor: number | string;
     selling_price: number | string;
     capital_price: number | string;
+    capital_price_verified: boolean;
     stock: number | string;
     minimum_stock: number;
     is_active: boolean;
@@ -200,6 +201,7 @@ function mapStoreProduct(item: ProductApiPayload): Product {
       conversion_factor: Number(v.conversion_factor),
       selling_price: Number(v.selling_price),
       capital_price: Number(v.capital_price),
+      capital_price_verified: v.capital_price_verified,
       stock: Number(v.stock),
       minimum_stock: Number(v.minimum_stock),
       is_active: v.is_active,
@@ -301,6 +303,7 @@ interface LowStockApiPayload {
   conversion_factor: number | string;
   selling_price: number | string;
   capital_price: number | string;
+  capital_price_verified: boolean;
   stock: number | string;
   minimum_stock: number;
   is_active: boolean;
@@ -339,6 +342,7 @@ export function useLowStockProducts() {
           unit_id: v.unit_id,
           selling_price: Number(v.selling_price),
           capital_price: Number(v.capital_price),
+          capital_price_verified: v.capital_price_verified,
           minimum_stock: Number(v.minimum_stock),
           current_stock: p?.inventory_mode === "SHARED_BASE" ? Number(p.shared_stock ?? 0) : (p?.variants ?? []).reduce((sum, variant) => sum + Number(variant.stock), 0),
           inventory_mode: p?.inventory_mode ?? "INDEPENDENT",
@@ -581,6 +585,7 @@ export interface ProductVariant {
   conversion_factor: number;
   selling_price: number;
   capital_price: number;
+  capital_price_verified: boolean;
   stock: number;
   minimum_stock: number;
   is_active: boolean;
