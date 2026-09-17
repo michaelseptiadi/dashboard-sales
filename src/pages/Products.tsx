@@ -126,7 +126,7 @@ export default function Products() {
       .map((p) => p.product_code)
       .filter((code) => /^BRG-\d+$/.test(code))
       .map((code) => parseInt(code.replace("BRG-", ""), 10));
-    const start = selectedStore?.id === "2" ? 842 : 1;
+    const start = selectedStore?.id === "2" ? 855 : 759;
     const numbers = existing.filter((n) => n >= start);
     const max = numbers.length > 0 ? Math.max(...numbers) : start - 1;
     const usedCodes = new Set((allProducts ?? products ?? []).map((p) => p.product_code.trim().toUpperCase()));
