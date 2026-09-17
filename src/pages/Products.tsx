@@ -44,7 +44,7 @@ const emptyForm: ProductFormData = {
 export default function Products() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { currentRole, isSuperAdmin } = useAuth();
+  const { currentRole, isSuperAdmin, selectedStore } = useAuth();
   const isAdmin = isSuperAdmin || currentRole === "admin";
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -126,7 +126,10 @@ export default function Products() {
       .map((p) => p.product_code)
       .filter((code) => /^BRG-\d+$/.test(code))
       .map((code) => parseInt(code.replace("BRG-", ""), 10));
-    const max = existing.length > 0 ? Math.max(...existing) : 0;
+    const storeNumber = selectedStore?.id === "2" ? 2 : 1;
+    const start = storeNumber === 2 ? 842 : 1;
+    const numbers = existing.filter((n) => n >= start);
+    const max = numbers.length > 0 ? Math.max(...numbers) : start - 1;
     const usedCodes = new Set((allProducts ?? products ?? []).map((p) => p.product_code.trim().toUpperCase()));
     let candidate = max + 1;
     while (usedCodes.has(`BRG-${String(candidate).padStart(4, "0")}`)) candidate += 1;
