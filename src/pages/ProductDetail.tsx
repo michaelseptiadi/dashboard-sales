@@ -83,7 +83,7 @@ export default function ProductDetail() {
   );
 
   const currentStock = product?.current_stock ?? 0;
-  const isLowStock = variants ? variants.some((v) => v.is_active && Number(v.stock) <= Number(v.minimum_stock)) : false;
+  const isLowStock = product ? currentStock <= Number(product.minimum_stock) : false;
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -182,8 +182,6 @@ export default function ProductDetail() {
     conversionFactor: 1,
     sellingPrice: 0,
     capitalPrice: 0,
-    stock: 0,
-    minimumStock: 0,
   });
 
   const openCreateVariant = () => {
@@ -194,9 +192,7 @@ export default function ProductDetail() {
       unitId: product?.unit_id || "",
       conversionFactor: 1,
       sellingPrice: 0,
-      capitalPrice: 0,
-      stock: 0,
-      minimumStock: 0
+      capitalPrice: 0
     });
     setVariantDialogOpen(true);
   };
@@ -210,8 +206,6 @@ export default function ProductDetail() {
       conversionFactor: Number(v.conversion_factor),
       sellingPrice: Number(v.selling_price),
       capitalPrice: Number(v.capital_price),
-      stock: Number(v.stock),
-      minimumStock: Number(v.minimum_stock),
     });
     setVariantDialogOpen(true);
   };
@@ -236,7 +230,6 @@ export default function ProductDetail() {
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
-          minimumStock: variantForm.minimumStock,
         });
         toast({ title: "Varian berhasil diperbarui" });
       } else {
@@ -248,8 +241,7 @@ export default function ProductDetail() {
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
-          stock: variantForm.stock,
-          minimumStock: variantForm.minimumStock,
+          stock: 0,
         });
         toast({ title: "Varian berhasil ditambahkan" });
       }
@@ -307,7 +299,7 @@ export default function ProductDetail() {
   };
 
   const activeVariant = product?.variants?.find((v) => v.id === selectedVariantId);
-  const activeStock = activeVariant ? Number(activeVariant.stock) : (product?.current_stock ?? 0);
+  const activeStock = product?.current_stock ?? 0;
 
   const isDefaultVariant = variantForm.name.toLowerCase() === "default" || 
     (product && variantForm.unitId === product.unit_id && variantForm.name.toLowerCase() === (product.units?.name || "").toLowerCase());
@@ -461,13 +453,8 @@ export default function ProductDetail() {
               ) : (
                 <> 
                 <div className="md:hidden space-y-3">
-                  {variants.map((v) => {
-                    const stock = Number(v.stock);
-                    const low = v.is_active && stock <= Number(v.minimum_stock);
-                    const out = stock <= 0;
-                    return (
-                      <article key={v.id} className={`rounded-3xl border shadow-sm backdrop-blur-xl p-4 ${!v.is_active ? "border-dashed bg-muted/30 opacity-75" : out ? "border-rose-200/50 bg-rose-50/60 dark:border-rose-900/50 dark:bg-rose-950/40" : low ? "border-amber-200/50 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/40" : "bg-white/60 dark:bg-black/40 border-white/20 dark:border-white/10"}`}>
-                        <div className="flex items-start justify-between gap-3">
+                  {variants.map((v) => (
+                    <article key={v.id} className="rounded-3xl border bg-white/60 dark:bg-black/40 border-white/20 dark:border-white/10 shadow-sm backdrop-blur-xl p-4">                        <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2"><h3 className="truncate text-sm font-bold">{v.name}</h3><Badge variant="outline" className={`text-[10px] ${v.is_active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-300 bg-zinc-100 text-zinc-600"}`}>{v.is_active ? "Aktif" : "Nonaktif"}</Badge></div>
                             <p className="mt-1 font-mono text-[10px] text-muted-foreground">SKU {v.sku_suffix || "—"} · Faktor {Number(v.conversion_factor)}</p>
@@ -475,15 +462,14 @@ export default function ProductDetail() {
                           <div className="flex shrink-0 gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditVariant(v)} aria-label={`Edit varian ${v.name}`}><Pencil className="h-3.5 w-3.5" /></Button>{variants.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive" onClick={() => handleDeleteVariant(v)} aria-label={`Hapus varian ${v.name}`}><Trash2 className="h-3.5 w-3.5" /></Button>}</div>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Stok</p><p className={`text-sm font-black ${out ? "text-rose-600" : low ? "text-amber-600" : ""}`}>{stock} <span className="text-[10px] font-medium text-muted-foreground">{v.unit?.name || product.units?.name || "unit"}</span></p></div>
-                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Min. stok</p><p className="text-sm font-bold">{v.minimum_stock}</p></div>
+                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Stok</p><p className="text-sm font-black">{product.current_stock} <span className="text-[10px] font-medium text-muted-foreground">{product.units?.name || "unit"}</span></p></div>
+                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Min. stok</p><p className="text-sm font-bold">{product.minimum_stock}</p></div>
                           <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Harga jual</p><p className="text-xs font-bold text-primary">{formatCurrency(Number(v.selling_price))}</p></div>
                           <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Margin</p><p className="text-xs font-bold text-violet-700 dark:text-violet-400">{formatCurrency(Number(v.selling_price) - Number(v.capital_price))}</p></div>
                         </div>
-                        <button type="button" onClick={() => handleToggleVariant(v)} className={`mt-2 text-[11px] font-semibold ${out ? "text-rose-600" : low ? "text-amber-600" : "text-muted-foreground"}`}>{out ? "Stok habis" : low ? "Stok rendah" : "Stok aman"} · ubah status</button>
+                        <button type="button" onClick={() => handleToggleVariant(v)} className="mt-2 text-[11px] font-semibold text-muted-foreground">Ubah status varian</button>
                       </article>
-                    );
-                  })}
+                  ))}
                 </div>
                 <div className="hidden overflow-x-auto md:block">
                   <Table>
@@ -508,7 +494,7 @@ export default function ProductDetail() {
                     </TableHeader>
                     <TableBody>
                       {variants.map((v) => {
-                        const isVariantLowStock = v.is_active && Number(v.stock) <= Number(v.minimum_stock);
+                        const isVariantLowStock = product.current_stock <= Number(product.minimum_stock);
                         return (
                           <TableRow
                             key={v.id}
@@ -527,10 +513,10 @@ export default function ProductDetail() {
                               {Number(v.conversion_factor)}
                             </TableCell>
                             <TableCell className="text-right text-sm font-medium tabular-nums">
-                              {v.stock}
+                              {product.current_stock}
                             </TableCell>
                             <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                              {v.minimum_stock}
+                              {product.minimum_stock}
                             </TableCell>
                             <TableCell className="text-right text-sm font-bold text-primary">
                               {formatCurrency(Number(v.selling_price))}
@@ -891,7 +877,7 @@ export default function ProductDetail() {
               </div>
             </div>
             <Separator />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stok & Harga di Toko Ini</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Harga Varian</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Harga Jual</Label>
@@ -900,32 +886,6 @@ export default function ProductDetail() {
               <div className="space-y-2">
                 <Label>Harga Modal</Label>
                 <CurrencyInput value={variantForm.capitalPrice} onChange={(v) => setVariantForm({ ...variantForm, capitalPrice: v })} />
-              </div>
-              {!editingVariant && (
-                <div className="space-y-2">
-                  <Label>Stok Awal</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={variantForm.stock === 0 ? "" : variantForm.stock}
-                    onChange={(e) => setVariantForm({ ...variantForm, stock: e.target.value === "" ? 0 : Number(e.target.value) })}
-                  />
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>Stok Minimum</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="0"
-                  value={variantForm.minimumStock === 0 ? "" : variantForm.minimumStock}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^0-9]/g, "");
-                    setVariantForm({ ...variantForm, minimumStock: val === "" ? 0 : Number(val) });
-                  }}
-                />
               </div>
             </div>
             <DialogFormActions
