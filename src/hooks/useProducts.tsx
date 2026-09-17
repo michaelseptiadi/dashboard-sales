@@ -164,7 +164,9 @@ function mapStoreProduct(item: ProductApiPayload): Product {
   const sellingPrice = defaultVariant ? Number(defaultVariant.selling_price) : 0;
   const capitalPrice = defaultVariant ? Number(defaultVariant.capital_price) : 0;
   const minimumStock = defaultVariant ? Number(defaultVariant.minimum_stock) : Number(item.minimum_stock ?? 0);
-  const currentStock = defaultVariant ? Number(defaultVariant.stock) : 0;
+  const currentStock = item.inventory_mode === "SHARED_BASE"
+    ? Number(item.shared_stock)
+    : variants.reduce((sum, variant) => sum + Number(variant.stock), 0);
 
   const unitName = defaultVariant?.unit?.name || item.base_unit?.name || "";
   const unitId = defaultVariant?.unit_id || item.base_unit_id || "";
@@ -319,6 +321,7 @@ interface LowStockApiPayload {
     shared_stock?: number | string;
     category?: { id: string; name: string } | null;
     base_unit?: { id: string; name: string } | null;
+    variants?: { stock: number | string }[];
   } | null;
 }
 
@@ -343,7 +346,7 @@ export function useLowStockProducts() {
           selling_price: Number(v.selling_price),
           capital_price: Number(v.capital_price),
           minimum_stock: Number(v.minimum_stock),
-          current_stock: p?.inventory_mode === "SHARED_BASE" ? Number(p.shared_stock ?? 0) : Number(v.stock),
+          current_stock: p?.inventory_mode === "SHARED_BASE" ? Number(p.shared_stock ?? 0) : (p?.variants ?? []).reduce((sum, variant) => sum + Number(variant.stock), 0),
           inventory_mode: p?.inventory_mode ?? "INDEPENDENT",
           shared_stock: Number(p?.shared_stock ?? 0),
           is_active: v.is_active,

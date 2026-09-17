@@ -96,13 +96,15 @@ export default function Products() {
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, stockFilter]);
   const stockOf = (product: import("@/hooks/useProducts").Product) =>
-    product.variants?.length
-      ? product.variants.filter((variant) => variant.is_active).reduce((sum, variant) => sum + Number(variant.stock), 0)
-      : Number(product.current_stock || 0);
+    product.inventory_mode === "SHARED_BASE"
+      ? Number(product.shared_stock)
+      : product.variants?.filter((variant) => variant.is_active).reduce((sum, variant) => sum + Number(variant.stock), 0) ?? Number(product.current_stock || 0);
   const isLow = (product: import("@/hooks/useProducts").Product) =>
-    product.variants?.length
-      ? product.variants.some((variant) => variant.is_active && Number(variant.stock) <= Number(variant.minimum_stock))
-      : stockOf(product) <= Number(product.minimum_stock);
+    product.inventory_mode === "SHARED_BASE"
+      ? stockOf(product) <= Number(product.minimum_stock)
+      : product.variants?.length
+        ? product.variants.some((variant) => variant.is_active && Number(variant.stock) <= Number(variant.minimum_stock))
+        : stockOf(product) <= Number(product.minimum_stock);
   const normalizedSearch = search.trim().toLowerCase();
   const mobileProducts = (stockFilter === "low" || stockFilter === "out")
     ? (lowStockItems ?? []).filter((product) => {
