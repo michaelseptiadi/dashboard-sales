@@ -18,6 +18,7 @@ export interface DashboardData {
     total_profit: number;
     today_capital: number;
     today_profit: number;
+    profit_transactions: { id: string; invoice_number: string; sales_date: string; revenue: number; capital: number; profit: number }[];
   };
   sales_trend: { label: string; value: number }[];
   top_products: { name: string; qty: number; unit: string }[];
@@ -28,7 +29,7 @@ export interface DashboardData {
 
 export function useDashboardStats(
   range: '7d' | '30d' | '12m' = '7d',
-  metric: 'revenue' | 'orders' = 'revenue',
+  metric: 'revenue' | 'orders' | 'profit' = 'revenue',
 ) {
   const { selectedStore } = useAuth();
   const storeId = selectedStore?.id;

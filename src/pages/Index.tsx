@@ -23,15 +23,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 function CustomTooltip({ active, payload, label, metric }: any) {
   if (active && payload && payload.length) {
+    const val = payload[0].value;
+    const formattedVal =
+      metric === 'orders'
+        ? `${val} transaksi`
+        : formatCurrency(val);
+
     return (
       <div className="rounded-xl border border-border/80 bg-background/95 px-3 py-2 shadow-xl backdrop-blur-md">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
         <div className="mt-1 flex items-center gap-2">
-          <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-tr from-cyan-400 via-blue-500 to-fuchsia-500 shadow-xs" />
-          <span className="text-sm font-extrabold text-foreground">
-            {metric === 'revenue' 
-              ? formatCurrency(payload[0].value) 
-              : `${payload[0].value} transaksi`}
+          <div className={`h-2.5 w-2.5 rounded-full ${metric === 'profit' ? 'bg-emerald-500' : 'bg-gradient-to-tr from-cyan-400 via-blue-500 to-fuchsia-500'} shadow-xs`} />
+          <span className={`text-sm font-extrabold ${metric === 'profit' ? (val >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') : 'text-foreground'}`}>
+            {formattedVal}
           </span>
         </div>
       </div>
@@ -42,10 +46,11 @@ function CustomTooltip({ active, payload, label, metric }: any) {
 
 export default function Index() {
   const [range, setRange] = useState<'7d' | '30d' | '12m'>('7d');
-  const [metric, setMetric] = useState<'revenue' | 'orders'>('revenue');
+  const [metric, setMetric] = useState<'revenue' | 'orders' | 'profit'>('revenue');
   const [ranking, setRanking] = useState<'products' | 'customers'>('products');
   const [attention, setAttention] = useState<'stock' | 'receivables'>('stock');
   const [capitalPeriod, setCapitalPeriod] = useState<'today' | 'month'>('month');
+  const [profitDetailOpen, setProfitDetailOpen] = useState(false);
   const { data, isLoading } = useDashboardStats(range, metric);
   const { currentRole, isSuperAdmin, selectedStore } = useAuth();
 
@@ -184,7 +189,7 @@ export default function Index() {
                 </div>
               </div>
               <div className="mt-3 flex flex-col gap-1 text-xs font-medium md:mt-4 md:flex-row md:items-center md:justify-between">
-                <span className="text-muted-foreground">Rata-rata</span>
+                <span className="text-muted-foreground">{data?.cards.today_transactions ? "Rata-rata" : "Belum ada transaksi hari ini"}</span>
                 <span className="text-violet-600 dark:text-violet-400 font-bold">
                   {formatCurrency(data?.cards.today_avg_transaction || 0)}
                 </span>
@@ -239,10 +244,28 @@ export default function Index() {
                     <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Modal</p>
                     <p className="text-sm font-extrabold tracking-tight text-amber-600 dark:text-amber-400 sm:text-lg">{formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_capital || 0) : (data?.cards.total_capital || 0))}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Profit</p>
+                  <div role="button" tabIndex={0} onClick={() => setProfitDetailOpen((open) => !open)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setProfitDetailOpen((open) => !open); }} className="cursor-pointer rounded-lg p-2 -m-2 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Profit {capitalPeriod === 'today' ? 'Hari Ini' : 'Bulan Ini'}</p>
+                      <ArrowRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${profitDetailOpen ? 'rotate-90' : ''}`} />
+                    </div>
                     <p className={`text-sm font-extrabold tracking-tight sm:text-lg ${(capitalPeriod === 'today' ? (data?.cards.today_profit ?? 0) : (data?.cards.total_profit ?? 0)) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_profit || 0) : (data?.cards.total_profit || 0))}</p>
                   </div>
+                  {profitDetailOpen && (
+                    <div className="col-span-2 rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-3 text-xs dark:border-emerald-900/60 dark:bg-emerald-950/20">
+                      <p className="font-semibold text-foreground">Cara hitung profit</p>
+                      <div className="mt-2 max-h-48 space-y-2 overflow-y-auto">
+                        {(data?.cards.profit_transactions ?? []).map((transaction) => (
+                          <div key={transaction.id} className="rounded-lg bg-background/70 p-2">
+                            <div className="flex justify-between gap-2 font-semibold"><span>{transaction.invoice_number}</span><span className={transaction.profit >= 0 ? "text-emerald-700" : "text-rose-700"}>{formatCurrency(transaction.profit)}</span></div>
+                            <div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>Omzet {formatCurrency(transaction.revenue)}</span><span>Modal {formatCurrency(transaction.capital)}</span></div>
+                          </div>
+                        ))}
+                        {!(data?.cards.profit_transactions?.length) && <p className="text-muted-foreground">Belum ada transaksi pada periode ini.</p>}
+                      </div>
+                      <p className="mt-2 text-[10px] text-muted-foreground">Profit = harga jual transaksi − harga modal snapshot × jumlah. Belum dikurangi biaya operasional.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -278,12 +301,13 @@ export default function Index() {
               </div>
 
               {/* Metric Select */}
-              <Select value={metric} onValueChange={(val: 'revenue' | 'orders') => setMetric(val)}>
-                <SelectTrigger className="w-[125px] h-8 text-xs font-semibold rounded-xl border-border/50">
+              <Select value={metric} onValueChange={(val: 'revenue' | 'orders' | 'profit') => setMetric(val)}>
+                <SelectTrigger className="w-[135px] h-8 text-xs font-semibold rounded-xl border-border/50">
                   <SelectValue placeholder="Pilih Metrik" />
                 </SelectTrigger>
                 <SelectContent align="end" className="rounded-xl">
                   <SelectItem value="revenue">Omzet (Rp)</SelectItem>
+                  <SelectItem value="profit">Profit (Rp)</SelectItem>
                   <SelectItem value="orders">Transaksi</SelectItem>
                 </SelectContent>
               </Select>
@@ -312,6 +336,17 @@ export default function Index() {
                         <stop offset="65%" stopColor="#8b5cf6" />
                         <stop offset="100%" stopColor="#ec4899" />
                       </linearGradient>
+                      <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.45} />
+                        <stop offset="40%" stopColor="#059669" stopOpacity={0.22} />
+                        <stop offset="80%" stopColor="#047857" stopOpacity={0.06} />
+                        <stop offset="100%" stopColor="#047857" stopOpacity={0.0} />
+                      </linearGradient>
+                      <linearGradient id="profitStroke" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#34d399" />
+                        <stop offset="50%" stopColor="#10b981" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
                     <XAxis
@@ -329,9 +364,9 @@ export default function Index() {
                     />
                     <YAxis
                       tickFormatter={(val: number) => {
-                        if (metric === 'revenue') {
-                          if (val >= 1000000) return `${(val / 1000000).toFixed(val % 1000000 === 0 ? 0 : 1)}jt`;
-                          if (val >= 1000) return `${(val / 1000).toFixed(0)}rb`;
+                        if (metric === 'revenue' || metric === 'profit') {
+                          if (Math.abs(val) >= 1000000) return `${(val / 1000000).toFixed(val % 1000000 === 0 ? 0 : 1)}jt`;
+                          if (Math.abs(val) >= 1000) return `${(val / 1000).toFixed(0)}rb`;
                           return `${val}`;
                         }
                         return val.toString();
@@ -341,15 +376,15 @@ export default function Index() {
                       tickMargin={4}
                       className="text-[10px] font-medium fill-muted-foreground"
                     />
-                    <Tooltip content={<CustomTooltip metric={metric} />} cursor={{ stroke: '#8b5cf6', strokeWidth: 1.5, strokeDasharray: '4 4', opacity: 0.4 }} />
+                    <Tooltip content={<CustomTooltip metric={metric} />} cursor={{ stroke: metric === 'profit' ? '#10b981' : '#8b5cf6', strokeWidth: 1.5, strokeDasharray: '4 4', opacity: 0.4 }} />
                     <Area
                       type="monotone"
                       dataKey="value"
-                      stroke="url(#vibrantStroke)"
+                      stroke={metric === 'profit' ? 'url(#profitStroke)' : 'url(#vibrantStroke)'}
                       strokeWidth={3}
                       fillOpacity={1}
-                      fill="url(#vibrantGradient)"
-                      activeDot={{ r: 6, strokeWidth: 2.5, stroke: "#ffffff", fill: "#ec4899" }}
+                      fill={metric === 'profit' ? 'url(#profitGradient)' : 'url(#vibrantGradient)'}
+                      activeDot={{ r: 6, strokeWidth: 2.5, stroke: "#ffffff", fill: metric === 'profit' ? "#059669" : "#ec4899" }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
