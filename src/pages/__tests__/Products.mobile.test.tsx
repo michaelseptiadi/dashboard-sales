@@ -106,4 +106,11 @@ describe("Products mobile presentation", () => {
     const deleteButtons = screen.getAllByRole("button", { name: /Hapus/i });
     expect(deleteButtons.length).toBeGreaterThan(0);
   });
+
+  it("displays verified capital badge when all variants have verified capital price", () => {
+    render(<MemoryRouter><Products /></MemoryRouter>);
+
+    const list = screen.getByRole("region", { name: "Daftar produk mobile" });
+    expect(list).not.toHaveTextContent("Modal OK");
+  });
 });

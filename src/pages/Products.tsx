@@ -18,7 +18,7 @@ import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useInfiniteProducts, useActiveProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
-import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal, Trash2, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface ProductFormData {
@@ -376,6 +376,7 @@ export default function Products() {
               const stock = stockOf(product);
               const lowStock = isLow(product);
               const status = stock <= 0 ? "Stok habis" : lowStock ? "Stok rendah" : "Stok aman";
+              const allCapitalVerified = !!product.variants?.length && product.variants.every((v) => v.capital_price_verified);
               return (
                 <article key={product.id} className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition active:scale-[0.995] ${!product.is_active ? 'opacity-75 border-dashed' : ''}`}>
                   <div className="flex gap-3 p-4">
@@ -388,7 +389,12 @@ export default function Products() {
                           <p className="truncate font-extrabold">{product.name}</p>
                           <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{product.product_code}</p>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                          {allCapitalVerified && (
+                            <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 gap-1">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Modal OK
+                            </Badge>
+                          )}
                           <Badge
                             variant="outline"
                             className={`text-[10px] font-bold ${
@@ -468,6 +474,7 @@ export default function Products() {
                 ) : (
                   products.map((product) => {
                     const isLowStock = product.variants?.some((v) => v.is_active && Number(v.stock) <= Number(v.minimum_stock));
+                    const allCapitalVerified = !!product.variants?.length && product.variants.every((v) => v.capital_price_verified);
                     return (
                       <TableRow
                         key={product.id}
@@ -482,16 +489,23 @@ export default function Products() {
                         <TableCell className="text-sm text-muted-foreground">{product.categories?.name || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{product.units?.name || "—"}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              product.is_active
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                : "bg-slate-100 text-slate-500 border-slate-200"
-                            }`}
-                          >
-                            {product.is_active ? "Aktif" : "Nonaktif"}
-                          </Badge>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${
+                                product.is_active
+                                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                  : "bg-slate-100 text-slate-500 border-slate-200"
+                              }`}
+                            >
+                              {product.is_active ? "Aktif" : "Nonaktif"}
+                            </Badge>
+                            {allCapitalVerified && (
+                              <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 gap-1">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Modal OK
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
