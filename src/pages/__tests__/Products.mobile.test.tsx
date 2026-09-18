@@ -20,13 +20,22 @@ vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ currentRole: "admin", isSuperAdmin: false }) }));
 vi.mock("@/hooks/useProducts", () => ({
   useInfiniteProducts: () => ({
-    data: { pages: [{ data: [{
-      id: "p1", store_product_id: "sp1", name: "Semen Tiga Roda", product_code: "BRG-0001",
-      store_id: "s1", category_id: "c1", unit_id: "u1", selling_price: 72000, capital_price: 65000,
-      minimum_stock: 10, current_stock: 7, is_active: true, created_at: "", updated_at: "",
-      categories: { name: "Semen" }, units: { name: "Sak" },
-      variants: [{ id: "v1", name: "Standar", stock: 7, minimum_stock: 10, is_active: true }],
-    }], meta: { page: 1, limit: 10, total: 20, totalPages: 2 } }] },
+    data: { pages: [{ data: [
+      {
+        id: "p1", store_product_id: "sp1", name: "Semen Tiga Roda", product_code: "BRG-0001",
+        store_id: "s1", category_id: "c1", unit_id: "u1", selling_price: 72000, capital_price: 65000,
+        minimum_stock: 10, current_stock: 7, is_active: true, created_at: "", updated_at: "",
+        categories: { name: "Semen" }, units: { name: "Sak" },
+        variants: [{ id: "v1", name: "Standar", stock: 7, minimum_stock: 10, is_active: true }],
+      },
+      {
+        id: "p3", store_product_id: "sp3", name: "Cat Lama", product_code: "BRG-0003",
+        store_id: "s1", category_id: "c1", unit_id: "u1", selling_price: 10000, capital_price: 8000,
+        minimum_stock: 0, current_stock: 0, is_active: false, created_at: "", updated_at: "",
+        categories: { name: "Cat" }, units: { name: "Kaleng" },
+        variants: [{ id: "v3", name: "Standar", stock: 0, minimum_stock: 0, is_active: false }],
+      },
+    ], meta: { page: 1, limit: 10, total: 20, totalPages: 2 } }] },
     isLoading: false,
     isFetchingNextPage: false,
     hasNextPage: true,
@@ -44,6 +53,7 @@ vi.mock("@/hooks/useProducts", () => ({
   useUnits: () => ({ data: [{ id: "u1", name: "Sak" }] }),
   useCreateProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAdjustStock: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRealtimeStock: vi.fn(),
 }));
@@ -84,5 +94,16 @@ describe("Products mobile presentation", () => {
 
     expect(screen.queryByRole("button", { name: "Aktif" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Nonaktif" })).toBeInTheDocument();
+  });
+
+  it("only displays delete button for non-active products", () => {
+    render(<MemoryRouter><Products /></MemoryRouter>);
+
+    const list = screen.getByRole("region", { name: "Daftar produk mobile" });
+    expect(list).toHaveTextContent("Semen Tiga Roda");
+    expect(list).toHaveTextContent("Cat Lama");
+
+    const deleteButtons = screen.getAllByRole("button", { name: /Hapus/i });
+    expect(deleteButtons.length).toBeGreaterThan(0);
   });
 });

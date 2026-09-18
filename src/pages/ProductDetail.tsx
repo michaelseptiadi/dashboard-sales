@@ -23,6 +23,7 @@ import {
   useProductById,
   useInventoryMovements,
   useUpdateProduct,
+  useDeleteProduct,
   useAdjustStock,
   useCategories,
   useUnits,
@@ -72,6 +73,7 @@ export default function ProductDetail() {
   const { data: categories } = useCategories();
   const { data: units } = useUnits();
   const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
   const adjustStock = useAdjustStock();
   const createVariant = useCreateVariant();
   const updateVariant = useUpdateVariant();
@@ -136,6 +138,7 @@ export default function ProductDetail() {
   const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
+  const [adjustUnit, setAdjustUnit] = useState<"base" | string>("base");
 
   const openStock = () => {
     const vars = product?.variants || [];
@@ -143,6 +146,7 @@ export default function ProductDetail() {
     setAdjustQty("");
     setAdjustType("in");
     setAdjustNotes("");
+    setAdjustUnit("base");
     setStockOpen(true);
   };
 
@@ -159,6 +163,7 @@ export default function ProductDetail() {
         productVariantId: selectedVariantId,
         qty: qty,
         type: adjustType,
+        useVariantUnit: adjustUnit !== "base",
         notes: adjustNotes || undefined,
         storeProductId: id,
       });
@@ -182,6 +187,7 @@ export default function ProductDetail() {
     conversionFactor: 1,
     sellingPrice: 0,
     capitalPrice: 0,
+    capitalPriceVerified: false,
   });
 
   const openCreateVariant = () => {
@@ -192,7 +198,8 @@ export default function ProductDetail() {
       unitId: product?.unit_id || "",
       conversionFactor: 1,
       sellingPrice: 0,
-      capitalPrice: 0
+      capitalPrice: 0,
+      capitalPriceVerified: false
     });
     setVariantDialogOpen(true);
   };
@@ -206,6 +213,7 @@ export default function ProductDetail() {
       conversionFactor: Number(v.conversion_factor),
       sellingPrice: Number(v.selling_price),
       capitalPrice: Number(v.capital_price),
+      capitalPriceVerified: v.capital_price_verified,
     });
     setVariantDialogOpen(true);
   };
@@ -230,7 +238,7 @@ export default function ProductDetail() {
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
-          capitalPriceVerified: false,
+          capitalPriceVerified: variantForm.capitalPriceVerified,
         });
         toast({ title: "Varian berhasil diperbarui" });
       } else {
@@ -242,7 +250,7 @@ export default function ProductDetail() {
           conversionFactor: variantForm.conversionFactor,
           sellingPrice: variantForm.sellingPrice,
           capitalPrice: variantForm.capitalPrice,
-          capitalPriceVerified: false,
+          capitalPriceVerified: variantForm.capitalPriceVerified,
           stock: 0,
         });
         toast({ title: "Varian berhasil ditambahkan" });
@@ -281,22 +289,40 @@ export default function ProductDetail() {
     }
   };
 
+  const handleToggleCapitalPrice = async (v: ProductVariant) => {
+    if (!product) return;
+    try {
+      await updateVariant.mutateAsync({
+        id: v.id,
+        productId: product.id,
+        capitalPriceVerified: !v.capital_price_verified,
+      });
+      toast({ title: !v.capital_price_verified ? "Harga modal dikonfirmasi" : "Harga modal ditandai perlu dicek" });
+    } catch (err: unknown) {
+      toast({ title: "Gagal memperbarui status harga modal", description: (err as Error).message, variant: "destructive" });
+    }
+  };
   const handleToggleProductActive = async (newVal: boolean) => {
     if (!product?.id) return;
     try {
-      await updateProduct.mutateAsync({
-        id: product.id,
-        is_active: newVal,
-      });
-      toast({
-        title: `Produk berhasil ${newVal ? "diaktifkan" : "dinonaktifkan"}`,
-      });
+      await updateProduct.mutateAsync({ id: product.id, is_active: newVal });
+      toast({ title: `Produk berhasil ${newVal ? "diaktifkan" : "dinonaktifkan"}` });
     } catch (err: unknown) {
-      toast({
-        title: `Gagal ${newVal ? "mengaktifkan" : "menonaktifkan"} produk`,
-        description: (err as Error).message,
-        variant: "destructive",
-      });
+      toast({ title: `Gagal ${newVal ? "mengaktifkan" : "menonaktifkan"} produk`, description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!product) return;
+    if (!confirm(`Apakah Anda yakin ingin menghapus produk "${product.name}"?`)) {
+      return;
+    }
+    try {
+      await deleteProduct.mutateAsync(product.id);
+      toast({ title: `Produk "${product.name}" berhasil dihapus` });
+      navigate("/produk");
+    } catch (err: unknown) {
+      toast({ title: "Gagal menghapus produk", description: (err as Error).message, variant: "destructive" });
     }
   };
 
@@ -317,6 +343,17 @@ export default function ProductDetail() {
           </Button>
           {!productLoading && product && isAdmin && (
             <div className="flex items-center gap-2">
+              {!product.is_active && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={handleDeleteProduct}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Hapus Produk
+                </Button>
+              )}
               <Button variant="outline" size="sm" className="gap-1.5" onClick={openStock}>
                 <PackagePlus className="h-4 w-4" />
                 Sesuaikan Stok
@@ -467,12 +504,22 @@ export default function ProductDetail() {
                           <div className="flex shrink-0 gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditVariant(v)} aria-label={`Edit varian ${v.name}`}><Pencil className="h-3.5 w-3.5" /></Button>{variants.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive" onClick={() => handleDeleteVariant(v)} aria-label={`Hapus varian ${v.name}`}><Trash2 className="h-3.5 w-3.5" /></Button>}</div>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Stok</p><p className="text-sm font-black">{product.current_stock} <span className="text-[10px] font-medium text-muted-foreground">{product.units?.name || "unit"}</span></p></div>
-                          <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Min. stok</p><p className="text-sm font-bold">{product.minimum_stock}</p></div>
                           <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Harga jual</p><p className="text-xs font-bold text-primary">{formatCurrency(Number(v.selling_price))}</p></div>
                           <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Margin</p><p className="text-xs font-bold text-violet-700 dark:text-violet-400">{formatCurrency(Number(v.selling_price) - Number(v.capital_price))}</p></div>
                         </div>
-                        <button type="button" onClick={() => handleToggleVariant(v)} className="mt-2 text-[11px] font-semibold text-muted-foreground">Ubah status varian</button>
+                        <div className="mt-3 space-y-3 border-t pt-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-2 w-2 rounded-full ${v.capital_price_verified ? "bg-emerald-500" : "bg-amber-500"}`} />
+                              <span className="text-[10px] font-semibold text-muted-foreground">{v.capital_price_verified ? "Modal terkonfirmasi" : "Modal perlu dicek"}</span>
+                            </div>
+                            <Switch checked={v.capital_price_verified} onCheckedChange={() => handleToggleCapitalPrice(v)} aria-label={`Tandai modal ${v.capital_price_verified ? "perlu dicek" : "terkonfirmasi"} untuk ${v.name}`} />
+                          </div>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-[10px] font-semibold text-muted-foreground">{v.is_active ? "Aktif" : "Nonaktif"}</span>
+                            <Switch checked={v.is_active} onCheckedChange={() => handleToggleVariant(v)} aria-label={`${v.is_active ? "Nonaktifkan" : "Aktifkan"} varian ${v.name}`} />
+                          </div>
+                        </div>
                       </article>
                   ))}
                 </div>
@@ -520,9 +567,12 @@ export default function ProductDetail() {
                             </TableCell>
                             {isAdmin && (
                               <>
-                                <TableCell className="text-right text-sm text-muted-foreground">
-                                  {v.capital_price_verified ? "Terkonfirmasi" : "Belum dikonfirmasi"}
-                                </TableCell>
+                                <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <span className={`text-[10px] font-semibold ${v.capital_price_verified ? "text-emerald-700" : "text-amber-700"}`}>{v.capital_price_verified ? "Terkonfirmasi" : "Perlu dicek"}</span>
+                                <Switch checked={v.capital_price_verified} onCheckedChange={() => handleToggleCapitalPrice(v)} aria-label={`Tandai modal ${v.capital_price_verified ? "perlu dicek" : "terkonfirmasi"} untuk ${v.name}`} />
+                              </div>
+                            </TableCell>
                                 <TableCell className="text-right text-sm font-semibold text-violet-700 dark:text-violet-400">
                                   {formatCurrency(Number(v.selling_price) - Number(v.capital_price))}
                                 </TableCell>
@@ -719,26 +769,19 @@ export default function ProductDetail() {
             <p className="text-sm text-muted-foreground">{product?.name}</p>
           </DialogHeader>
           <div className="space-y-4">
-            {product && product.variants && product.variants.length > 1 && (
-              <div className="space-y-2">
-                <Label>Varian</Label>
-                <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {product.variants.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name} (Stok: {v.stock})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Stok saat ini</span>
+              <span className="text-sm text-muted-foreground">Stok pool saat ini</span>
               <span className="text-2xl font-bold tabular-nums">{activeStock}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>Unit penyesuaian</Label>
+              <Select value={adjustUnit} onValueChange={(value) => { setAdjustUnit(value); setSelectedVariantId(value === "base" ? (product?.variants?.[0]?.id || "") : value); setAdjustQty(""); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectItem value="base">{product?.units?.name || "Unit dasar"} — langsung ke pool</SelectItem>
+                  {product?.variants?.filter((v) => v.is_active).map((v) => <SelectItem key={v.id} value={v.id}>{v.name} — 1 unit = ×{Number(v.conversion_factor)} {product?.units?.name || "dasar"}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Jenis Penyesuaian</Label>
@@ -751,7 +794,7 @@ export default function ProductDetail() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Jumlah</Label>
+              <Label>Jumlah ({adjustUnit === "base" ? (product?.units?.name || "unit dasar") : product?.variants?.find((v) => v.id === adjustUnit)?.name})</Label>
               <Input
                 type="number"
                 min={1}
@@ -771,11 +814,9 @@ export default function ProductDetail() {
               />
             </div>
             {typeof adjustQty === "number" && adjustQty > 0 && (
-              <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Stok setelah</span>
-                <span className={`text-2xl font-bold tabular-nums ${adjustType === "in" ? "text-green-600" : "text-red-600"}`}>
-                  {adjustType === "in" ? activeStock + adjustQty : Math.max(0, activeStock - adjustQty)}
-                </span>
+              <div className="space-y-2 rounded-xl bg-muted/60 px-4 py-3">
+                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Konversi ke pool</span><span className="font-bold">{adjustQty} × {adjustUnit === "base" ? 1 : Number(product?.variants?.find((v) => v.id === adjustUnit)?.conversion_factor || 1)} = {adjustQty * (adjustUnit === "base" ? 1 : Number(product?.variants?.find((v) => v.id === adjustUnit)?.conversion_factor || 1))} {product?.units?.name || "unit"}</span></div>
+                <div className="flex items-center justify-between border-t pt-2"><span className="text-sm text-muted-foreground">Stok setelah</span><span className={`text-2xl font-bold tabular-nums ${adjustType === "in" ? "text-green-600" : "text-red-600"}`}>{adjustType === "in" ? activeStock + adjustQty * (adjustUnit === "base" ? 1 : Number(product?.variants?.find((v) => v.id === adjustUnit)?.conversion_factor || 1)) : Math.max(0, activeStock - adjustQty * (adjustUnit === "base" ? 1 : Number(product?.variants?.find((v) => v.id === adjustUnit)?.conversion_factor || 1)))}</span></div>
               </div>
             )}
             <DialogFormActions

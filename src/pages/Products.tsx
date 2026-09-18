@@ -17,8 +17,8 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { DialogFormActions } from "@/components/DialogFormActions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useInfiniteProducts, useActiveProducts, useCreateProduct, useUpdateProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
-import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal } from "lucide-react";
+import { useInfiniteProducts, useActiveProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useCategories, useUnits, useAdjustStock, useRealtimeStock, useLowStockProducts } from "@/hooks/useProducts";
+import { Plus, PackagePlus, AlertTriangle, Eye, ChevronRight, Boxes, SlidersHorizontal, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface ProductFormData {
@@ -68,6 +68,7 @@ export default function Products() {
   const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustType, setAdjustType] = useState<"in" | "out">("in");
   const [adjustNotes, setAdjustNotes] = useState("");
+  const [adjustUnit, setAdjustUnit] = useState<"base" | string>("base");
 
   const apiActiveParam = stockFilter === "active" ? "true" : stockFilter === "inactive" ? "false" : undefined;
   const { data: productsResponse, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteProducts(search, categoryFilter || undefined, limit, apiActiveParam);
@@ -77,6 +78,7 @@ export default function Products() {
   const { data: allProducts } = useActiveProducts();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
   const adjustStock = useAdjustStock();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   useRealtimeStock();
@@ -173,6 +175,7 @@ export default function Products() {
     setAdjustQty("");
     setAdjustType("in");
     setAdjustNotes("");
+    setAdjustUnit("base");
     setStockDialogOpen(true);
   };
 
@@ -188,6 +191,7 @@ export default function Products() {
         productVariantId: selectedVariantId,
         qty: qty,
         type: adjustType,
+        useVariantUnit: adjustUnit !== "base",
         notes: adjustNotes || undefined,
         storeProductId: stockProduct.store_product_id,
       });
@@ -207,8 +211,20 @@ export default function Products() {
     }
   };
 
+  const handleDeleteProduct = async (product: { id: string; name: string }) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus produk "${product.name}"?`)) {
+      return;
+    }
+    try {
+      await deleteProduct.mutateAsync(product.id);
+      toast({ title: `Produk "${product.name}" berhasil dihapus` });
+    } catch (error: unknown) {
+      toast({ title: "Gagal menghapus produk", description: (error as Error).message, variant: "destructive" });
+    }
+  };
+
   const activeVariant = stockProduct?.variants?.find((v) => v.id === selectedVariantId);
-  const activeStock = activeVariant ? Number(activeVariant.stock) : (stockProduct?.current_stock ?? 0);
+  const activeStock = stockProduct?.current_stock ?? 0;
 
   return (
     <DashboardLayout title="Manajemen Produk">
@@ -410,6 +426,15 @@ export default function Products() {
                         {product.is_active ? "Nonaktifkan" : "Aktifkan"}
                       </button>
                     )}
+                    {isAdmin && !product.is_active && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProduct(product)}
+                        className="flex min-h-12 flex-1 items-center justify-center gap-1 border-r text-xs font-bold text-destructive active:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" /> Hapus
+                      </button>
+                    )}
                     {isAdmin && product.variants?.length ? <button type="button" onClick={() => openStockDialog(product)} className="flex min-h-12 flex-1 items-center justify-center gap-2 border-r text-xs font-bold text-primary active:bg-primary/5"><SlidersHorizontal className="h-4 w-4" /> Sesuaikan stok</button> : null}
                     <button type="button" aria-label={`Lihat detail ${product.name}`} onClick={() => navigate(`/produk/${product.id}`)} className="flex min-h-12 flex-1 items-center justify-center gap-1 text-xs font-bold active:bg-muted">Lihat detail <ChevronRight className="h-4 w-4" /></button>
                   </div>
@@ -469,9 +494,22 @@ export default function Products() {
                           </Badge>
                         </TableCell>
                         <TableCell className="pr-6">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate(`/produk/${product.id}`)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {isAdmin && !product.is_active && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeleteProduct(product)}
+                                title={`Hapus ${product.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate(`/produk/${product.id}`)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -497,23 +535,16 @@ export default function Products() {
             <p className="text-sm text-muted-foreground">{stockProduct?.name}</p>
           </DialogHeader>
           <div className="space-y-4">
-            {stockProduct && stockProduct.variants.length > 1 && (
-              <div className="space-y-2">
-                <Label>Varian</Label>
-                <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stockProduct.variants.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name} (Stok: {v.stock})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Unit penyesuaian</Label>
+              <Select value={adjustUnit} onValueChange={(value) => { setAdjustUnit(value); setSelectedVariantId(value === "base" ? (stockProduct?.variants[0]?.id || "") : value); setAdjustQty(""); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectItem value="base">Unit dasar — langsung ke pool</SelectItem>
+                  {stockProduct?.variants.filter((v) => v.is_active).map((v) => <SelectItem key={v.id} value={v.id}>{v.name} — ×{Number(v.conversion_factor)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
               <span className="text-sm text-muted-foreground">Stok saat ini</span>
               <span className="text-2xl font-bold tabular-nums">{activeStock}</span>
@@ -550,16 +581,10 @@ export default function Products() {
                 className="resize-none"
               />
             </div>
-            {stockProduct && typeof adjustQty === "number" && adjustQty > 0 && (
-              <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
-                <span className="text-sm text-muted-foreground">Stok setelah</span>
-                <span className={`text-2xl font-bold tabular-nums ${
-                  adjustType === "in" ? "text-green-600" : "text-red-600"
-                }`}>
-                  {adjustType === "in"
-                    ? activeStock + adjustQty
-                    : Math.max(0, activeStock - adjustQty)}
-                </span>
+            {typeof adjustQty === "number" && adjustQty > 0 && (
+              <div className="space-y-2 rounded-xl bg-muted/60 px-4 py-3">
+                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Konversi ke pool</span><span className="font-bold">{adjustQty} × {adjustUnit === "base" ? 1 : Number(stockProduct?.variants.find((v) => v.id === adjustUnit)?.conversion_factor || 1)} = {adjustQty * (adjustUnit === "base" ? 1 : Number(stockProduct?.variants.find((v) => v.id === adjustUnit)?.conversion_factor || 1))} {stockProduct?.variants[0]?.unit?.name || "unit"}</span></div>
+                <div className="flex items-center justify-between border-t pt-2"><span className="text-sm text-muted-foreground">Stok setelah</span><span className={`text-2xl font-bold tabular-nums ${adjustType === "in" ? "text-green-600" : "text-red-600"}`}>{adjustType === "in" ? activeStock + adjustQty * (adjustUnit === "base" ? 1 : Number(stockProduct?.variants.find((v) => v.id === adjustUnit)?.conversion_factor || 1)) : Math.max(0, activeStock - adjustQty * (adjustUnit === "base" ? 1 : Number(stockProduct?.variants.find((v) => v.id === adjustUnit)?.conversion_factor || 1)))}</span></div>
               </div>
             )}
             <DialogFormActions

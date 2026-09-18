@@ -439,6 +439,22 @@ export function useUpdateProduct() {
   });
 }
 
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.delete<{ success?: boolean; message?: string }>(`/store-products/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products-infinite"] });
+      queryClient.invalidateQueries({ queryKey: ["active-products"] });
+      queryClient.invalidateQueries({ queryKey: ["low-stock-products"] });
+      queryClient.invalidateQueries({ queryKey: ["product-variants"] });
+    },
+  });
+}
+
 export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
@@ -464,18 +480,20 @@ export function useAdjustStock() {
       product_id: string;
       productVariantId: string;
       qty: number;
+      useVariantUnit?: boolean;
       type: "in" | "out";
       notes?: string;
       storeProductId?: string;
     }) => {
       if (!selectedStore?.id) throw new Error("Pilih toko terlebih dahulu");
 
-      return apiClient.post<{ variant: ProductVariant; mutation: unknown }>(
+      return apiClient.post<{ variant: ProductVariant; product?: Product; mutation: unknown }>(
         "/store-products/adjustment",
         {
           productVariantId: params.productVariantId,
           type: params.type === "in" ? "ADD" : "SUBTRACT",
           quantity: params.qty,
+          useVariantUnit: params.useVariantUnit ?? true,
           adjustmentReason: params.notes?.trim() || "Manual adjustment",
         },
       );
