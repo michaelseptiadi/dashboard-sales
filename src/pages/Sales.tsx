@@ -353,6 +353,16 @@ export default function Sales() {
     [items, toast]
   );
 
+  const updateItemPriceFromProduct = useCallback((productId: string, variantId: string, price: number) => {
+    setItems((prev) => prev.map((item) => {
+      // Loose match for variant ID (e.g. "" vs null vs undefined)
+      const itemVarId = item.product_variant_id || "";
+      const updateVarId = variantId || "";
+      if (item.product_id !== productId || itemVarId !== updateVarId) return item;
+      return { ...item, price, subtotal: Math.max(0, item.qty * price - item.discount) };
+    }));
+  }, []);
+
   const updateItem = (index: number, field: keyof SalesItem, value: string | number | boolean | null | undefined | import("@/hooks/useProducts").ProductUnit[] | import("@/hooks/useProducts").ProductVariant[]) => {
     setItems((prev) => {
       const updated = [...prev];
@@ -478,6 +488,8 @@ export default function Sales() {
         await addPaymentLog({
           orderId: salesOrder.id,
           amount: Math.min(paymentAmount, grandTotal),
+          paymentMethodId,
+          notes: notes || undefined,
         });
       }
 
@@ -756,7 +768,7 @@ export default function Sales() {
       <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
         <DialogContent 
           id="pos-checkout-dialog"
-          className="max-w-[1380px] w-[96vw] h-[90vh] md:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border bg-card"
+          className="max-w-[1380px] w-[96vw] max-h-[92dvh] h-auto flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border bg-card"
         >
           {/* Header */}
           <div className="px-4 md:px-6 py-3 md:py-4 border-b border-muted/20 bg-muted/5 flex items-center justify-between">
@@ -876,6 +888,7 @@ export default function Sales() {
                     items={items}
                     addItem={addItem}
                     onEditProduct={handleEditProduct}
+                    onProductUpdated={updateItemPriceFromProduct}
                     updateItem={updateItem}
                     toggleItemSelfPickup={toggleItemSelfPickup}
                     removeItem={removeItem}
