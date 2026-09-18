@@ -41,6 +41,20 @@ const emptyForm: ProductFormData = {
   minimum_stock: "",
 };
 
+function formatProductPrice(product: { selling_price?: number | string; variants?: { selling_price: number | string; is_active?: boolean }[] | null }): string {
+  const activeVariants = product.variants?.filter((v) => v.is_active !== false) ?? [];
+  if (activeVariants.length > 1) {
+    const prices = activeVariants.map((v) => Number(v.selling_price || 0));
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    if (min !== max) {
+      return `${formatCurrency(min)} ~ ${formatCurrency(max)}`;
+    }
+    return formatCurrency(min);
+  }
+  return formatCurrency(Number(product.selling_price || 0));
+}
+
 export default function Products() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -413,7 +427,7 @@ export default function Products() {
                     <div className="mt-3.5 flex items-end justify-between gap-3 pt-2 border-t border-dashed">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Harga jual</p>
-                        <p className="mt-0.5 text-base font-extrabold text-foreground">{formatCurrency(Number(product.selling_price || 0))}</p>
+                        <p className="mt-0.5 text-base font-extrabold text-foreground">{formatProductPrice(product)}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stok</p>

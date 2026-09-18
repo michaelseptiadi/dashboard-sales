@@ -35,6 +35,18 @@ vi.mock("@/hooks/useProducts", () => ({
         categories: { name: "Cat" }, units: { name: "Kaleng" },
         variants: [{ id: "v3", name: "Standar", stock: 0, minimum_stock: 0, is_active: false }],
       },
+      {
+        id: "p4", store_product_id: "sp4", name: "Pasir Mundu", product_code: "BRG-0004",
+        store_id: "s1", category_id: "c1", unit_id: "u1", selling_price: 230000, capital_price: 200000,
+        minimum_stock: 5, current_stock: 12, is_active: true, created_at: "", updated_at: "",
+        categories: { name: "Pasir" }, units: { name: "M3" },
+        variants: [
+          { id: "v4_1", name: "¼ kjg", stock: 12, minimum_stock: 5, is_active: true, selling_price: 70000 },
+          { id: "v4_2", name: "½ kjg", stock: 12, minimum_stock: 5, is_active: true, selling_price: 130000 },
+          { id: "v4_3", name: "kjg", stock: 12, minimum_stock: 5, is_active: true, selling_price: 230000 },
+          { id: "v4_4", name: "engkel", stock: 12, minimum_stock: 5, is_active: true, selling_price: 900000 },
+        ],
+      },
     ], meta: { page: 1, limit: 10, total: 20, totalPages: 2 } }] },
     isLoading: false,
     isFetchingNextPage: false,
@@ -107,10 +119,11 @@ describe("Products mobile presentation", () => {
     expect(deleteButtons.length).toBeGreaterThan(0);
   });
 
-  it("displays verified capital badge when all variants have verified capital price", () => {
+  it("displays price range for multi-variant products", () => {
     render(<MemoryRouter><Products /></MemoryRouter>);
 
     const list = screen.getByRole("region", { name: "Daftar produk mobile" });
-    expect(list).not.toHaveTextContent("Modal OK");
+    expect(list).toHaveTextContent("Pasir Mundu");
+    expect(list).toHaveTextContent("Rp 70.000 ~ Rp 900.000");
   });
 });
