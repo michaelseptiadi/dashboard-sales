@@ -105,6 +105,14 @@
 }
 
 @layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   .glass-sidebar {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.55) 100%) !important;
     -webkit-backdrop-filter: blur(20px) saturate(190%) !important;

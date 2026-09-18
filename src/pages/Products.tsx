@@ -265,7 +265,7 @@ export default function Products() {
             <p className="mt-0.5 text-xs text-red-400/80 dark:text-red-500/70">Klik kartu untuk menyesuaikan stok</p>
           </CardHeader>
           <CardContent className="px-5 pb-5">
-            <div className="flex gap-3 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-red-300 [&::-webkit-scrollbar-track]:bg-transparent">
+            <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
               {lowStockItems.map((p) => (
                 <div
                   key={p.id}
@@ -351,7 +351,7 @@ export default function Products() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 pt-1 md:hidden" aria-label="Filter stok">
+          <div className="flex gap-2 overflow-x-auto pb-1 pt-1 md:hidden no-scrollbar" aria-label="Filter stok">
             {[
               { value: "all", label: "Semua", dot: null, active: "bg-foreground text-background shadow-xs" },
               { value: "low", label: "Stok rendah", dot: "bg-amber-500", active: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700 shadow-xs font-bold" },
