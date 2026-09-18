@@ -449,7 +449,7 @@ export default function Products() {
                         {product.is_active ? "Nonaktifkan" : "Aktifkan"}
                       </button>
                     )}
-                    {isAdmin && !product.is_active && (
+                    {isAdmin && (
                       <button
                         type="button"
                         onClick={() => handleDeleteProduct(product)}
@@ -526,7 +526,7 @@ export default function Products() {
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
-                            {isAdmin && !product.is_active && (
+                            {isAdmin && (
                               <Button
                                 variant="ghost"
                                 size="icon"

@@ -343,17 +343,16 @@ export default function ProductDetail() {
           </Button>
           {!productLoading && product && isAdmin && (
             <div className="flex items-center gap-2">
-              {!product.is_active && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={handleDeleteProduct}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Hapus Produk
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                onClick={handleDeleteProduct}
+                disabled={deleteProduct.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+                Hapus Produk
+              </Button>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={openStock}>
                 <PackagePlus className="h-4 w-4" />
                 Sesuaikan Stok
