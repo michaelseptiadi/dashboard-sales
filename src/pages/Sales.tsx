@@ -849,7 +849,7 @@ export default function Sales() {
 
             {/* Center Content Form (Scrollable) */}
 
-            <div className={`flex-1 min-h-0 overflow-y-auto pr-1 md:pr-2 ${currentStep === 1 ? "space-y-4 md:space-y-6" : "space-y-6"}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto px-1 md:px-2 ${currentStep === 1 ? "space-y-4 md:space-y-6" : "space-y-6"}`}>
               {currentStep === 1 && (
                 <div className="space-y-6">
                   <TransactionInfoCard
