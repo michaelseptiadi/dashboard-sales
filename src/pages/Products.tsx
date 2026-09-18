@@ -375,7 +375,6 @@ export default function Products() {
             ) : mobileProducts.map((product) => {
               const stock = stockOf(product);
               const lowStock = isLow(product);
-              const status = stock <= 0 ? "Stok habis" : lowStock ? "Stok rendah" : "Stok aman";
               const allCapitalVerified = !!product.variants?.length && product.variants.every((v) => v.capital_price_verified);
               return (
                 <article key={product.id} className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition active:scale-[0.995] ${!product.is_active ? 'opacity-75 border-dashed' : ''}`}>
@@ -409,7 +408,6 @@ export default function Products() {
                         >
                           {product.is_active ? "Aktif" : "Nonaktif"}
                         </Badge>
-                        <Badge variant="outline" className={`text-[10px] ${stock <= 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : lowStock ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{status}</Badge>
                       </div>
                     </div>
                     <div className="mt-3.5 flex items-end justify-between gap-3 pt-2 border-t border-dashed">
@@ -419,7 +417,9 @@ export default function Products() {
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stok</p>
-                        <p className={`mt-0.5 text-xl font-black tabular-nums ${stock <= 0 ? 'text-rose-600' : lowStock ? 'text-amber-700' : ''}`}>{stock} <span className="text-xs font-semibold text-muted-foreground">{product.units?.name || product.unit?.name || ''}</span></p>
+                        <p className={`mt-0.5 text-xl font-black tabular-nums ${stock <= 0 ? 'text-rose-600 dark:text-rose-400' : lowStock ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          {stock} <span className="text-xs font-semibold text-muted-foreground">{product.units?.name || product.unit?.name || ''}</span>
+                        </p>
                       </div>
                     </div>
                   </div>

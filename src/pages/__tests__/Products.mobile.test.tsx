@@ -65,7 +65,7 @@ describe("Products mobile presentation", () => {
     const list = screen.getByRole("region", { name: "Daftar produk mobile" });
     expect(list).toHaveTextContent("Semen Tiga Roda");
     expect(list).toHaveTextContent("Aktif");
-    expect(list).toHaveTextContent("Stok rendah");
+    expect(list).toHaveTextContent("7 Sak");
     expect(list).toHaveTextContent("Rp 72.000");
     expect(screen.getByRole("button", { name: "Lihat detail Semen Tiga Roda" })).toBeInTheDocument();
   });
