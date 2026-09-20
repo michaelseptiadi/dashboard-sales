@@ -335,10 +335,13 @@ export function ItemsTable({
                     </TableCell>
                     <TableCell className="py-3">
                       <Input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={item.qty === 0 ? "" : item.qty}
                         onChange={(e) => {
-                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          const raw = e.target.value.replace(",", ".");
+                          if (!/^\d*(\.\d*)?$/.test(raw)) return;
+                          const val = raw === "" || raw === "." ? 0 : Number(raw);
                           updateItem(index, "qty", val);
                         }}
                         onBlur={() => {
@@ -347,7 +350,8 @@ export function ItemsTable({
                           }
                         }}
                         className="h-9 rounded-lg text-sm text-center hover:border-muted-foreground/35 transition-colors focus:ring-primary/20"
-                        min={1}
+                        min={0.01}
+                        step="any"
                       />
                     </TableCell>
                     <TableCell className="py-3">
@@ -484,17 +488,21 @@ export function ItemsTable({
                     <div className="w-20">
                       <Label className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5 block">Qty</Label>
                       <Input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={item.qty === 0 ? "" : item.qty}
                         onChange={(e) => {
-                          const val = e.target.value === "" ? 0 : Number(e.target.value);
+                          const raw = e.target.value.replace(",", ".");
+                          if (!/^\d*(\.\d*)?$/.test(raw)) return;
+                          const val = raw === "" || raw === "." ? 0 : Number(raw);
                           updateItem(index, "qty", val);
                         }}
                         onBlur={() => {
                           if (item.qty <= 0) updateItem(index, "qty", 1);
                         }}
                         className="h-7 rounded-lg text-[11px] text-center px-1"
-                        min={1}
+                        min={0.01}
+                        step="any"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
