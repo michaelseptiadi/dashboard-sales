@@ -13,6 +13,7 @@ import {
   UserCog,
   Contact,
   Briefcase,
+  ReceiptText,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -69,6 +70,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Produk", url: "/produk", icon: Package, end: false, roles: ["admin", "cashier"] },
       { title: "Pelanggan", url: "/pelanggan", icon: Users, end: false, roles: ["admin", "cashier"] },
       { title: "Supir", url: "/supir", icon: Contact, end: false, roles: ["admin", "cashier"] },
+      { title: "Pengeluaran", url: "/pengeluaran", icon: ReceiptText, end: false, roles: ["admin"] },
       { title: "Karyawan", url: "/karyawan", icon: Briefcase, end: false, roles: ["admin"] },
     ],
   },

@@ -32,6 +32,7 @@ function getInitials(name?: string, email?: string): string {
 }
 
 const SUPERADMIN_ONLY_ROUTES = ["/users", "/pengiriman"];
+const ADMIN_ONLY_ROUTES = ["/pengeluaran"];
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -77,6 +78,11 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
 
     // Superadmin bypasses all other restrictions
     if (isSuperAdmin) return;
+
+    if (ADMIN_ONLY_ROUTES.some((route) => location.pathname === route || location.pathname.startsWith(`${route}/`)) && currentRole !== "admin") {
+      navigate("/penjualan", { replace: true });
+      return;
+    }
 
     // Cashier: only allowed on specific routes
     if (currentRole === "cashier") {

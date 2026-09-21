@@ -18,7 +18,12 @@ export interface DashboardData {
     total_profit: number;
     today_capital: number;
     today_profit: number;
+    today_expenses: number;
+    month_expenses: number;
+    today_net_profit: number;
+    month_net_profit: number;
     profit_transactions: { id: string; invoice_number: string; sales_date: string; revenue: number; capital: number; profit: number }[];
+    today_profit_transactions: { id: string; invoice_number: string; sales_date: string; revenue: number; capital: number; profit: number }[];
   };
   sales_trend: { label: string; value: number }[];
   top_products: { name: string; qty: number; unit: string }[];

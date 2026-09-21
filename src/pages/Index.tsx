@@ -250,12 +250,14 @@ export default function Index() {
                       <ArrowRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${profitDetailOpen ? 'rotate-90' : ''}`} />
                     </div>
                     <p className={`text-sm font-extrabold tracking-tight sm:text-lg ${(capitalPeriod === 'today' ? (data?.cards.today_profit ?? 0) : (data?.cards.total_profit ?? 0)) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_profit || 0) : (data?.cards.total_profit || 0))}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Pengeluaran {formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_expenses || 0) : (data?.cards.month_expenses || 0))}</p>
+                    <p className={`text-xs font-bold ${((capitalPeriod === 'today' ? data?.cards.today_net_profit : data?.cards.month_net_profit) ?? 0) >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>Net {formatCurrency(capitalPeriod === 'today' ? (data?.cards.today_net_profit || 0) : (data?.cards.month_net_profit || 0))}</p>
                   </div>
                   {profitDetailOpen && (
                     <div className="col-span-2 rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-3 text-xs dark:border-emerald-900/60 dark:bg-emerald-950/20">
                       <p className="font-semibold text-foreground">Cara hitung profit</p>
                       <div className="mt-2 max-h-48 space-y-2 overflow-y-auto">
-                        {(data?.cards.profit_transactions ?? []).map((transaction) => (
+                        {(capitalPeriod === 'today' ? (data?.cards.today_profit_transactions ?? []) : (data?.cards.profit_transactions ?? [])).map((transaction) => (
                           <div key={transaction.id} className="rounded-lg bg-background/70 p-2">
                             <div className="flex justify-between gap-2 font-semibold"><span>{transaction.invoice_number}</span><span className={transaction.profit >= 0 ? "text-emerald-700" : "text-rose-700"}>{formatCurrency(transaction.profit)}</span></div>
                             <div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>Omzet {formatCurrency(transaction.revenue)}</span><span>Modal {formatCurrency(transaction.capital)}</span></div>

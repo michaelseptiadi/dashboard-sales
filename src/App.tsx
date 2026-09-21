@@ -22,6 +22,7 @@ import PengirimanForm from "./pages/PengirimanForm";
 import Users from "./pages/Users";
 import Supir from "./pages/Supir";
 import Karyawan from "./pages/Karyawan";
+import Expenses from "./pages/Expenses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -96,6 +97,7 @@ const AppRoutes = () => (
       <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
       <Route path="/supir" element={<ProtectedRoute><Supir /></ProtectedRoute>} />
       <Route path="/karyawan" element={<ProtectedRoute><Karyawan /></ProtectedRoute>} />
+      <Route path="/pengeluaran" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </>
