@@ -7,7 +7,8 @@ export interface Expense { id: string; expense_date: string; amount: number | st
 export interface ExpenseInput { category_id: string; expense_date: string; amount: number; payment_method: string; description?: string; reference_no?: string; }
 
 export function useExpenseCategories() {
-  return useQuery<ExpenseCategory[]>({ queryKey: ["expense-categories"], queryFn: () => apiClient.get("/expenses/categories") });
+  const { selectedStore } = useAuth();
+  return useQuery<ExpenseCategory[]>({ queryKey: ["expense-categories", selectedStore?.id], queryFn: () => apiClient.get(`/expenses/categories?store_id=${selectedStore?.id ?? ""}`), enabled: !!selectedStore?.id });
 }
 export function useExpenses(filters?: { start_date?: string; end_date?: string; status?: string }) {
   const { selectedStore } = useAuth();
@@ -15,6 +16,7 @@ export function useExpenses(filters?: { start_date?: string; end_date?: string; 
   if (filters?.start_date) params.set("start_date", filters.start_date);
   if (filters?.end_date) params.set("end_date", filters.end_date);
   if (filters?.status) params.set("status", filters.status);
+  if (selectedStore?.id) params.set("store_id", selectedStore.id);
   return useQuery<Expense[]>({ queryKey: ["expenses", selectedStore?.id, filters], queryFn: () => apiClient.get(`/expenses?${params}`), enabled: !!selectedStore?.id });
 }
 export function useCreateExpense() {
