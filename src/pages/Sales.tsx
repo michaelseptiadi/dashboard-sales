@@ -32,6 +32,7 @@ import {
   ShoppingCart,
   Trash2,
   Receipt,
+  ReceiptText,
   ArrowRight,
   Coins,
   Check,
@@ -669,16 +670,25 @@ export default function Sales() {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Transaksi</h1>
             <p className="text-sm text-muted-foreground">Kelola antrean transaksi penjualan toko aktif Anda secara realtime.</p>
           </div>
-          <Button
-            onClick={() => {
-              handleNewCart();
-              setCurrentStep(1);
-              setIsModalOpen(true);
-            }}
-            className="rounded-2xl h-11 gap-2 font-semibold shadow-sm bg-gradient-to-r from-primary to-primary/95 shrink-0"
-          >
-            <Plus className="h-4 w-4" /> Mulai Transaksi Baru
-          </Button>
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/pengeluaran")}
+              className="h-11 rounded-2xl gap-2 font-semibold shadow-sm"
+            >
+              <ReceiptText className="h-4 w-4" /> Pengeluaran
+            </Button>
+            <Button
+              onClick={() => {
+                handleNewCart();
+                setCurrentStep(1);
+                setIsModalOpen(true);
+              }}
+              className="h-11 rounded-2xl gap-2 font-semibold shadow-sm bg-gradient-to-r from-primary to-primary/95 shrink-0"
+            >
+              <Plus className="h-4 w-4" /> Mulai Transaksi Baru
+            </Button>
+          </div>
         </div>
 
         {/* Pending Carts Dashboard */}
