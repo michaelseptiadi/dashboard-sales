@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,6 +44,19 @@ interface ItemsTableProps {
   onSubmit: () => void;
   isPending: boolean;
   showSummary?: boolean;
+}
+
+function formatVariantPriceRange(product: { selling_price?: number | string; variants?: { selling_price: number | string; is_active?: boolean }[] | null }): string {
+  const activePrices = (product.variants || [])
+    .filter((variant) => variant.is_active !== false)
+    .map((variant) => Number(variant.selling_price))
+    .filter((price) => Number.isFinite(price));
+  if (activePrices.length > 1) {
+    const lowest = Math.min(...activePrices);
+    const highest = Math.max(...activePrices);
+    return lowest === highest ? formatCurrency(lowest) : `${formatCurrency(lowest)} ~ ${formatCurrency(highest)}`;
+  }
+  return formatCurrency(activePrices[0] ?? Number(product.selling_price || 0));
 }
 
 export function ItemsTable({
@@ -210,7 +224,7 @@ export function ItemsTable({
                             </button>
                             <div className="text-right shrink-0">
                               <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Harga jual</p>
-                              <p className="text-sm font-bold text-primary">{formatCurrency(Number(p.selling_price || 0))}</p>
+                              <p className="text-sm font-bold text-primary">{formatVariantPriceRange(p)}</p>
                             </div>
                           </div>
                           {p.variants?.length === 1 ? (
@@ -222,26 +236,27 @@ export function ItemsTable({
                               {p.variants[0].name} · {formatCurrency(Number(p.variants[0].selling_price))}
                             </button>
                           ) : p.variants?.length ? (
-                            <div className="border-t border-border/30 px-3 py-1.5">
-                              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                                <Layers className="h-3 w-3" /> Pilih varian & harga
-                              </div>
-                              <select
-                                defaultValue=""
-                                onChange={(e) => {
-                                  const selected = p.variants?.find((v) => v.id === e.target.value);
+                            <div className="mt-1 border-t border-border/30 px-3 py-2">
+                              <Select
+                                onValueChange={(value) => {
+                                  const selected = p.variants?.find((v) => v.id === value);
                                   if (selected) {
                                     addItem({ ...p, variants: [selected], selling_price: Number(selected.selling_price) });
                                     setProductSearchOpen(false);
                                   }
                                 }}
-                                className="w-full rounded-lg border border-primary/20 bg-primary/5 px-2 py-1.5 text-xs font-semibold text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                               >
-                                <option value="">Pilih varian untuk menambahkan...</option>
-                                {p.variants.filter((v) => v.is_active).map((v) => (
-                                  <option key={v.id} value={v.id}>{v.name}{' · '}{formatCurrency(Number(v.selling_price))}</option>
-                                ))}
-                              </select>
+                                <SelectTrigger aria-label={`Pilih varian ${p.name}`} className="h-10 w-full rounded-xl border-primary/20 bg-primary/5 px-3 text-xs font-semibold text-primary focus:ring-2 focus:ring-primary/20">
+                                  <SelectValue placeholder="Pilih varian & harga" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60 rounded-xl">
+                                  {p.variants.filter((v) => v.is_active).map((v) => (
+                                    <SelectItem key={v.id} value={v.id} className="rounded-lg py-2.5 text-xs font-medium">
+                                      <span className="flex items-center justify-between gap-6"><span>{v.name}</span><span className="font-mono text-muted-foreground">{formatCurrency(Number(v.selling_price))}</span></span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           ) : null}
                         </div>
@@ -315,20 +330,15 @@ export function ItemsTable({
                           )}
                         </div>
                         {item.product_variants && item.product_variants.length > 1 && (
-                          <div className="mt-1">
-                            <select
-                              value={item.product_variant_id || ""}
-                              onChange={(e) => updateItem(index, "product_variant_id", e.target.value || null)}
-                              className="text-xs bg-violet-50/80 hover:bg-violet-100/70 border border-violet-200 rounded px-1.5 py-0.5 font-medium cursor-pointer text-violet-700 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 focus:outline-none"
-                            >
-                              {item.product_variants
-                                .filter((v) => v.is_active)
-                                .map((v) => (
-                                  <option key={v.id} value={v.id}>
-                                    {v.name} ({formatCurrency(Number(v.selling_price))})
-                                  </option>
-                                ))}
-                            </select>
+                          <div className="mt-1 w-full max-w-[240px]">
+                            <Select value={item.product_variant_id || ""} onValueChange={(value) => updateItem(index, "product_variant_id", value || null)}>
+                              <SelectTrigger aria-label={`Pilih varian ${item.product_name}`} className="h-9 w-full rounded-xl border-violet-200 bg-violet-50/70 px-3 text-xs font-semibold text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300">
+                                <SelectValue placeholder="Pilih varian" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60 rounded-xl">
+                                {item.product_variants.filter((v) => v.is_active).map((v) => <SelectItem key={v.id} value={v.id} className="rounded-lg py-2.5 text-xs">{v.name} · {formatCurrency(Number(v.selling_price))}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
                           </div>
                         )}
                       </div>
@@ -466,20 +476,15 @@ export function ItemsTable({
 
                   {/* Row 2: Variant selector (if any) */}
                   {item.product_variants && item.product_variants.length > 1 && (
-                    <div>
-                      <select
-                        value={item.product_variant_id || ""}
-                        onChange={(e) => updateItem(index, "product_variant_id", e.target.value || null)}
-                        className="w-full text-[10px] bg-violet-50/80 hover:bg-violet-100/70 border border-violet-200 rounded px-2 py-1 font-medium text-violet-700 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-400 focus:outline-none"
-                      >
-                        {item.product_variants
-                          .filter((v) => v.is_active)
-                          .map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name} ({formatCurrency(Number(v.selling_price))})
-                            </option>
-                          ))}
-                      </select>
+                    <div className="w-full">
+                      <Select value={item.product_variant_id || ""} onValueChange={(value) => updateItem(index, "product_variant_id", value || null)}>
+                        <SelectTrigger aria-label={`Pilih varian ${item.product_name}`} className="h-9 w-full rounded-xl border-violet-200 bg-violet-50/70 px-3 text-xs font-semibold text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300">
+                          <SelectValue placeholder="Pilih varian & harga" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60 rounded-xl">
+                          {item.product_variants.filter((v) => v.is_active).map((v) => <SelectItem key={v.id} value={v.id} className="rounded-lg py-2.5 text-xs">{v.name} · {formatCurrency(Number(v.selling_price))}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
