@@ -553,7 +553,7 @@ export default function Products() {
           )}
           </div>
           {stockFilter === "all" && (
-            <div ref={loadMoreRef} className="py-5 text-center text-xs text-muted-foreground" aria-live="polite">
+            <div ref={loadMoreRef} className="pb-52 pt-5 text-center text-xs text-muted-foreground min-[1100px]:pb-5" aria-live="polite">
               {isFetchingNextPage ? "Memuat produk berikutnya..." : hasNextPage ? "Gulir untuk memuat lebih banyak" : products.length ? `Semua ${productsMeta?.total ?? products.length} produk sudah dimuat` : null}
             </div>
           )}
