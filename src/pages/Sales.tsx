@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useToast } from "@/hooks/use-toast";
-import { useCustomers } from "@/hooks/useCustomers";
+import { useCustomers, useCreateCustomer } from "@/hooks/useCustomers";
 import { useActiveProducts, useInfiniteActiveProducts } from "@/hooks/useProducts";
 import { usePaymentMethods, useCreateSalesTransaction, useAddPaymentLog, useMarkSelfPickupItems } from "@/hooks/useSales";
 import { useDrivers } from "@/hooks/useMasterData";
@@ -49,6 +49,7 @@ export default function Sales() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: customers } = useCustomers();
+  const createCustomer = useCreateCustomer();
   const { data: paymentMethods } = usePaymentMethods();
   const { data: drivers } = useDrivers();
   const createTransaction = useCreateSalesTransaction();
@@ -449,6 +450,19 @@ export default function Sales() {
       return;
     }
     try {
+      let savedCustomerId = customerId || undefined;
+      if (customerMode === "manual" && !customerId) {
+        const savedCustomer = await createCustomer.mutateAsync({
+          name: customerName.trim(),
+          phone: customerPhone.trim() || null,
+          address: customerAddress.trim() || null,
+          email: null,
+          is_active: true,
+          store_id: undefined,
+        });
+        savedCustomerId = savedCustomer.id;
+        setCustomerId(savedCustomer.id);
+      }
       // If salesDate is unchanged from the cart creation date, we treat it as default
       // and use the current saving time. Otherwise, we respect the user's manual override.
       const isDateOverridden = activeCart && salesDate !== activeCart.salesDate;
@@ -458,7 +472,7 @@ export default function Sales() {
         p_invoice_number: invoiceNumber,
         p_sales_date: finalSalesDate,
         p_due_date: dueDate || undefined,
-        p_customer_id: customerMode === "existing" && customerId ? customerId : undefined,
+        p_customer_id: savedCustomerId,
         p_customer_name: customerMode === "manual" ? customerName : (customerId ? undefined : "Umum (Walk-in)"),
         p_customer_phone: customerMode === "manual" ? customerPhone : undefined,
         p_customer_address: customerMode === "manual" ? customerAddress : undefined,

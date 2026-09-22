@@ -38,9 +38,13 @@ export function useCustomers(search?: string) {
 
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
+  const { selectedStore } = useAuth();
   return useMutation({
     mutationFn: (customer: CustomerInsert) =>
-      apiClient.post<Customer>("/customers", customer),
+      apiClient.post<Customer>("/customers", {
+        ...customer,
+        store_id: customer.store_id ?? selectedStore?.id ?? null,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
