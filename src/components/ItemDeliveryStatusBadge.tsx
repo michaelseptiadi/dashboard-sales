@@ -5,6 +5,7 @@ const CONFIG: Record<string, { label: string; className: string }> = {
   in_delivery: { label: "Dalam Pengiriman",  className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400" },
   delivered:   { label: "Terkirim",          className: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400" },
   self_pickup: { label: "Ambil Sendiri",     className: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-400" },
+  completed:   { label: "Selesai",           className: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400" },
 };
 
 export function ItemDeliveryStatusBadge({ status }: { status: string | null | undefined }) {

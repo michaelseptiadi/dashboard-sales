@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -105,6 +105,42 @@ export function useSalesOrders(filters: SalesOrderFilters = {}) {
         `/sales?${p.toString()}`,
       );
     },
+  });
+}
+
+export function useInfiniteSalesOrders(filters: Omit<SalesOrderFilters, "page"> = {}) {
+  const { selectedStore } = useAuth();
+  const storeId = selectedStore?.id;
+  const {
+    dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId,
+    transactionStatus, pageSize = 15,
+  } = filters;
+
+  return useInfiniteQuery({
+    queryKey: ["sales-orders-infinite", storeId, dateFrom, dateTo, search, customerName, paymentMethodId, deliveryType, driverId, transactionStatus, pageSize],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam = 1 }) => {
+      const p = new URLSearchParams();
+      if (storeId) p.set("store_id", storeId);
+      if (dateFrom) p.set("start_date", dateFrom);
+      if (dateTo) p.set("end_date", dateTo);
+      if (search) p.set("search", search);
+      if (customerName) p.set("customer_name", customerName);
+      if (paymentMethodId) p.set("payment_method_id", paymentMethodId);
+      if (deliveryType) p.set("delivery_type", deliveryType);
+      if (driverId) p.set("driver_id", driverId);
+      if (transactionStatus) p.set("transaction_status", transactionStatus);
+      p.set("page", String(pageParam));
+      p.set("page_size", String(pageSize));
+      return apiClient.get<{ data: SalesOrder[]; total: number; page: number; pageSize: number }>(
+        `/sales?${p.toString()}`,
+      );
+    },
+    getNextPageParam: (lastPage) => {
+      const maxPage = Math.ceil((lastPage.total || 0) / (lastPage.pageSize || 15));
+      return (lastPage.page < maxPage) ? lastPage.page + 1 : undefined;
+    },
+    enabled: !!storeId,
   });
 }
 
@@ -274,9 +310,8 @@ export function useMarkSelfPickupItems() {
 export function useUpdateItemDeliveryStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (_params: { itemId: string; status: "pending" | "self_pickup" }) => {
-      // TODO: implement once backend exposes PATCH /sales/items/:id
-      throw new Error("Not yet implemented in the backend API");
+    mutationFn: async (params: { itemId: string; status: "pending" | "self_pickup" | "completed" }) => {
+      return apiClient.patch(`/sales/items/${params.itemId}/status`, { delivery_status: params.status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-detail"] });
