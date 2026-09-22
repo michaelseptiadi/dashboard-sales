@@ -441,25 +441,27 @@ export default function Products() {
                     {isAdmin && (
                       <button
                         type="button"
+                        aria-label={product.is_active ? "Nonaktifkan produk" : "Aktifkan produk"}
+                        title={product.is_active ? "Nonaktifkan" : "Aktifkan"}
                         onClick={() => handleToggleActive(product.id, !!product.is_active)}
-                        className={`flex min-h-12 flex-1 items-center justify-center gap-1 border-r text-xs font-bold transition-colors ${
-                          product.is_active ? "text-muted-foreground hover:text-foreground" : "text-emerald-600 hover:text-emerald-700 font-extrabold"
-                        }`}
+                        className={`flex min-h-12 flex-1 items-center justify-center border-r transition-colors ${product.is_active ? "text-muted-foreground hover:bg-muted/60 hover:text-foreground" : "text-emerald-600 hover:bg-emerald-50"}`}
                       >
-                        {product.is_active ? "Nonaktifkan" : "Aktifkan"}
+                        <Switch checked={product.is_active} className="pointer-events-none scale-90" aria-hidden="true" />
                       </button>
                     )}
-                    {isAdmin && (
+                    {isAdmin && !product.is_active && (
                       <button
                         type="button"
+                        aria-label={`Hapus ${product.name}`}
+                        title="Hapus"
                         onClick={() => handleDeleteProduct(product)}
-                        className="flex min-h-12 flex-1 items-center justify-center gap-1 border-r text-xs font-bold text-destructive active:bg-destructive/10"
+                        className="flex min-h-12 flex-1 items-center justify-center border-r text-destructive transition-colors active:bg-destructive/10"
                       >
-                        <Trash2 className="h-4 w-4" /> Hapus
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
-                    {isAdmin && product.variants?.length ? <button type="button" onClick={() => openStockDialog(product)} className="flex min-h-12 flex-1 items-center justify-center gap-2 border-r text-xs font-bold text-primary active:bg-primary/5"><SlidersHorizontal className="h-4 w-4" /> Sesuaikan stok</button> : null}
-                    <button type="button" aria-label={`Lihat detail ${product.name}`} onClick={() => navigate(`/produk/${product.id}`)} className="flex min-h-12 flex-1 items-center justify-center gap-1 text-xs font-bold active:bg-muted">Lihat detail <ChevronRight className="h-4 w-4" /></button>
+                    {isAdmin && product.variants?.length ? <button type="button" aria-label="Sesuaikan stok" title="Sesuaikan stok" onClick={() => openStockDialog(product)} className="flex min-h-12 flex-1 items-center justify-center border-r text-primary active:bg-primary/5"><SlidersHorizontal className="h-4 w-4" /></button> : null}
+                    <button type="button" aria-label={`Lihat detail ${product.name}`} title="Lihat detail" onClick={() => navigate(`/produk/${product.id}`)} className="flex min-h-12 flex-1 items-center justify-center text-muted-foreground active:bg-muted hover:text-foreground"><ChevronRight className="h-4 w-4" /></button>
                   </div>
                 </article>
               );
@@ -490,14 +492,14 @@ export default function Products() {
                   </TableRow>
                 ) : (
                   products.map((product) => {
-                    const isLowStock = product.variants?.some((v) => v.is_active && Number(v.stock) <= Number(v.minimum_stock));
+                    const isLowStock = isLow(product);
                     const allCapitalVerified = !!product.variants?.length && product.variants.every((v) => v.capital_price_verified);
                     return (
                       <TableRow
                         key={product.id}
                         className={`group transition-colors ${
                           isLowStock
-                            ? "bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/25 dark:hover:bg-red-950/35 border-l-2 border-l-red-500"
+                            ? "bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/25 dark:hover:bg-amber-950/35 border-l-2 border-l-amber-500"
                             : ""
                         }`}
                       >
