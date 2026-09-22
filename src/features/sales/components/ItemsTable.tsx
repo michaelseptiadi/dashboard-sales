@@ -178,16 +178,16 @@ export function ItemsTable({
               </Button>
             </DialogTrigger>
               <DialogContent 
-                className="w-full h-[100dvh] sm:h-auto sm:max-w-md p-4 sm:p-5 rounded-none sm:rounded-2xl shadow-xl border-muted/40 z-[100] flex flex-col gap-0"
+                className="h-[min(100dvh-2rem,700px)] max-h-[calc(100dvh-2rem)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] p-3 sm:h-auto sm:max-h-[85dvh] sm:w-full sm:max-w-md sm:p-5 rounded-2xl shadow-xl border-muted/40 z-[100] flex flex-col gap-0 overflow-hidden"
               >
-                <DialogHeader className="mb-4 text-left">
+                <DialogHeader className="mb-3 shrink-0 text-left">
                   <DialogTitle className="text-lg font-bold flex items-center gap-2">
                     <Search className="h-5 w-5 text-muted-foreground" />
                     Cari Produk
                   </DialogTitle>
                 </DialogHeader>
 
-                <div className="relative mb-3 flex-shrink-0">
+                <div className="relative mb-3 shrink-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                   <Input
                     placeholder="Ketik nama atau kode produk..."
@@ -200,7 +200,7 @@ export function ItemsTable({
                 <div 
                   ref={scrollContainerRef} 
                   onScroll={handleContainerScroll}
-                  className="flex-1 overflow-y-auto overscroll-contain touch-pan-y space-y-1.5 pr-1 -mx-1 px-1"
+                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y space-y-1.5 pr-1 -mx-1 px-1"
                 >
                   {searchProducts?.length === 0 ? (
                     <p className="py-12 text-center text-sm text-muted-foreground">
