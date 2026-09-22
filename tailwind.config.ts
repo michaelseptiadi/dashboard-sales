@@ -15,6 +15,10 @@ export default {
       },
     },
     extend: {
+      screens: {
+        "md": "1100px",
+        "lg": "1200px",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
