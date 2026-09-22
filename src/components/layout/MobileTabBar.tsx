@@ -27,7 +27,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Navigasi utama"
-      className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 grid ${items.length === 5 ? "grid-cols-6" : "grid-cols-5"} items-center rounded-[1.35rem] border border-slate-200/80 bg-white/90 px-2 py-2 shadow-[0_18px_45px_-12px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/90 dark:shadow-[0_18px_45px_-12px_rgba(0,0,0,0.65)] lg:hidden`}
+      className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 grid ${items.length === 5 ? "grid-cols-6" : "grid-cols-5"} items-center rounded-[1.35rem] border border-slate-200/80 bg-white/90 px-2 py-2 shadow-[0_18px_45px_-12px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/90 dark:shadow-[0_18px_45px_-12px_rgba(0,0,0,0.65)] min-[1100px]:hidden`}
     >
       {items.map(({ label, href, icon: Icon }) => {
         const active = href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
