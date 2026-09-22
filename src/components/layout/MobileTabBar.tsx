@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const managerItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Transaksi", href: "/penjualan", icon: ShoppingCart },
+  { label: "Riwayat", href: "/riwayat", icon: History },
   { label: "Produk", href: "/produk", icon: Package },
   { label: "Pelanggan", href: "/pelanggan", icon: Users },
 ];
@@ -26,7 +27,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Navigasi utama"
-      className="fixed inset-x-3 bottom-[max(0.625rem,env(safe-area-inset-bottom))] z-40 grid grid-cols-5 items-center rounded-2xl border border-white/80 dark:border-white/10 bg-white/85 dark:bg-slate-950/85 px-1.5 py-1.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.14),0_0_0_1px_rgba(255,255,255,0.7)] dark:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.5)] backdrop-blur-2xl backdrop-saturate-200 md:hidden"
+      className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 grid ${items.length === 5 ? "grid-cols-6" : "grid-cols-5"} items-center rounded-[1.35rem] border border-slate-200/80 bg-white/90 px-2 py-2 shadow-[0_18px_45px_-12px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-950/90 dark:shadow-[0_18px_45px_-12px_rgba(0,0,0,0.65)] lg:hidden`}
     >
       {items.map(({ label, href, icon: Icon }) => {
         const active = href === "/" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -36,7 +37,7 @@ export function MobileTabBar() {
             to={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-0.5 text-[10px] font-medium transition-all duration-200 active:scale-90",
+              "relative flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-[10px] font-medium transition-all duration-200 active:scale-90",
               active ? "font-bold text-primary" : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -44,8 +45,8 @@ export function MobileTabBar() {
               className={cn(
                 "relative flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-300",
                 active
-                  ? "bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/35 scale-105"
-                  : "hover:bg-muted/50 text-muted-foreground/80",
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 scale-105"
+                  : "text-muted-foreground/80 hover:bg-slate-100 dark:hover:bg-white/10",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -61,7 +62,7 @@ export function MobileTabBar() {
       })}
       <SidebarTrigger
         aria-label="Menu lainnya"
-        className="relative flex h-auto w-auto flex-col items-center justify-center gap-0.5 rounded-xl py-0.5 text-[10px] font-medium text-muted-foreground/80 transition-all duration-200 hover:text-foreground active:scale-90"
+        className="relative flex min-h-11 h-auto w-auto flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-[10px] font-medium text-muted-foreground/80 transition-all duration-200 hover:text-foreground active:scale-90"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground">
           <Menu className="h-4 w-4" />
