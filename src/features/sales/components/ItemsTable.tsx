@@ -178,7 +178,7 @@ export function ItemsTable({
               </Button>
             </DialogTrigger>
               <DialogContent 
-                className="h-[min(100dvh-2rem,700px)] max-h-[calc(100dvh-2rem)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] p-3 sm:h-auto sm:max-h-[85dvh] sm:w-full sm:max-w-md sm:p-5 rounded-2xl shadow-xl border-muted/40 z-[100] flex flex-col gap-0 overflow-hidden"
+                className="h-[min(100dvh-2rem,700px)] max-h-[calc(100dvh-2rem)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] border-white/70 bg-white/95 p-3 text-slate-950 shadow-[0_24px_70px_rgba(15,23,42,0.22)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/95 dark:text-white sm:h-auto sm:max-h-[85dvh] sm:w-full sm:max-w-md sm:p-5 rounded-2xl z-[100] flex flex-col gap-0 overflow-hidden"
               >
                 <DialogHeader className="mb-3 shrink-0 text-left">
                   <DialogTitle className="text-lg font-bold flex items-center gap-2">
@@ -262,7 +262,7 @@ export function ItemsTable({
                         </div>
                       ))}
                       {/* Infinite Scroll Sentinel & Status */}
-                      <div ref={loadMoreRef} className="py-3 flex flex-col items-center justify-center min-h-[44px]">
+                      <div ref={loadMoreRef} className="min-h-[72px] shrink-0 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex flex-col items-center justify-center" aria-live="polite">
                         {isFetchingNextPage ? (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Loader2 className="h-4 w-4 animate-spin text-primary" />

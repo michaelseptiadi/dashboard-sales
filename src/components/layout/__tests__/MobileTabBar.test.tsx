@@ -30,6 +30,12 @@ describe("MobileTabBar", () => {
     expect(screen.getByRole("button", { name: /menu lainnya/i })).toBeInTheDocument();
   });
 
+  it("includes transaction history for managers", () => {
+    render(<MemoryRouter initialEntries={["/riwayat"]}><MobileTabBar /></MemoryRouter>);
+
+    expect(screen.getByRole("link", { name: /riwayat/i })).toHaveAttribute("aria-current", "page");
+  });
+
   it("replaces the unavailable dashboard with history for cashiers", () => {
     currentRole = "cashier";
     render(<MemoryRouter initialEntries={["/penjualan"]}><MobileTabBar /></MemoryRouter>);

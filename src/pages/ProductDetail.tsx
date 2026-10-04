@@ -342,24 +342,26 @@ export default function ProductDetail() {
             Kembali
           </Button>
           {!productLoading && product && isAdmin && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                onClick={handleDeleteProduct}
-                disabled={deleteProduct.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-                Hapus Produk
+            <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+              {!product.is_active && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={handleDeleteProduct}
+                  disabled={deleteProduct.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Hapus Produk</span>
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 whitespace-nowrap" onClick={openStock}>
+                <PackagePlus className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Sesuaikan Stok</span>
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={openStock}>
-                <PackagePlus className="h-4 w-4" />
-                Sesuaikan Stok
-              </Button>
-              <Button size="sm" className="gap-1.5" onClick={openEdit}>
-                <Pencil className="h-4 w-4" />
-                Edit Produk
+              <Button size="sm" className="h-9 gap-1.5 whitespace-nowrap" onClick={openEdit}>
+                <Pencil className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Edit Produk</span>
               </Button>
             </div>
           )}
@@ -506,17 +508,14 @@ export default function ProductDetail() {
                           <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Harga jual</p><p className="text-xs font-bold text-primary">{formatCurrency(Number(v.selling_price))}</p></div>
                           <div className="rounded-xl bg-muted/50 px-3 py-2"><p className="text-[10px] text-muted-foreground">Margin</p><p className="text-xs font-bold text-violet-700 dark:text-violet-400">{formatCurrency(Number(v.selling_price) - Number(v.capital_price))}</p></div>
                         </div>
-                        <div className="mt-3 space-y-3 border-t pt-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`h-2 w-2 rounded-full ${v.capital_price_verified ? "bg-emerald-500" : "bg-amber-500"}`} />
-                              <span className="text-[10px] font-semibold text-muted-foreground">{v.capital_price_verified ? "Modal terkonfirmasi" : "Modal perlu dicek"}</span>
-                            </div>
-                            <Switch checked={v.capital_price_verified} onCheckedChange={() => handleToggleCapitalPrice(v)} aria-label={`Tandai modal ${v.capital_price_verified ? "perlu dicek" : "terkonfirmasi"} untuk ${v.name}`} />
+                        <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
+                          <div className={`flex min-w-0 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${v.capital_price_verified ? "border-emerald-200/80 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/20" : "border-amber-200/80 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20"}`}>
+                            <div className="min-w-0"><p className="text-[10px] font-bold text-foreground">Modal</p><p className={`truncate text-[10px] ${v.capital_price_verified ? "text-emerald-700" : "text-amber-700"}`}>{v.capital_price_verified ? "Terkonfirmasi" : "Perlu dicek"}</p></div>
+                            <Switch checked={v.capital_price_verified} onCheckedChange={() => handleToggleCapitalPrice(v)} aria-label={`Tandai modal ${v.capital_price_verified ? "perlu dicek" : "terkonfirmasi"} untuk ${v.name}`} className="h-5 w-9 shrink-0 data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-amber-200 dark:data-[state=unchecked]:bg-amber-900/70" />
                           </div>
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-[10px] font-semibold text-muted-foreground">{v.is_active ? "Aktif" : "Nonaktif"}</span>
-                            <Switch checked={v.is_active} onCheckedChange={() => handleToggleVariant(v)} aria-label={`${v.is_active ? "Nonaktifkan" : "Aktifkan"} varian ${v.name}`} />
+                          <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
+                            <div className="min-w-0"><p className="text-[10px] font-bold text-foreground">Status</p><p className="text-[10px] text-muted-foreground">{v.is_active ? "Aktif" : "Nonaktif"}</p></div>
+                            <Switch checked={v.is_active} onCheckedChange={() => handleToggleVariant(v)} aria-label={`${v.is_active ? "Nonaktifkan" : "Aktifkan"} varian ${v.name}`} className="h-5 w-9 shrink-0 data-[state=checked]:bg-primary" />
                           </div>
                         </div>
                       </article>

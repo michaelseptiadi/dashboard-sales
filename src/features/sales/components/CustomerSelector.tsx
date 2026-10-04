@@ -80,7 +80,7 @@ export function CustomerSelector({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-5">
+      <CardContent className="pt-3 md:pt-5">
         {customerMode === "existing" ? (
           <Popover open={open} onOpenChange={setOpen} modal={true}>
             <PopoverTrigger asChild>
